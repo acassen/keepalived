@@ -101,6 +101,10 @@ extern checker_t *current_checker;
 #define CHECKER_ARG(X) ((X)->data)
 #define CHECKER_NEW_CO() ((conn_opts_t *) MALLOC(sizeof (conn_opts_t)))
 #define FMT_CHK(C) FMT_RS((C)->rs, (C)->vs)
+#ifdef _WITH_NFTABLES_
+#define VSG_USES_AUTO_FWMARK(vsg)	(global_data->ipvs_nf_table_name && list_empty(&vsg->vfwmark))
+#define VS_USES_VSG_AUTO_FWMARK(vs)	(vs->vsg && VSG_USES_AUTO_FWMARK(vs->vsg))
+#endif
 
 #ifdef _CHECKER_DEBUG_
 extern bool do_checker_debug;

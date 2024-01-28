@@ -42,6 +42,7 @@
 #include "namespaces.h"
 #ifdef _WITH_NFTABLES_
 #include "check_nftables.h"
+#include "check_data.h"
 #endif
 
 static bool no_ipvs = false;
@@ -580,32 +581,30 @@ ipvs_cmd(int cmd, virtual_server_t *vs, real_server_t *rs)
 
 	/* Set vs rule and send to kernel */
 #ifdef _WITH_NFTABLES_
-	if (vs->service_type)
+	if (VS_USES_VSG_AUTO_FWMARK(vs))
 		proto_index = protocol_to_index(vs->service_type);
 	else
-		proto_index = PROTO_INDEX_MAX;
+		proto_index = PROTO_INDEX_NONE;
 #endif
 
 	if (vs->vsg) {
 #ifdef _WITH_NFTABLES_
 		if (cmd == IP_VS_SO_SET_ADD &&
-		    global_data->ipvs_nf_table_name &&
-		    proto_index < PROTO_INDEX_MAX &&
-		    list_empty(&vs->vsg->vfwmark) &&
+		    VS_USES_VSG_AUTO_FWMARK(vs) &&
 		    !vs->vsg->auto_fwmark[proto_index]) {
 			vs->vsg->auto_fwmark[proto_index] = set_vs_fwmark(vs);
-		} else if (proto_index == PROTO_INDEX_MAX || !vs->vsg->auto_fwmark[proto_index])
+		} else if (proto_index == PROTO_INDEX_NONE || !vs->vsg->auto_fwmark[proto_index])
 #endif
 			return ipvs_group_cmd(cmd, &srule, &drule, vs, rs);
 	}
 
 	if (vs->vfwmark
 #ifdef _WITH_NFTABLES_
-			|| (vs->vsg && proto_index < PROTO_INDEX_MAX && vs->vsg->auto_fwmark[proto_index])
+			|| VS_USES_VSG_AUTO_FWMARK(vs)
 #endif
 								) {
 #ifdef _WITH_NFTABLES_
-		srule.user.fwmark = vs->vsg ? vs->vsg->auto_fwmark[proto_index] : vs->vfwmark;
+		srule.user.fwmark = VS_USES_VSG_AUTO_FWMARK(vs) ? vs->vsg->auto_fwmark[proto_index] : vs->vfwmark;
 #else
 		srule.user.fwmark = vs->vfwmark;
 #endif
@@ -630,7 +629,7 @@ ipvs_cmd(int cmd, virtual_server_t *vs, real_server_t *rs)
 	    vs->af == AF_UNSPEC &&
 	    vs->vsg->have_ipv4 &&
 	    vs->vsg->have_ipv6 &&
-	    proto_index < PROTO_INDEX_MAX &&
+	    proto_index != PROTO_INDEX_NONE &&
 	    vs->vsg->auto_fwmark[proto_index]) {
 		srule.af = AF_INET6;
 		srule.user.netmask = 128;
@@ -648,14 +647,11 @@ ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 	real_server_t *rs;
 	ipvs_service_t srule;
 	ipvs_dest_t drule;
-#ifdef _WITH_NFTABLES_
-	proto_index_t proto_index = protocol_to_index(vs->service_type);
-#endif
 
 	ipvs_set_srule(IP_VS_SO_SET_ADDDEST, &srule, vs);
 #ifdef _WITH_NFTABLES_
-	if (vs->vsg->auto_fwmark[proto_index])
-		srule.user.fwmark = vs->vsg->auto_fwmark[proto_index];
+	if (VS_USES_VSG_AUTO_FWMARK(vs))
+		srule.user.fwmark = vs->vsg->auto_fwmark[protocol_to_index(vs->service_type)];
 	else
 #endif
 	if (vsge->is_fwmark)
@@ -696,13 +692,10 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 	real_server_t *rs;
 	ipvs_service_t srule;
 	ipvs_dest_t drule;
-#ifdef _WITH_NFTABLES_
-	proto_index_t proto_index = protocol_to_index(vs->service_type);
-#endif
 
 #ifdef _WITH_NFTABLES_
 	/* Prepare target rules */
-	if (vs->vsg->auto_fwmark[proto_index]) {
+	if (VS_USES_VSG_AUTO_FWMARK(vs)) {
 		/* Remove the fwmark entry(s) */
 		remove_vs_fwmark_entry(vs, vsge);
 
@@ -716,8 +709,8 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 
 	ipvs_set_srule(IP_VS_SO_SET_DELDEST, &srule, vs);
 #ifdef _WITH_NFTABLES_
-	if (vs->vsg->auto_fwmark[proto_index])
-		srule.user.fwmark = vs->vsg->auto_fwmark[proto_index];
+	if (VS_USES_VSG_AUTO_FWMARK(vs))
+		srule.user.fwmark = vs->vsg->auto_fwmark[protocol_to_index(vs->service_type)];
 	else
 #endif
 	if (vsge->is_fwmark)
@@ -892,9 +885,6 @@ ipvs_update_stats(virtual_server_t *vs)
 	real_server_t *rs;
 	time_t cur_time = time(NULL);
 	uint16_t af;
-#ifdef _WITH_NFTABLES_
-	proto_index_t proto_index = protocol_to_index(vs->service_type);
-#endif
 
 	if (cur_time - vs->lastupdated < STATS_REFRESH)
 		return;
@@ -916,8 +906,8 @@ ipvs_update_stats(virtual_server_t *vs)
 	if (vs->vsg) {
 		for (af = (vs->vsg->have_ipv4) ? AF_INET : AF_INET6; af != AF_UNSPEC; af = af == AF_INET && vs->vsg->have_ipv6 ? AF_INET6 : AF_UNSPEC) {
 #ifdef _WITH_NFTABLES_
-			if (global_data->ipvs_nf_table_name && vs->vsg->auto_fwmark[proto_index])
-				ipvs_update_vs_stats(vs, af, vs->vsg->auto_fwmark[proto_index], &nfaddr, 0);
+			if (VS_USES_VSG_AUTO_FWMARK(vs))
+				ipvs_update_vs_stats(vs, af, vs->vsg->auto_fwmark[protocol_to_index(vs->service_type)], &nfaddr, 0);
 			else
 #endif
 			{

@@ -715,7 +715,7 @@ dump_vs(FILE *fp, const virtual_server_t *vs)
 		conf_write(fp, "   protocol = UDP");
 	else if (vs->service_type == IPPROTO_SCTP)
 		conf_write(fp, "   protocol = SCTP");
-	else if (vs->service_type == 0)
+	else if (vs->service_type == IPPROTO_IP)
 		conf_write(fp, "   protocol = none");
 	else
 		conf_write(fp, "   protocol = %d", vs->service_type);
