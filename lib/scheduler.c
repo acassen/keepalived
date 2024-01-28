@@ -83,7 +83,7 @@ bool do_epoll_thread_dump;
 #ifdef _SCRIPT_DEBUG_
 bool do_script_debug;
 #endif
-#ifndef _REPRODUCABLE_BUILD_
+#ifndef _REPRODUCIBLE_BUILD_
 const char *config_opts = KEEPALIVED_CONFIGURE_OPTIONS;
 #else
 const char *config_opts = "not read";

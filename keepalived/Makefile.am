@@ -83,7 +83,7 @@ initdir			= $(sysconfdir)/init.d
 init_DATA		= etc/openrc/keepalived
 endif
 
-if REPRODUCABLE_BUILD
+if REPRODUCIBLE_BUILD
 MOSTLYCLEANFILES	+= keepalived.config-opts
 
 configdir               = @DEFAULT_CONFIG_DIR@

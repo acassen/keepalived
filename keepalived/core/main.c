@@ -340,7 +340,7 @@ free_parent_mallocs_exit(void)
 
 	FREE_CONST_PTR(config_id);
 
-#ifdef _REPRODUCABLE_BUILD_
+#ifdef _REPRODUCIBLE_BUILD_
 	FREE_CONST_PTR(config_opts);
 #endif
 }
@@ -1781,7 +1781,7 @@ report_distro(void)
 	fclose(fp);
 }
 
-#ifdef _REPRODUCABLE_BUILD_
+#ifdef _REPRODUCIBLE_BUILD_
 static char *
 read_config_opts(const char *filename)
 {
@@ -2459,7 +2459,7 @@ keepalived_main(int argc, char **argv)
 	}
 #endif
 
-#ifdef _REPRODUCABLE_BUILD_
+#ifdef _REPRODUCIBLE_BUILD_
 	char *config_opts_read;
 
 	if (!(config_opts_read = read_config_opts(CONFIG_OPTS_FILE_PRIMARY))) {
@@ -2583,7 +2583,7 @@ keepalived_main(int argc, char **argv)
 	/* Handle any core file requirements */
 	core_dump_init();
 
-#ifdef _REPRODUCABLE_BUILD_
+#ifdef _REPRODUCIBLE_BUILD_
 	/* We want to use our MALLOC functions */
 	char *new_config_opts_str = STRDUP(config_opts);
 	free(config_opts_read);
@@ -2904,7 +2904,7 @@ end:
 #endif
 	close_std_fd();
 
-#ifdef _REPRODUCABLE_BUILD_
+#ifdef _REPRODUCIBLE_BUILD_
 	FREE_CONST_PTR(config_opts);
 	config_opts = "removed";
 #endif
