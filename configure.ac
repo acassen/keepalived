@@ -356,7 +356,7 @@ AS_IF([test -n "$with_samples_dir"],
     AS_IF([test $with_samples_dir = yes -o $with_samples_dir = no],
 	  [AC_MSG_ERROR([--with-samples-dir requires a directory])])
     SAMPLES_DIR=$with_samples_dir
-  ],[SAMPLES_DIR="\$(sysconfdir)/$PACKAGE/samples"])
+  ],[SAMPLES_DIR="\${sysconfdir}/$PACKAGE/samples"])
 AC_SUBST([SAMPLES_DIR])
 
 CPPFLAGS="$kernelinc $CPPFLAGS"
@@ -3078,6 +3078,20 @@ AS_IF([test $? -eq 0],
   ])
 WANT_PREFIX=0
 FOUND_PREFIX=0
+
+# $prefix defaults to NONE, which we need to get rid of
+sysconfdir_real=${sysconfdir}
+# while [[[ $sysconfdir_real =~ '\${' ]]]; do
+# 	eval sysconfdir_real=$sysconfdir_real
+# done
+sysconfdir_sav=${sysconfdir_real}
+eval sysconfdir_real=$sysconfdir_real
+while [ $sysconfdir_real != $sysconfdir_sav ]; do
+	sysconfdir_sav=${sysconfdir_real}
+	eval sysconfdir_real=$sysconfdir_real
+done
+
+AS_IF([test ${sysconfdir_real:0:5} = "NONE/"], [ sysconfdir_real=${sysconfdir_real:4} ])
 AS_IF([test -n "$default_config_file"],
   [
     AS_IF([test $default_config_file = yes -o $default_config_file = no],
@@ -3088,11 +3102,15 @@ AS_IF([test -n "$default_config_file"],
 	CONFIG_FILE="$default_config_file"
 	WANT_PREFIX=1
       ],
-      [CONFIG_FILE="\$(sysconfdir)/$PACKAGE/$default_config_file"])
+      [
+        CONFIG_FILE=${sysconfdir_real}/$PACKAGE/$default_config_file
+      ])
     add_config_opt([DEFAULT_CONFIG_FILE=$CONFIG_FILE])
     default_config_file=$CONFIG_FILE
   ],
-  [default_config_file="\$(sysconfdir)/$PACKAGE/$PACKAGE.conf"])
+  [
+    default_config_file=${sysconfdir_real}/$PACKAGE/$PACKAGE.conf
+  ])
 dir=`echo $default_config_file | $SED -e "s|/[[^/]]*$||"`
 name=`echo $default_config_file | $SED -e "s|.*/||"`
 AC_SUBST([DEFAULT_CONFIG_FILE], [$default_config_file])
