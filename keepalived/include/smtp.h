@@ -91,20 +91,8 @@ typedef struct _smtp {
 	char		*subject;
 	char		*body;
 	char		*buffer;
-	char		*email_to;
 	size_t		buflen;
 } smtp_t;
-
-/* SMTP command string processing */
-#define SMTP_HELO_CMD    "HELO %s\r\n"
-#define SMTP_MAIL_CMD    "MAIL FROM:<%s>\r\n"
-#define SMTP_RCPT_CMD    "RCPT TO:<%s>\r\n"
-#define SMTP_DATA_CMD    "DATA\r\n"
-#define SMTP_HEADERS_CMD "Date: %s\r\nFrom: %s\r\nSubject: %s\r\n" \
-			 "X-Mailer: Keepalived\r\nTo: %s\r\n\r\n"
-#define SMTP_BODY_CMD    "%s\r\n"
-#define SMTP_SEND_CMD    "\r\n.\r\n"
-#define SMTP_QUIT_CMD    "QUIT\r\n"
 
 #define FMT_SMTP_HOST()	inet_sockaddrtopair(&global_data->smtp_server)
 

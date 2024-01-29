@@ -265,14 +265,16 @@ possibly following any cleanup actions needed.
     \fBshutdown_script\fR SCRIPT_NAME [username [groupname]]
     \fBshutdown_script_timeout\fR SECONDS   # range [1,1000]
 
-    # Set of email To: notify
+    # Set of email To: notify. To include a display name, the whole email address
+    #  must be included in double quotes(").
     \fBnotification_email \fR{
-        admin@example1.com
+        admin@example1.com "My admin <admin@example2.com>"
         ...
     }
 
-    # email from address that will be in the header
-    # (default: keepalived@<local host name>)
+    # email from address that will be in the header (see comment above for
+    # including a display name).
+    # (default: keepalived@local_host_name)
     \fBnotification_email_from \fRadmin@example.com
 
     # Remote SMTP server used to send notification email.

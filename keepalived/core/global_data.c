@@ -136,7 +136,7 @@ free_email_list(list_head_t *l)
 	email_t *email, *email_tmp;
 
 	list_for_each_entry_safe(email, email_tmp, l, e_list) {
-		FREE(email->addr);
+		FREE_CONST_PTR(email->addr);
 		FREE(email);
 	}
 }
@@ -149,6 +149,69 @@ dump_email_list(FILE *fp, const list_head_t *l)
 		conf_write(fp, "   %s", email->addr);
 }
 
+const char *
+format_email_addr(const char *addr)
+{
+	char *new_addr;
+	size_t len = strlen(addr);
+	const char *end_description;
+	const char *quote_char;
+	unsigned num_esc;
+	const char *ip;
+	char *op;
+
+	if (addr[len - 1] != '>')
+		return STRDUP(addr);
+
+	if (!(end_description = strrchr(addr, '<'))) {
+		/* We don't have a starting < - at the moment log it and copy verbatim */
+		log_message(LOG_INFO, "email address '%s' invalid", addr);
+		return STRDUP(addr);
+	}
+
+	/* Skip over white-space before < */
+	end_description--;
+	while (end_description > addr &&
+	       (*end_description == ' ' ||
+	        *end_description == '\t'))
+	       end_description--;
+
+	/* We can't have a '"' because alloc_strvec_r() doesn't support it.
+	 * We might be able to use alloc_strvec_quoted_escaped(), in which
+	 * case we probably can have embedded '"'s. */
+
+	/* Do we have any of the characters that need quoting - see RFC5322 3.2.3? */
+	quote_char = strpbrk(addr, "()<>[]:;@\\,.");
+	if (!quote_char || quote_char > end_description)
+		return STRDUP(addr);
+
+	/* We need to quote any embedded '"'s or '\'s */
+	quote_char = addr;
+	num_esc = 0;
+	while ((quote_char = strpbrk(quote_char, "\"\\")) &&
+		quote_char <= end_description) {
+		num_esc++;
+		quote_char++;
+	}
+
+	new_addr = MALLOC(len + 2 + num_esc + 1);
+
+	ip = addr;
+	op = new_addr;
+	*op++ = '"';
+	while ((quote_char = strpbrk(ip, "\"\\")) &&
+		quote_char <= end_description) {
+		strncpy(op, ip, quote_char - ip);
+		op += quote_char - ip;
+		*op++ = '\\';
+		*op++ = *quote_char++;
+		ip = quote_char;
+	}
+	sprintf(op, "%.*s\"%s", (int)(end_description - ip + 1), ip, end_description + 1);
+
+	return new_addr;
+}
+
 void
 alloc_email(const char *addr)
 {
@@ -156,7 +219,7 @@ alloc_email(const char *addr)
 
 	PMALLOC(email);
 	INIT_LIST_HEAD(&email->e_list);
-	email->addr = STRDUP(addr);
+	email->addr = format_email_addr(addr);
 
 	list_add_tail(&email->e_list, &global_data->email);
 }

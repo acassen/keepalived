@@ -328,6 +328,10 @@ snmp_mail(struct variable *vp, oid *name, size_t *length,
 {
 	email_t *email;
 	list_head_t *e;
+	struct {	/* We need to cast aware const */
+		u_char	*uc;
+		const u_char *cuc;
+	} ret;
 
 	if ((e = snmp_header_list_head_table(vp, name, length, exact,
 					     var_len, write_method,
@@ -339,7 +343,8 @@ snmp_mail(struct variable *vp, oid *name, size_t *length,
 	switch (vp->magic) {
 	case SNMP_MAIL_EMAILADDRESS:
 		*var_len = strlen(email->addr);
-		return PTR_CAST(u_char, email->addr);
+		ret.cuc = PTR_CAST_CONST(u_char, email->addr);
+		return ret.uc;
 	default:
 		break;
 	}

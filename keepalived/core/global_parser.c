@@ -173,10 +173,11 @@ emailfrom_handler(const vector_t *strvec)
 	if (vector_size(strvec) < 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "emailfrom missing - ignoring");
 		return;
-	}
+	} else if (vector_size(strvec) > 2)
+		report_config_error(CONFIG_GENERAL_ERROR, "emailfrom - ignoring extra entries '%s' ...", strvec_slot(strvec, 2));
 
 	FREE_CONST_PTR(global_data->email_from);
-	global_data->email_from = set_value(strvec);
+	global_data->email_from = format_email_addr(strvec_slot(strvec, 1));
 }
 static void
 smtpto_handler(const vector_t *strvec)
@@ -253,17 +254,14 @@ email_handler(const vector_t *strvec)
 {
 	const vector_t *email_vec = read_value_block(strvec);
 	unsigned int i;
-	char *str;
 
 	if (!email_vec) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Warning - empty notification_email block");
 		return;
 	}
 
-	for (i = 0; i < vector_size(email_vec); i++) {
-		str = vector_slot(email_vec, i);
-		alloc_email(str);
-	}
+	for (i = 0; i < vector_size(email_vec); i++)
+		alloc_email(vector_slot(email_vec, i));
 
 	free_strvec(email_vec);
 }

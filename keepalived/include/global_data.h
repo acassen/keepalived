@@ -75,7 +75,7 @@ extern void _start(void), etext(void);
 
 /* email link list */
 typedef struct _email {
-	char				*addr;
+	const char			*addr;
 
 	/* Linked list member */
 	list_head_t			e_list;
@@ -298,6 +298,7 @@ extern data_t *global_data;	/* Global configuration data */
 extern data_t *old_global_data;	/* Old global configuration data - used during reload */
 
 /* Prototypes */
+extern const char * format_email_addr(const char *);
 extern void alloc_email(const char *);
 extern data_t *alloc_global_data(void);
 extern void init_global_data(data_t *, data_t *, bool);
