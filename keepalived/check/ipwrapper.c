@@ -1098,10 +1098,9 @@ clear_diff_s_srv(virtual_server_t *old_vs, virtual_server_t *new_vs)
 	 * need to be reinstated. */
 	reinstate_alive_rs = old_ss->alive && !new_ss;
 
-	if (old_ss->inhibit) {
+	if (old_ss->inhibit && !ISALIVE(old_ss)) {
 		/* Force removing the old SS */
-		if (!ISALIVE(old_ss) && old_ss->set)
-			SET_ALIVE(old_ss);
+		SET_ALIVE(old_ss);
 		old_ss->inhibit = false;
 	}
 
