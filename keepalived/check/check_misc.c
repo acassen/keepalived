@@ -337,9 +337,10 @@ misc_check_child_thread(thread_ref_t thread)
 					/* The process does not exist, and we should
 					 * have reaped its exit status, otherwise it
 					 * would exist as a zombie process. */
-					log_message(LOG_INFO, "Misc script %s child (PID %d) lost", misck_checker->script.args[0], pid);
+					log_message(LOG_INFO, "Misc script %s child (PID %d) lost, register checker again", misck_checker->script.args[0], pid);
 					misck_checker->state = SCRIPT_STATE_IDLE;
 					timeout = 0;
+					goto recheck;
 				} else {
 					log_message(LOG_INFO, "kill -%d of process %s(%d) with new state %u failed with errno %d", sig_num, misck_checker->script.args[0], pid, misck_checker->state, errno);
 					timeout = 1000;
@@ -488,6 +489,7 @@ misc_check_child_thread(thread_ref_t thread)
 		}
 	}
 
+recheck:
 	/* Register next timer checker */
 	next_time = timer_add_long(misck_checker->last_ran, checker->retry_it ? checker->delay_before_retry : checker->delay_loop);
 	next_time = timer_sub_now(next_time);

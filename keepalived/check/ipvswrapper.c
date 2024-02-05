@@ -683,6 +683,19 @@ ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 			ipvs_set_vsge_alive_state(IP_VS_SO_SET_ADDDEST, vsge, vs);
 		}
 	}
+
+	if (vs->s_svr && vs->s_svr->alive && vs->s_svr->reloaded && vs->s_svr->set) {
+		ipvs_set_drule(IP_VS_SO_SET_ADDDEST, &drule, vs->s_svr);
+
+		if (vs->s_svr->forwarding_method != IP_VS_CONN_F_MASQ)
+			drule.user.port = inet_sockaddrport(&vsge->addr);
+		else
+			drule.user.port = inet_sockaddrport(&vs->s_svr->addr);
+
+		ipvs_group_range_cmd(IP_VS_SO_SET_ADDDEST, &srule, &drule, vsge);
+
+		ipvs_set_vsge_alive_state(IP_VS_SO_SET_ADDDEST, vsge, vs);
+	}
 }
 
 /* Remove a specific vs group entry */
@@ -741,6 +754,20 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 
 			ipvs_set_vsge_alive_state(IP_VS_SO_SET_DELDEST, vsge, vs);
 		}
+	}
+
+	if (vs->s_svr && vs->s_svr->alive && vs->s_svr->set) {
+		if (global_data->lvs_flush_on_stop == LVS_NO_FLUSH) {
+			ipvs_set_drule(IP_VS_SO_SET_ADDDEST, &drule, vs->s_svr);
+
+			if (vs->s_svr->forwarding_method != IP_VS_CONN_F_MASQ)
+				drule.user.port = inet_sockaddrport(&vsge->addr);
+			else
+				drule.user.port = inet_sockaddrport(&vs->s_svr->addr);
+
+			ipvs_group_range_cmd(IP_VS_SO_SET_DELDEST, &srule, &drule, vsge);
+		}
+		ipvs_set_vsge_alive_state(IP_VS_SO_SET_DELDEST, vsge, vs);
 	}
 
 	/* Remove VS entry if this is the last VS using it */
