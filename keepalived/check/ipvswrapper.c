@@ -684,7 +684,7 @@ ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 		}
 	}
 
-	if (vs->s_svr && vs->s_svr->alive && vs->s_svr->reloaded && vs->s_svr->set) {
+	if (vs->s_svr && vs->s_svr->reloaded && vs->s_svr->set) {
 		ipvs_set_drule(IP_VS_SO_SET_ADDDEST, &drule, vs->s_svr);
 
 		if (vs->s_svr->forwarding_method != IP_VS_CONN_F_MASQ)
@@ -756,7 +756,7 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 		}
 	}
 
-	if (vs->s_svr && vs->s_svr->alive && vs->s_svr->set) {
+	if (vs->s_svr && vs->s_svr->set) {
 		if (global_data->lvs_flush_on_stop == LVS_NO_FLUSH) {
 			ipvs_set_drule(IP_VS_SO_SET_ADDDEST, &drule, vs->s_svr);
 
