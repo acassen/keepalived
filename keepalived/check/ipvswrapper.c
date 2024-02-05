@@ -686,6 +686,7 @@ ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 
 	if (vs->s_svr && vs->s_svr->reloaded && vs->s_svr->set) {
 		ipvs_set_drule(IP_VS_SO_SET_ADDDEST, &drule, vs->s_svr);
+		drule.user.weight = vs->s_svr->alive ? real_weight(vs->s_svr->effective_weight) : 0;
 
 		if (vs->s_svr->forwarding_method != IP_VS_CONN_F_MASQ)
 			drule.user.port = inet_sockaddrport(&vsge->addr);
