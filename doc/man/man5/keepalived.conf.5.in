@@ -2336,6 +2336,9 @@ The syntax for virtual_server is :
     #  replaced with the sorry server.
     \fBsorry_server \fR<IPADDR> [<PORT>]
     # applies inhibit_on_failure behaviour to the sorry_server
+    # It is very unlikely that you want to use this, since if you
+    # have a real server available, you almost certainly want to use
+    # it.
     \fBsorry_server_inhibit\fR
     # Sorry server LVS forwarding method. Default is the virtual
     #  server's default.

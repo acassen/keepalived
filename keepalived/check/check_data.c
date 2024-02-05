@@ -755,8 +755,10 @@ dump_vs(FILE *fp, const virtual_server_t *vs)
 				    , FMT_RS(vs->s_svr, vs));
 		dump_forwarding_method(fp, "  ", vs->s_svr);
 		conf_write(fp, "     Inhibit on failure is %s", vs->s_svr->inhibit ? "ON" : "OFF");
+		conf_write(fp, "     set = %d", vs->s_svr->set);
+		conf_write(fp, "     alive = %d", vs->s_svr->alive);
 	}
-	conf_write(fp, "   alive = %d", vs->alive);
+	conf_write(fp, "   VS alive = %d", vs->alive);
 	conf_write(fp, "   quorum_state_up = %d", vs->quorum_state_up);
 	conf_write(fp, "   reloaded = %d", vs->reloaded);
 
