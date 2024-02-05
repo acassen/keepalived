@@ -1009,8 +1009,12 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 		dummy_checker.vs = vs;
 		dummy_checker.rs = new_rs;
 		perform_svr_state(true, &dummy_checker);
-	} else if (new_rs->num_failed_checkers && new_rs->set != new_rs->inhibit)
+	} else if (new_rs->num_failed_checkers && new_rs->set != new_rs->inhibit) {
+		/* ipvs_cmd() checks for alive rather than set */
+		new_rs->alive = new_rs->set;
 		ipvs_cmd(new_rs->inhibit ? IP_VS_SO_SET_ADDDEST : IP_VS_SO_SET_DELDEST, vs, new_rs);
+		new_rs->alive = false;
+	}
 }
 
 /* Clear the diff rs of the old vs */
