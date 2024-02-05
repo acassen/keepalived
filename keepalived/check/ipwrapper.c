@@ -1074,32 +1074,45 @@ clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs)
 
 /* clear sorry server, but only if changed */
 static void
-clear_diff_s_srv(virtual_server_t *old_vs, real_server_t *new_rs)
+clear_diff_s_srv(virtual_server_t *old_vs, virtual_server_t *new_vs)
 {
-	real_server_t *old_rs = old_vs->s_svr;
+	real_server_t *old_ss = old_vs->s_svr;
+	real_server_t *new_ss = new_vs->s_svr;
+	bool reinstate_alive_rs;
 
-	if (!old_rs)
+	if (!old_ss)
 		return;
 
-	if (new_rs && rs_iseq(old_rs, new_rs)) {
+	if (new_ss && rs_iseq(old_ss, new_ss)) {
 		/* which fields are really used on s_svr? */
-		new_rs->alive = old_rs->alive;
-		new_rs->set = old_rs->set;
-		new_rs->effective_weight = new_rs->iweight;
-		new_rs->reloaded = true;
+		new_ss->alive = old_ss->alive;
+		new_ss->set = old_ss->set;
+		new_ss->effective_weight = new_ss->iweight;
+		new_ss->reloaded = true;
+
+		if (old_ss->inhibit == new_ss->inhibit)
+			return;
 	}
-	else {
-		if (old_rs->inhibit) {
-			if (!ISALIVE(old_rs) && old_rs->set)
-				SET_ALIVE(old_rs);
-			old_rs->inhibit = false;
-		}
-		if (ISALIVE(old_rs)) {
-			log_message(LOG_INFO, "Removing sorry server %s from VS %s"
-					    , FMT_RS(old_rs, old_vs)
-					    , FMT_VS(old_vs));
-			ipvs_cmd(LVS_CMD_DEL_DEST, old_vs, old_rs);
-		}
+
+	/* With no sorry server configured, any alive real servers
+	 * need to be reinstated. */
+	reinstate_alive_rs = old_ss->alive && !new_ss;
+
+	if (old_ss->inhibit) {
+		/* Force removing the old SS */
+		if (!ISALIVE(old_ss) && old_ss->set)
+			SET_ALIVE(old_ss);
+		old_ss->inhibit = false;
+	}
+
+	if (ISALIVE(old_ss)) {
+		log_message(LOG_INFO, "Removing sorry server %s from VS %s"
+				    , FMT_RS(old_ss, old_vs)
+				    , FMT_VS(old_vs));
+		ipvs_cmd(LVS_CMD_DEL_DEST, old_vs, old_ss);
+
+		if (reinstate_alive_rs)
+			perform_quorum_state(new_vs, true);
 	}
 }
 
@@ -1151,7 +1164,7 @@ clear_diff_services(void)
 
 		vs->omega = true;
 		clear_diff_rs(vs, new_vs);
-		clear_diff_s_srv(vs, new_vs->s_svr);
+		clear_diff_s_srv(vs, new_vs);
 
 		update_alive_counts(vs, new_vs);
 	}
