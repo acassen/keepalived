@@ -1090,7 +1090,8 @@ clear_diff_s_srv(virtual_server_t *old_vs, virtual_server_t *new_vs)
 		new_ss->effective_weight = new_ss->iweight;
 		new_ss->reloaded = true;
 
-		if (old_ss->inhibit == new_ss->inhibit)
+		if (old_ss->inhibit == new_ss->inhibit ||
+		    old_ss->alive)
 			return;
 	}
 
