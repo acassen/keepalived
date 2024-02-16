@@ -72,7 +72,7 @@ There are three classes of scripts can be configured to be executed.
 (a) Notify scripts that are run when a vrrp instance or vrrp group
 changes state, or a virtual server quorum changes between up and down.
 
-(b) vrrp tracking scripts that will cause vrrp instances to go down it they exit
+(b) vrrp tracking scripts that will cause vrrp instances to go down if they exit
 a non-zero exist status, or if a weight is specified will add or subtract the
 weight to/from the priority of that vrrp instance.
 
