@@ -2672,6 +2672,8 @@ void
 register_keepalived_netlink_addresses(void)
 {
 	register_thread_address("kernel_netlink", kernel_netlink);
+#ifdef _WITH_VRRP_
 	register_thread_address("delayed_if_flags_change_thread", delayed_if_flags_change_thread);
+#endif
 }
 #endif
