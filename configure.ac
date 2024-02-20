@@ -1142,37 +1142,49 @@ AC_LINK_IFELSE([AC_LANG_SOURCE([[
 # Checks for header files.
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdint.h stdlib.h string.h sys/ioctl.h sys/param.h sys/prctl.h sys/socket.h sys/time.h syslog.h unistd.h],
   [], [AC_MSG_ERROR([Missing/unusable system header file <$ac_header>])])
+AS_IF([test .$enable_lvs != .no],
+  [AC_CHECK_HEADERS([net/if_arp.h],
+    [], [AC_MSG_ERROR([Missing/unusable <$ac_header> - is glibc headers package installed?])])
+  ])
 
 # check for kernel headers
 SAV_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $kernelinc"
 
-dnl -- linux/errqueue.h need sys/time.h before Linux < v5.1
-AC_MSG_CHECKING([linux/errqueue.h needs sys/time.h])
-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-  #include <fcntl.h>
-  #include <linux/errqueue.h>
+AC_CHECK_HEADERS([linux/types.h],
+  [], [AC_MSG_ERROR([Missing/unusable kernel header file <$ac_header> - is kernel headers package installed?])])
+AS_IF([test .$enable_vrrp != .no],
+  [
+    AC_CHECK_HEADERS([linux/ethtool.h linux/if_ether.h linux/if_packet.h linux/ip.h linux/sockios.h],
+      [], [AC_MSG_ERROR([Missing/unusable kernel header file <$ac_header> - is kernel headers package installed?])])
+    AC_CHECK_HEADERS([linux/fib_rules.h linux/if_addr.h linux/if_link.h],
+      [], [AC_MSG_ERROR([Missing/unusable kernel header file <$ac_header> - is kernel headers package installed?])],
+      [[$NETLINK_EXTRA_INCLUDE]])
+  ])
+AS_IF([test .$enable_lvs != .no],
+  [
+    AC_CHECK_HEADERS([linux/icmp.h linux/icmpv6.h linux/errqueue.h],
+      [], [AC_MSG_ERROR([Missing/unusable kernel header file <$ac_header> - is kernel headers package installed?])])
 
-  int main(void)
-  {
-  }
-  ]])],
-  [
-    AC_MSG_RESULT([no])
-  ],
-  [
-    AC_MSG_RESULT([yes])
-    AC_DEFINE([ERRQUEUE_NEEDS_SYS_TIME], [ 1 ], [Define to 1 if linux/errqueue.h needs sys/time.h])
+    dnl -- linux/errqueue.h need sys/time.h before Linux < v5.1
+    AC_MSG_CHECKING([linux/errqueue.h needs sys/time.h])
+    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+      #include <fcntl.h>
+      #include <linux/errqueue.h>
+
+      int main(void)
+      {
+      }
+      ]])],
+      [
+	AC_MSG_RESULT([no])
+      ],
+      [
+	AC_MSG_RESULT([yes])
+	AC_DEFINE([ERRQUEUE_NEEDS_SYS_TIME], [ 1 ], [Define to 1 if linux/errqueue.h needs sys/time.h])
+      ])
   ])
 
-AC_CHECK_HEADERS([asm/types.h linux/ethtool.h linux/icmpv6.h linux/if_ether.h linux/if_packet.h linux/ip.h linux/sockios.h linux/types.h],
-  [], [AC_MSG_ERROR([Missing/unusable kernel header file <$ac_header>])])
-AC_CHECK_HEADERS([linux/fib_rules.h linux/if_addr.h linux/if_link.h],
-  [], [AC_MSG_ERROR([Missing/unusable kernel header file <$ac_header>])],
-  [[$NETLINK_EXTRA_INCLUDE]])
-AC_CHECK_HEADERS([linux/if_arp.h],
-  [], [AC_MSG_ERROR([Missing/unusable <$ac_header>])],
-  [[#include <sys/socket.h>]])
 CPPFLAGS="$SAV_CPPFLAGS"
 
 # Checks for typedefs, structures, and compiler characteristics.

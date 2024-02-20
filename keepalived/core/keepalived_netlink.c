@@ -42,14 +42,12 @@
 #include <time.h>
 #ifdef _WITH_VRRP_
 #include <linux/version.h>
-#ifdef _WITH_VRRP_
 #include <linux/fib_rules.h>
-#endif
-#endif
 #include <linux/ip.h>
+#include <linux/if_link.h>
+#endif
 #include <unistd.h>
 #include <inttypes.h>
-#include <linux/if_link.h>
 
 #ifdef THREAD_DUMP
 #include "scheduler.h"
