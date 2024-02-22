@@ -1875,7 +1875,9 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 
 		/* If a macvlan, check the underlying interface hasn't changed */
 		if (IS_MAC_IP_VLAN(ifp) &&
-		    (!tb[IFLA_LINK] || ifp->base_ifp->ifindex != *PTR_CAST(uint32_t, RTA_DATA(tb[IFLA_LINK]))))
+		    (!tb[IFLA_LINK] ||
+		     (ifp->ifindex != ifp->base_ifp->ifindex &&
+		      ifp->base_ifp->ifindex != *PTR_CAST(uint32_t, RTA_DATA(tb[IFLA_LINK])))))
 			return false;
 	}
 #endif
