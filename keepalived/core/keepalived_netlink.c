@@ -1813,12 +1813,12 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	bool is_vrf = false;
 	uint32_t new_vrf_master_index;
 	bool is_vrf_master = false;
-#endif
-#endif
+#endif /* _HAVE_VRF_ */
+#endif /* _HAVE_VRRP_VMAC_ */
 
 #ifdef _HAVE_VRRP_VMAC_
 	was_vlan = IS_MAC_IP_VLAN(ifp);
-#endif
+#endif /* _HAVE_VRRP_VMAC_ */
 
 	name = (char *)RTA_DATA(tb[IFLA_IFNAME]);
 
@@ -1827,10 +1827,10 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	ifp->ifindex = (ifindex_t)ifi->ifi_index;
 #ifdef _HAVE_VRRP_VMAC_
 	ifp->if_type = IF_TYPE_STANDARD;
-#endif
+#endif /* _HAVE_VRRP_VMAC_ */
 #ifdef HAVE_IFLA_LINK_NETNSID						/* from Linux v4.0 */
 	ifp->base_netns_id = -1;
-#endif
+#endif /* HAVE_IFLA_LINK_NETNSID */
 
 #ifdef _HAVE_VRRP_VMAC_
 	if (tb[IFLA_LINKINFO]) {
@@ -1848,7 +1848,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 				ifp->if_type = IF_TYPE_IPVLAN;
 				parse_rtattr_nested(linkattr, IFLA_IPVLAN_MAX, linkinfo[IFLA_INFO_DATA]);
 			}
-#endif
+#endif /* _HAVE_VRRP_IPVLAN_ */
 #ifdef _HAVE_VRF_
 			else if (!strcmp((char *)RTA_DATA(linkinfo[IFLA_INFO_KIND]), "vrf") ) {
 				is_vrf = true;
@@ -1857,14 +1857,14 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 				if (vrf_attr[IFLA_VRF_TABLE])
 					ifp->vrf_tb_id = *PTR_CAST(uint32_t, RTA_DATA(vrf_attr[IFLA_VRF_TABLE]));
 			}
-#endif
+#endif /* _HAVE_VRF_ */
 		}
 	}
 
 #ifdef _HAVE_IPV4_DEVCONF_
 	if (tb[IFLA_AF_SPEC])
 		parse_af_spec(tb[IFLA_AF_SPEC], ifp);
-#endif
+#endif /* _HAVE_IPV4_DEVCONF_ */
 
 	/* Check there hasn't been an unsupported interface type change */
 	if (!global_data->allow_if_changes && ifp->seen_interface) {
@@ -1880,7 +1880,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 		      ifp->base_ifp->ifindex != *PTR_CAST(uint32_t, RTA_DATA(tb[IFLA_LINK])))))
 			return false;
 	}
-#endif
+#endif /* _HAVE_VRRP_VMAC_ */
 
 	ifp->mtu = *PTR_CAST(uint32_t, RTA_DATA(tb[IFLA_MTU]));
 	ifp->hw_type = ifi->ifi_type;
@@ -1903,7 +1903,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 				if (((ifp->if_type == IF_TYPE_MACVLAN && linkattr[IFLA_MACVLAN_MODE])
 #ifdef _HAVE_VRRP_IPVLAN_
 				     || (ifp->if_type == IF_TYPE_IPVLAN && linkattr[IFLA_IPVLAN_MODE])
-#endif
+#endif /* _HAVE_VRRP_IPVLAN_ */
 												      )	&&
 				    tb[IFLA_LINK]) {
 					if (ifp->if_type == IF_TYPE_MACVLAN)
@@ -1913,15 +1913,15 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 						ifp->vmac_type = *PTR_CAST(uint32_t, RTA_DATA(linkattr[IFLA_IPVLAN_MODE]));
 #if HAVE_DECL_IFLA_IPVLAN_FLAGS
 						ifp->ipvlan_flags = *PTR_CAST(uint32_t, RTA_DATA(linkattr[IFLA_IPVLAN_FLAGS]));
-#endif
+#endif /* HAVE_DECL_IFLA_IPVLAN_FLAGS */
 					}
-#endif
+#endif /* _HAVE_VRRP_IPVLAN_ */
 					ifp->base_ifindex = *PTR_CAST(uint32_t, RTA_DATA(tb[IFLA_LINK]));
 #ifdef HAVE_IFLA_LINK_NETNSID						/* from Linux v4.0 */
 					if (tb[IFLA_LINK_NETNSID])	/* Only use link details if in same network namespace */
 						ifp->base_netns_id = *PTR_CAST(int32_t,  RTA_DATA(tb[IFLA_LINK_NETNSID]));
 					else
-#endif
+#endif /* HAVE_IFLA_LINK_NETNSID */
 					{
 						ifp->base_ifp = if_get_by_ifindex(ifp->base_ifindex);
 						if (ifp->base_ifp)
@@ -1939,11 +1939,11 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 					is_vrf_master = true;
 				}
 			}
-#endif
+#endif /* _HAVE_VRF_ */
 
 #ifdef _FIXED_IF_TYPE_
 			if (strcmp(_FIXED_IF_TYPE_, (char *)RTA_DATA(linkinfo[IFLA_INFO_KIND])))
-#endif
+#endif /* _FIXED_IF_TYPE_ */
 				ifp->changeable_type = true;
 		}
 	}
@@ -1975,10 +1975,10 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 			}
 		}
 	}
-#endif
+#endif /* _HAVE_VRF_ */
 
 	ifp->rp_filter = UINT_MAX;	/* We have not read it yet */
-#endif
+#endif /* _HAVE_VRRP_VMAC_ */
 
 	ifp->ifi_flags = ifi->ifi_flags;
 	if (FLAGS_UP(ifi->ifi_flags))
