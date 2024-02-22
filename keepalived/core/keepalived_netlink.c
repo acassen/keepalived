@@ -1978,6 +1978,8 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 #endif /* _HAVE_VRF_ */
 
 	ifp->rp_filter = UINT_MAX;	/* We have not read it yet */
+
+	ifp->cleaning = false;
 #endif /* _HAVE_VRRP_VMAC_ */
 
 	ifp->ifi_flags = ifi->ifi_flags;

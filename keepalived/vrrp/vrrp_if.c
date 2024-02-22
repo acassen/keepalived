@@ -1394,6 +1394,11 @@ cleanup_lost_interface(interface_t *ifp)
 	tracking_obj_t *top;
 	vrrp_t *vrrp;
 
+#ifdef _HAVE_VRRP_VMAC_
+	ifp->cleaning = true;
+#endif /* _HAVE_VRRP_VMAC_ */
+
+
 	list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
 		vrrp = top->obj.vrrp;
 
@@ -1476,12 +1481,19 @@ cleanup_lost_interface(interface_t *ifp)
 
 	interface_down(ifp);
 
+#ifdef _HAVE_VRRP_VMAC_
+	if (!ifp->cleaning)
+		/* interface has been refreshed. Do not clean */
+		return;
+#endif /* _HAVE_VRRP_VMAC_ */
+
 	ifp->ifindex = 0;
 	ifp->ifi_flags = 0;
 	ifp->seen_up = false;
 #ifdef _HAVE_VRRP_VMAC_
 	if (!ifp->is_ours)
 		ifp->base_ifp = ifp;
+	ifp->cleaning = false;
 #endif
 #ifdef _HAVE_VRF_
 	ifp->vrf_master_ifp = NULL;
