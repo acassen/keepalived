@@ -514,7 +514,7 @@ vrrp_vmac_handler(const vector_t *strvec)
 	__set_bit(VRRP_VMAC_BIT, &current_vrrp->flags);
 
 	/* Ifname and MAC address can be specified */
-	for (i = 1; i < vector_size(strvec) && i <= 2; i++) {
+	for (i = 1; i < vector_size(strvec); i++) {
 		if (strchr(strvec_slot(strvec, i), ':')) {
 			/* It's a MAC address - interface names cannot include a ':' */
 			if (__test_bit(VRRP_VMAC_MAC_SPECIFIED, &current_vrrp->flags)) {
@@ -563,15 +563,15 @@ vrrp_vmac_handler(const vector_t *strvec)
 		} else {
 			name = strvec_slot(strvec, i);
 
-			if (current_vrrp->vmac_ifname[0]) {
-				report_config_error(CONFIG_GENERAL_ERROR, "VMAC interface name already specified");
-				continue;
-			}
-
 			/* The string "netlink_notify_msg" needs to be longer than IFNAMSIZ
 			 * so that it cannot be a valid interface name. */
 			if (!strcmp(name, "netlink_notify_msg")) {
 				__set_bit(VRRP_VMAC_NETLINK_NOTIFY, &current_vrrp->flags);
+				continue;
+			}
+
+			if (current_vrrp->vmac_ifname[0]) {
+				report_config_error(CONFIG_GENERAL_ERROR, "VMAC interface name already specified");
 				continue;
 			}
 

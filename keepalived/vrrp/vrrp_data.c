@@ -648,10 +648,13 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 					vrrp->ll_addr[0], vrrp->ll_addr[1], vrrp->ll_addr[2], vrrp->ll_addr[3], vrrp->ll_addr[4], vrrp->ll_addr[5],
 					__test_bit(VRRP_VMAC_MAC_USE_VRID, &vrrp->flags) ? " (using VRID)" : "");
 	}
+
+	/* The following two flags should only be set on VMACs, but
+	 * we check them for any interface type, just incase ... */
 	if (__test_bit(VRRP_VMAC_NETLINK_NOTIFY, &vrrp->flags))
-		conf_write(fp, "   Force netlink update for base interface");
+		conf_write(fp, "     Force netlink update for base interface");
 	if (__test_bit(VRRP_VMAC_ADDR_BIT, &vrrp->flags))
-		conf_write(fp, "   Use VMAC for VIPs on other interfaces");
+		conf_write(fp, "     Use VMAC for VIPs on other interfaces");
 #ifdef _HAVE_VRRP_IPVLAN_
 	else if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->flags))
 		conf_write(fp, "   Use IPVLAN, i/f %s, is_up = %s%s%s, type %s",
