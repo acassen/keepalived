@@ -616,9 +616,13 @@ netlink_link_add_ipvlan(vrrp_t *vrrp)
 		/* ipvlan settings */
 
 		/* Note: if the underlying interface is a ipvlan, then the kernel will configure the
-		 * interface only the underlying interface of the ipvlan */
+		 * interface only the underlying interface of the ipvlan.
+		 * We copy the group from the base interface to allow firewall rules
+		 * (iptables devgroup or nftables iifgroup, oifgroup) to continue
+		 * working regardless of the use_vmac setting. */
 		addattr32(&req.n, sizeof(req), IFLA_LINK, vrrp->configured_ifp->ifindex);
 		addattr_l(&req.n, sizeof(req), IFLA_IFNAME, vrrp->vmac_ifname, strlen(vrrp->vmac_ifname));
+		addattr32(&req.n, sizeof(req), IFLA_GROUP, vrrp->configured_ifp->base_ifp->group);
 		linkinfo = PTR_CAST(struct rtattr, NLMSG_TAIL(&req.n));
 		addattr_l(&req.n, sizeof(req), IFLA_LINKINFO, NULL, 0);
 		addattr_l(&req.n, sizeof(req), IFLA_INFO_KIND, (const void *)ipvlan_ll_kind, strlen(ipvlan_ll_kind));
