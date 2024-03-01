@@ -233,7 +233,6 @@ netlink_link_up(vrrp_t *vrrp)
 static void
 netlink_link_group(interface_t *base_ifp)
 {
-	uint32_t group = base_ifp->group;
 	struct {
 		struct nlmsghdr n;
 		struct ifinfomsg ifi;
@@ -246,7 +245,7 @@ netlink_link_group(interface_t *base_ifp)
 	req.ifi.ifi_family = AF_UNSPEC;
 	req.ifi.ifi_index = (int)IF_INDEX(base_ifp);
 
-	addattr_l(&req.n, sizeof(req), IFLA_GROUP, &group, sizeof(group));
+	addattr32(&req.n, sizeof(req), IFLA_GROUP, base_ifp->group);
 	netlink_talk(&nl_cmd, &req.n);
 }
 
@@ -277,7 +276,6 @@ netlink_link_add_vmac(vrrp_t *vrrp, const interface_t *old_interface)
 	struct rtattr *linkinfo;
 	struct rtattr *data;
 	interface_t *ifp;
-	uint32_t group;
 	bool create_interface = true;
 	struct {
 		struct nlmsghdr n;
@@ -393,8 +391,9 @@ netlink_link_add_vmac(vrrp_t *vrrp, const interface_t *old_interface)
 		 * (iptables devgroup or nftables iifgroup, oifgroup) to continue
 		 * working regardless of the use_vmac setting.
 		 */
-		group = vrrp->configured_ifp->base_ifp->group;
-		addattr_l(&req.n, sizeof(req), IFLA_GROUP, &group, sizeof(group));
+		addattr32(&req.n, sizeof(req), IFLA_GROUP,
+			__test_bit(VRRP_VMAC_GROUP, &vrrp->flags) ? vrrp->vmac_group
+								  : vrrp->configured_ifp->base_ifp->group);
 		addattr_l(&req.n, sizeof(req), IFLA_ADDRESS, if_ll_addr, ETH_ALEN);
 
 #ifdef _HAVE_VRF_
@@ -619,9 +618,15 @@ netlink_link_add_ipvlan(vrrp_t *vrrp)
 		/* ipvlan settings */
 
 		/* Note: if the underlying interface is a ipvlan, then the kernel will configure the
-		 * interface only the underlying interface of the ipvlan */
+		 * interface only the underlying interface of the ipvlan.
+		 * We copy the group from the base interface to allow firewall rules
+		 * (iptables devgroup or nftables iifgroup, oifgroup) to continue
+		 * working regardless of the use_vmac setting. */
 		addattr32(&req.n, sizeof(req), IFLA_LINK, vrrp->configured_ifp->ifindex);
 		addattr_l(&req.n, sizeof(req), IFLA_IFNAME, vrrp->vmac_ifname, strlen(vrrp->vmac_ifname));
+		addattr32(&req.n, sizeof(req), IFLA_GROUP,
+			__test_bit(VRRP_VMAC_GROUP, &vrrp->flags) ? vrrp->vmac_group
+								  : vrrp->configured_ifp->base_ifp->group);
 		linkinfo = PTR_CAST(struct rtattr, NLMSG_TAIL(&req.n));
 		addattr_l(&req.n, sizeof(req), IFLA_LINKINFO, NULL, 0);
 		addattr_l(&req.n, sizeof(req), IFLA_INFO_KIND, (const void *)ipvlan_ll_kind, strlen(ipvlan_ll_kind));

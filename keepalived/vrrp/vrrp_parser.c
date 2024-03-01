@@ -44,6 +44,8 @@
 #include "global_data.h"
 #include "global_parser.h"
 
+#include "rttables.h"
+
 #include "vrrp_data.h"
 #include "vrrp_ipaddress.h"
 #include "vrrp_sync.h"
@@ -514,7 +516,7 @@ vrrp_vmac_handler(const vector_t *strvec)
 	__set_bit(VRRP_VMAC_BIT, &current_vrrp->flags);
 
 	/* Ifname and MAC address can be specified */
-	for (i = 1; i < vector_size(strvec) && i <= 2; i++) {
+	for (i = 1; i < vector_size(strvec); i++) {
 		if (strchr(strvec_slot(strvec, i), ':')) {
 			/* It's a MAC address - interface names cannot include a ':' */
 			if (__test_bit(VRRP_VMAC_MAC_SPECIFIED, &current_vrrp->flags)) {
@@ -560,48 +562,64 @@ vrrp_vmac_handler(const vector_t *strvec)
 				report_config_error(CONFIG_GENERAL_ERROR, "VMAC MAC address not allowed to be RFC5798 address (%s) - ignoring", strvec_slot(strvec, i));
 			else
 				__set_bit(VRRP_VMAC_MAC_SPECIFIED, &current_vrrp->flags);
-		} else {
-			name = strvec_slot(strvec, i);
 
-			if (current_vrrp->vmac_ifname[0]) {
-				report_config_error(CONFIG_GENERAL_ERROR, "VMAC interface name already specified");
+			continue;
+		}
+
+		if (!strcmp(strvec_slot(strvec, i), "netlink_notify_msg")) {
+			__set_bit(VRRP_VMAC_NETLINK_NOTIFY, &current_vrrp->flags);
+			continue;
+		}
+
+		if (!strcmp(strvec_slot(strvec, i), "group")) {
+			uint32_t group;
+			if (!find_rttables_group(strvec_slot(strvec, ++i), &group)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "VMAC group %s not found", strvec_slot(strvec, i));
 				continue;
 			}
+			__set_bit(VRRP_VMAC_GROUP, &current_vrrp->flags);
+			current_vrrp->vmac_group = group;
+			continue;
+		}
 
-			/* The string "netlink_notify_msg" needs to be longer than IFNAMSIZ
-			 * so that it cannot be a valid interface name. */
-			if (!strcmp(name, "netlink_notify_msg")) {
-				__set_bit(VRRP_VMAC_NETLINK_NOTIFY, &current_vrrp->flags);
-				continue;
+		if (!strcmp(strvec_slot(strvec, i), "name")) {
+			/* Skip over "name" */
+			i++;
+		}
+
+		if (current_vrrp->vmac_ifname[0]) {
+			report_config_error(CONFIG_GENERAL_ERROR, "VMAC interface name already specified");
+			continue;
+		}
+
+		name = strvec_slot(strvec, i);
+
+		if (!dev_name_valid(name)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "VMAC interface name '%s' too long or invalid characters - ignoring", name);
+			continue;
+		}
+
+		/* Check another vrrp instance isn't using this name */
+		list_for_each_entry(ovrrp, &vrrp_data->vrrp, e_list) {
+			if (!strcmp(name, ovrrp->vmac_ifname)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRP instance %s is already using %s - ignoring name", current_vrrp->iname, ovrrp->iname, name);
+				name = NULL;
+				break;
 			}
+		}
 
-			if (!dev_name_valid(name)) {
-				report_config_error(CONFIG_GENERAL_ERROR, "VMAC interface name '%s' too long or invalid characters - ignoring", name);
-				continue;
-			}
+		if (!name)
+			continue;
 
-			/* Check another vrrp instance isn't using this name */
-			list_for_each_entry(ovrrp, &vrrp_data->vrrp, e_list) {
-				if (!strcmp(name, ovrrp->vmac_ifname)) {
-					report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRP instance %s is already using %s - ignoring name", current_vrrp->iname, ovrrp->iname, name);
-					name = NULL;
-					break;
-				}
-			}
+		strcpy(current_vrrp->vmac_ifname, name);
 
-			if (!name)
-				continue;
-
-			strcpy(current_vrrp->vmac_ifname, name);
-
-			/* Check if the interface exists and is a macvlan we can use */
-			if ((ifp = if_get_by_ifname(current_vrrp->vmac_ifname, IF_NO_CREATE)) &&
-			    (ifp->if_type != IF_TYPE_MACVLAN ||
-			     ifp->vmac_type != MACVLAN_MODE_PRIVATE)) {
-				/* ??? also check ADDR_GEN_MODE and VRF enslavement matches parent */
-				report_config_error(CONFIG_GENERAL_ERROR, "(%s) interface %s already exists and is not a private macvlan; ignoring vmac if_name", current_vrrp->iname, current_vrrp->vmac_ifname);
-				current_vrrp->vmac_ifname[0] = '\0';
-			}
+		/* Check if the interface exists and is a macvlan we can use */
+		if ((ifp = if_get_by_ifname(current_vrrp->vmac_ifname, IF_NO_CREATE)) &&
+		    (ifp->if_type != IF_TYPE_MACVLAN ||
+		     ifp->vmac_type != MACVLAN_MODE_PRIVATE)) {
+			/* ??? also check ADDR_GEN_MODE and VRF enslavement matches parent */
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) interface %s already exists and is not a private macvlan; ignoring vmac if_name", current_vrrp->iname, current_vrrp->vmac_ifname);
+			current_vrrp->vmac_ifname[0] = '\0';
 		}
 	}
 }
@@ -677,7 +695,20 @@ vrrp_ipvlan_handler(const vector_t *strvec)
 			continue;
 		}
 
-		if (check_valid_ipaddress(strvec_slot(strvec, i), true)) {
+		if (!strcmp(strvec_slot(strvec, i), "group")) {
+			uint32_t group;
+			if (!find_rttables_group(strvec_slot(strvec, ++i), &group)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "ipvlan group %s not found", strvec_slot(strvec, i));
+				continue;
+			}
+			__set_bit(VRRP_VMAC_GROUP, &current_vrrp->flags);
+			current_vrrp->vmac_group = group;
+			continue;
+		}
+
+		if (!strcmp(strvec_slot(strvec, i), "name")) {
+			i++;
+		} else if (check_valid_ipaddress(strvec_slot(strvec, i), true)) {
 			parse_ipaddress(&addr, strvec_slot(strvec, i), true);
 			if (current_vrrp->ipvlan_addr) {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ipvlan address already specified - ignoring '%s'", current_vrrp->iname, strvec_slot(strvec, i));
