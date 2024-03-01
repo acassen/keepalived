@@ -44,6 +44,8 @@
 #include "global_data.h"
 #include "global_parser.h"
 
+#include "rttables.h"
+
 #include "vrrp_data.h"
 #include "vrrp_ipaddress.h"
 #include "vrrp_sync.h"
@@ -569,6 +571,17 @@ vrrp_vmac_handler(const vector_t *strvec)
 			continue;
 		}
 
+		if (!strcmp(strvec_slot(strvec, i), "group")) {
+			uint32_t group;
+			if (!find_rttables_group(strvec_slot(strvec, ++i), &group)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "VMAC group %s not found", strvec_slot(strvec, i));
+				continue;
+			}
+			__set_bit(VRRP_VMAC_GROUP, &current_vrrp->flags);
+			current_vrrp->vmac_group = group;
+			continue;
+		}
+
 		if (!strcmp(strvec_slot(strvec, i), "name")) {
 			/* Skip over "name" */
 			i++;
@@ -679,6 +692,17 @@ vrrp_ipvlan_handler(const vector_t *strvec)
 				had_flags = true;
 			}
 
+			continue;
+		}
+
+		if (!strcmp(strvec_slot(strvec, i), "group")) {
+			uint32_t group;
+			if (!find_rttables_group(strvec_slot(strvec, ++i), &group)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "ipvlan group %s not found", strvec_slot(strvec, i));
+				continue;
+			}
+			__set_bit(VRRP_VMAC_GROUP, &current_vrrp->flags);
+			current_vrrp->vmac_group = group;
 			continue;
 		}
 

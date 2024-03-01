@@ -73,6 +73,7 @@ enum vrrp_flags_bits {
 	VRRP_VMAC_XMITBASE_BIT,
 	VRRP_VMAC_ADDR_BIT,
 	VRRP_VMAC_NETLINK_NOTIFY,
+	VRRP_VMAC_GROUP,
 #ifdef _HAVE_VRRP_IPVLAN_
 	VRRP_IPVLAN_BIT,
 #endif
@@ -260,6 +261,7 @@ typedef struct _vrrp_t {
 #ifdef _HAVE_VRRP_VMAC_
 	char			vmac_ifname[IFNAMSIZ];	/* Name of VRRP VMAC interface */
 	u_char			ll_addr[ETH_ALEN];	/* Override MAC address */
+	uint32_t		vmac_group;		/* interface group for VMAC/ipvlan */
 #ifdef _HAVE_VRRP_IPVLAN_
 	struct _ip_address	*ipvlan_addr;		/* Address to configure on an ipvlan interface */
 	int			ipvlan_type;		/* Bridge, private or VEPA mode */

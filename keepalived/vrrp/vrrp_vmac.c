@@ -391,7 +391,9 @@ netlink_link_add_vmac(vrrp_t *vrrp, const interface_t *old_interface)
 		 * (iptables devgroup or nftables iifgroup, oifgroup) to continue
 		 * working regardless of the use_vmac setting.
 		 */
-		addattr32(&req.n, sizeof(req), IFLA_GROUP, vrrp->configured_ifp->base_ifp->group);
+		addattr32(&req.n, sizeof(req), IFLA_GROUP,
+			__test_bit(VRRP_VMAC_GROUP, &vrrp->flags) ? vrrp->vmac_group
+								  : vrrp->configured_ifp->base_ifp->group);
 		addattr_l(&req.n, sizeof(req), IFLA_ADDRESS, if_ll_addr, ETH_ALEN);
 
 #ifdef _HAVE_VRF_
@@ -622,7 +624,9 @@ netlink_link_add_ipvlan(vrrp_t *vrrp)
 		 * working regardless of the use_vmac setting. */
 		addattr32(&req.n, sizeof(req), IFLA_LINK, vrrp->configured_ifp->ifindex);
 		addattr_l(&req.n, sizeof(req), IFLA_IFNAME, vrrp->vmac_ifname, strlen(vrrp->vmac_ifname));
-		addattr32(&req.n, sizeof(req), IFLA_GROUP, vrrp->configured_ifp->base_ifp->group);
+		addattr32(&req.n, sizeof(req), IFLA_GROUP,
+			__test_bit(VRRP_VMAC_GROUP, &vrrp->flags) ? vrrp->vmac_group
+								  : vrrp->configured_ifp->base_ifp->group);
 		linkinfo = PTR_CAST(struct rtattr, NLMSG_TAIL(&req.n));
 		addattr_l(&req.n, sizeof(req), IFLA_LINKINFO, NULL, 0);
 		addattr_l(&req.n, sizeof(req), IFLA_INFO_KIND, (const void *)ipvlan_ll_kind, strlen(ipvlan_ll_kind));
