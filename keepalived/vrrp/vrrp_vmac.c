@@ -277,6 +277,7 @@ netlink_link_add_vmac(vrrp_t *vrrp, const interface_t *old_interface)
 	struct rtattr *linkinfo;
 	struct rtattr *data;
 	interface_t *ifp;
+	uint32_t group;
 	bool create_interface = true;
 	struct {
 		struct nlmsghdr n;
@@ -386,6 +387,14 @@ netlink_link_add_vmac(vrrp_t *vrrp, const interface_t *old_interface)
 			addattr32(&req.n, sizeof(req), IFLA_LINK, vrrp->configured_ifp->ifindex);
 			addattr_l(&req.n, sizeof(req), IFLA_IFNAME, vrrp->vmac_ifname, strlen(vrrp->vmac_ifname));
 		}
+
+		/*
+		 * Copy the group from the base interface to allow firewall rules
+		 * (iptables devgroup or nftables iifgroup, oifgroup) to continue
+		 * working regardless of the use_vmac setting.
+		 */
+		group = vrrp->configured_ifp->base_ifp->group;
+		addattr_l(&req.n, sizeof(req), IFLA_GROUP, &group, sizeof(group));
 		addattr_l(&req.n, sizeof(req), IFLA_ADDRESS, if_ll_addr, ETH_ALEN);
 
 #ifdef _HAVE_VRF_
