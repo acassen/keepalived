@@ -233,7 +233,6 @@ netlink_link_up(vrrp_t *vrrp)
 static void
 netlink_link_group(interface_t *base_ifp)
 {
-	uint32_t group = base_ifp->group;
 	struct {
 		struct nlmsghdr n;
 		struct ifinfomsg ifi;
@@ -246,7 +245,7 @@ netlink_link_group(interface_t *base_ifp)
 	req.ifi.ifi_family = AF_UNSPEC;
 	req.ifi.ifi_index = (int)IF_INDEX(base_ifp);
 
-	addattr_l(&req.n, sizeof(req), IFLA_GROUP, &group, sizeof(group));
+	addattr32(&req.n, sizeof(req), IFLA_GROUP, base_ifp->group);
 	netlink_talk(&nl_cmd, &req.n);
 }
 
@@ -277,7 +276,6 @@ netlink_link_add_vmac(vrrp_t *vrrp, const interface_t *old_interface)
 	struct rtattr *linkinfo;
 	struct rtattr *data;
 	interface_t *ifp;
-	uint32_t group;
 	bool create_interface = true;
 	struct {
 		struct nlmsghdr n;
@@ -393,8 +391,7 @@ netlink_link_add_vmac(vrrp_t *vrrp, const interface_t *old_interface)
 		 * (iptables devgroup or nftables iifgroup, oifgroup) to continue
 		 * working regardless of the use_vmac setting.
 		 */
-		group = vrrp->configured_ifp->base_ifp->group;
-		addattr_l(&req.n, sizeof(req), IFLA_GROUP, &group, sizeof(group));
+		addattr32(&req.n, sizeof(req), IFLA_GROUP, vrrp->configured_ifp->base_ifp->group);
 		addattr_l(&req.n, sizeof(req), IFLA_ADDRESS, if_ll_addr, ETH_ALEN);
 
 #ifdef _HAVE_VRF_
