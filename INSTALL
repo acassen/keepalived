@@ -97,7 +97,7 @@ To build using clang/llvm
 Alpine Linux
 ------------
 The following libraries need to be installed:
-	iptables-dev ipset-dev libnl3-dev musl-dev libnftnl-dev and openssl-dev or libressl-dev
+	linux-headers iptables-dev ipset-dev libnl3-dev musl-dev libnftnl-dev and openssl-dev or libressl-dev
 For magic file identification support:
 	file-dev
 For SNMP support:
