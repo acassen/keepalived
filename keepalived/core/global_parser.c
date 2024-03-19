@@ -1319,12 +1319,32 @@ vrrp_check_unicast_src_handler(__attribute__((unused)) const vector_t *strvec)
 static void
 vrrp_check_adv_addr_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	global_data->vrrp_skip_check_adv_addr = 1;
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global vrrp_check_adv_addr specified", strvec_slot(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->vrrp_skip_check_adv_addr = res;
 }
 static void
 vrrp_strict_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	global_data->vrrp_strict = 1;
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global vrrp_strict specified", strvec_slot(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->vrrp_strict = res;
 }
 static void
 vrrp_prio_handler(const vector_t *strvec)
