@@ -485,6 +485,17 @@ format_decimal(unsigned long val, int dp)
 }
 
 static void
+dump_notify_vs_rs_script(FILE *fp, const notify_script_t *script, const char *type, const char *state)
+{
+	if (script->path)
+		conf_write(fp, "   %s %s notify script = %s, params = %s, uid:gid %u:%u", type, state,
+			    script->path, cmd_str(script), script->uid, script->gid);
+	else
+		conf_write(fp, "   %s %s notify script = %s, uid:gid %u:%u", type, state,
+			    cmd_str(script), script->uid, script->gid);
+}
+
+static void
 dump_rs(FILE *fp, const real_server_t *rs)
 {
 #ifdef _WITH_BFD_
@@ -511,11 +522,9 @@ dump_rs(FILE *fp, const real_server_t *rs)
 	conf_write(fp, "   Inhibit on failure is %s", rs->inhibit ? "ON" : "OFF");
 
 	if (rs->notify_up)
-		conf_write(fp, "     RS up notify script = %s, uid:gid %u:%u",
-				cmd_str(rs->notify_up), rs->notify_up->uid, rs->notify_up->gid);
+		dump_notify_vs_rs_script(fp, rs->notify_up, "RS", "up");
 	if (rs->notify_down)
-		conf_write(fp, "     RS down notify script = %s, uid:gid %u:%u",
-				cmd_str(rs->notify_down), rs->notify_down->uid, rs->notify_down->gid);
+		dump_notify_vs_rs_script(fp, rs->notify_down, "RS", "down");
 	if (rs->virtualhost)
 		conf_write(fp, "    VirtualHost = '%s'", rs->virtualhost);
 #ifdef _WITH_SNMP_CHECKER_
@@ -730,11 +739,9 @@ dump_vs(FILE *fp, const virtual_server_t *vs)
 	conf_write(fp, "   Inhibit on failure is %s", vs->inhibit ? "ON" : "OFF");
 	conf_write(fp, "   quorum = %u, hysteresis = %u", vs->quorum, vs->hysteresis);
 	if (vs->notify_quorum_up)
-		conf_write(fp, "   Quorum up notify script = %s, uid:gid %u:%u",
-			    cmd_str(vs->notify_quorum_up), vs->notify_quorum_up->uid, vs->notify_quorum_up->gid);
+		dump_notify_vs_rs_script(fp, vs->notify_quorum_up, "Quorum", "up");
 	if (vs->notify_quorum_down)
-		conf_write(fp, "   Quorum down notify script = %s, uid:gid %u:%u",
-			    cmd_str(vs->notify_quorum_down), vs->notify_quorum_down->uid, vs->notify_quorum_down->gid);
+		dump_notify_vs_rs_script(fp, vs->notify_quorum_down, "Quorum", "down");
 	if (vs->ha_suspend)
 		conf_write(fp, "   Using HA suspend");
 	conf_write(fp, "   Using smtp notification = %s", vs->smtp_alert ? "yes" : "no");

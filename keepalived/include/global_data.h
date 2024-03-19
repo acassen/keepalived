@@ -120,6 +120,7 @@ typedef struct _data {
 	unsigned			startup_script_timeout;
 	notify_script_t			*shutdown_script;
 	unsigned			shutdown_script_timeout;
+	bool				use_symlinks;
 #ifndef _ONE_PROCESS_DEBUG_
 	const char			*reload_check_config;	/* log file name for validating new configuration before reloading */
 	const char			*reload_time_file;

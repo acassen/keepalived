@@ -157,6 +157,21 @@ bfd_process_name_handler(const vector_t *strvec)
 }
 #endif
 static void
+use_symlink_path_handler(const vector_t *strvec)
+{
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global use_symlink_path specified", strvec_slot(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->use_symlinks = res;
+}
+static void
 routerid_handler(const vector_t *strvec)
 {
 	if (vector_size(strvec) < 2) {
@@ -1319,12 +1334,32 @@ vrrp_check_unicast_src_handler(__attribute__((unused)) const vector_t *strvec)
 static void
 vrrp_check_adv_addr_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	global_data->vrrp_skip_check_adv_addr = 1;
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global vrrp_check_adv_addr specified", strvec_slot(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->vrrp_skip_check_adv_addr = res;
 }
 static void
 vrrp_strict_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	global_data->vrrp_strict = 1;
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global vrrp_strict specified", strvec_slot(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->vrrp_strict = res;
 }
 static void
 vrrp_prio_handler(const vector_t *strvec)
@@ -2347,6 +2382,7 @@ init_global_keywords(bool global_active)
 #ifdef _WITH_BFD_
 	install_keyword("bfd_process_name", &bfd_process_name_handler);
 #endif
+	install_keyword("use_symlink_paths", &use_symlink_path_handler);
 	install_keyword("router_id", &routerid_handler);
 	install_keyword("notification_email_from", &emailfrom_handler);
 	install_keyword("smtp_server", &smtpserver_handler);

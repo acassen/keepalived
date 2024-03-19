@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "202212090001Z"
+     LAST-UPDATED "202403180001Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "202403180001Z"
+     DESCRIPTION "add separate path and argv[0] for scripts"
      REVISION "202212090001Z"
      DESCRIPTION "add VRRPv3 checksum as VRRPv2"
      REVISION "202109230001Z"
@@ -2587,7 +2589,8 @@ VrrpScriptEntry ::= SEQUENCE {
     vrrpScriptResult INTEGER,
     vrrpScriptRise Unsigned32,
     vrrpScriptFall Unsigned32,
-    vrrpScriptWgtRev Integer32
+    vrrpScriptWgtRev Integer32,
+    vrrpScriptPath DisplayString
 }
 
 vrrpScriptIndex OBJECT-TYPE
@@ -2667,6 +2670,14 @@ vrrpScriptWgtRev OBJECT-TYPE
     DESCRIPTION
         "Weight reverse for the script if successful."
     ::= { vrrpScriptEntry 9 }
+
+vrrpScriptPath OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Path to file to be executed when running the script."
+    ::= { vrrpScriptEntry 10 }
 
 -- VRRP files
 -- see vrrp_track.h
@@ -3413,7 +3424,9 @@ VirtualServerEntry ::= SEQUENCE {
     virtualServerTunnelType INTEGER,
     virtualServerTunnelPort InetPortNumber,
     virtualServerTunnelCsum INTEGER,
-    virtualServerName DisplayString
+    virtualServerName DisplayString,
+    virtualServerQuorumUpPath DisplayString,
+    virtualServerQuorumDownPath DisplayString
 }
 
 virtualServerIndex OBJECT-TYPE
@@ -4055,6 +4068,22 @@ virtualServerName OBJECT-TYPE
         "Optional SNMP name of this virtual server."
     ::= { virtualServerEntry 71 }
 
+virtualServerQuorumUpPath OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Path to command to execute when the quorum is met."
+    ::= { virtualServerEntry 72 }
+
+virtualServerQuorumDownPath OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Path to command to execute when the quorum is not met."
+    ::= { virtualServerEntry 73 }
+
 
 -- real servers
 
@@ -4130,7 +4159,9 @@ RealServerEntry ::= SEQUENCE {
     realServerTunnelType INTEGER,
     realServerTunnelPort InetPortNumber,
     realServerTunnelCsum INTEGER,
-    realServerName DisplayString
+    realServerName DisplayString,
+    realServerNotifyUpPath DisplayString,
+    realServerNotifyDownPath DisplayString
 }
 
 realServerIndex OBJECT-TYPE
@@ -4619,6 +4650,22 @@ realServerName OBJECT-TYPE
         "Optional SNMP name of this real server."
     ::= { realServerEntry 55 }
 
+realServerNotifyUpPath OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Path to command to execute when this server becomes alive."
+    ::= { realServerEntry 56 }
+
+realServerNotifyDownPath OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Path to command to execute when this server becomes dead."
+    ::= { realServerEntry 57 }
+
 lvsSyncDaemon    OBJECT IDENTIFIER ::= { check 6 }
 
 lvsSyncDaemonEnabled OBJECT-TYPE
@@ -5075,7 +5122,8 @@ vrrpScriptGroup OBJECT-GROUP
     vrrpScriptResult,
     vrrpScriptRise,
     vrrpScriptFall,
-    vrrpScriptWgtRev
+    vrrpScriptWgtRev,
+    vrrpScriptPath
     }
     STATUS current
     DESCRIPTION
@@ -5249,7 +5297,9 @@ virtualServerGroup OBJECT-GROUP
     virtualServerTunnelType,
     virtualServerTunnelPort,
     virtualServerTunnelCsum,
-    virtualServerName
+    virtualServerName,
+    virtualServerQuorumUpPath,
+    virtualServerQuorumDownPath
     }
     STATUS current
     DESCRIPTION
@@ -5311,7 +5361,9 @@ realServerGroup OBJECT-GROUP
     realServerTunnelType,
     realServerTunnelPort,
     realServerTunnelCsum,
-    realServerName
+    realServerName,
+    realServerNotifyUpPath,
+    realServerNotifyDownPath
     }
     STATUS current
     DESCRIPTION

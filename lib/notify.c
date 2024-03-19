@@ -65,9 +65,17 @@ static size_t getpwnam_buf_len;
 
 static char *path;
 static bool path_is_malloced;
+static bool use_symlinks;
+
 
 /* Buffer for expanding notify script commands */
 static char cmd_str_buf[MAXBUF];
+
+void
+set_symlinks(bool state)
+{
+	use_symlinks = state;
+}
 
 static bool
 set_script_env(uid_t uid, gid_t gid)
@@ -203,7 +211,7 @@ system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned 
 		prctl(PR_SET_PDEATHSIG, SIGTERM);
 
 		args.args = script->args;	/* Note: we are casting away constness, since execve parameter type is wrong */
-		execve(script->args[0], args.execve_args, environ);
+		execve(script->path ? script->path : script->args[0], args.execve_args, environ);
 
 		/* error */
 		log_message(LOG_ALERT, "Error exec-ing command '%s', error %d: %m", script->args[0], errno);
@@ -426,7 +434,7 @@ replace_cmd_name(notify_script_t *script, const char *new_path)
 	script->args = args.cparams;
 }
 
-/* The following function is essentially __execve() from glibc */
+/* The following function is essentially __execve_common() from glibc posix/execvpe.c */
 static int
 find_path(notify_script_t *script)
 {
@@ -448,16 +456,12 @@ find_path(notify_script_t *script)
 		return ENOENT;
 
 	filename_len = strlen(file);
-	if (filename_len >= PATH_MAX) {
-		ret_val = ENAMETOOLONG;
-		goto exit1;
-	}
+	if (filename_len >= PATH_MAX)
+		return ENAMETOOLONG;
 
 	/* Don't search when it contains a slash. */
-	if (strchr (file, '/') != NULL) {
-		ret_val = 0;
-		goto exit1;
-	}
+	if (strchr (file, '/') != NULL)
+		return 0;
 
 	/* Get the path if we haven't already done so, and if that doesn't
 	 * exist, use CS_PATH */
@@ -478,18 +482,15 @@ find_path(notify_script_t *script)
 	file_len = strnlen (file, NAME_MAX + 1);
 	path_len = strnlen (path, PATH_MAX - 1) + 1;
 
-	if (file_len > NAME_MAX) {
-		ret_val = ENAMETOOLONG;
-		goto exit1;
-	}
+	if (file_len > NAME_MAX)
+		return ENAMETOOLONG;
 
 	if (script->uid != our_uid || script->gid != our_gid) {
 		/* Set file access to the relevant uid/gid */
 		if (script->gid != our_gid) {
 			if (setegid(script->gid)) {
 				log_message(LOG_INFO, "Unable to set egid to %u (%m)", script->gid);
-				ret_val = EACCES;
-				goto exit1;
+				return EACCES;
 			}
 		}
 
@@ -612,7 +613,6 @@ exit:
 		FREE(sgid_list);
 	}
 
-exit1:
 	/* We tried every element and none of them worked. */
 	if (got_eacces) {
 		/* At least one failure was due to permissions, so report that error. */
@@ -688,6 +688,85 @@ check_security(const char *filename, bool using_script_security)
 	return flags;
 }
 
+static char *
+clean_path(const char *old_argv)
+{
+	char *new_argv = MALLOC(strlen(old_argv) + 1 + 1);	// We can add an initial '/'
+	const char *slash, *next_slash;
+	char *previous_slash;
+	const char *ip = old_argv;
+	char *op = new_argv;
+
+	/* Remove leading ./ and ../ */
+	if (!strncmp(ip, "./", 2))
+		ip += 1;
+	else if (!strncmp(ip, "../", 3))
+		ip += 2;
+
+	/* Remove any leading /../ and /./ recursively */
+	while (!strncmp(ip, "/../", 4) || !strncmp(ip, "/./", 3) || !strncmp(ip, "//", 2))
+		ip += ip[1] == '/' ? 1 : ip[2] == '/' ? 2 : 3;
+
+	if (*ip != '/')
+		*op++ = '/';
+
+	slash = strchr(ip, '/');
+	if (!slash)
+		strcpy(op, slash);
+	else if (slash > ip) {
+		strncpy(op, ip, slash - ip);
+		op += slash - ip;
+	}
+
+	for (; slash; slash = next_slash) {
+		next_slash = strchr(slash + 1, '/');
+
+		if (!next_slash) {
+			strcpy(op, slash);
+			break;
+		}
+
+		/* We are looking for '//', '/./' or '/../' */
+		if (next_slash > slash + 3 ||
+		    (slash[1] != '.' && slash[1] != '/') ||
+		    (slash[1] == '.' &&
+		     (slash[2] != '.' && slash[2] != '/'))) {
+			strncpy(op, slash, next_slash - slash);
+			op += next_slash - slash;
+			continue;
+		}
+
+		/* We have found one of them */
+
+		if (next_slash == slash + 1) {
+			/* // */
+			ip++;
+			continue;
+		}
+
+		if (next_slash == slash + 2) {
+			/* /./ */
+			ip += 2;
+			continue;
+		}
+
+		/* /../ - we must remove previous element */
+		previous_slash = strrchr(new_argv, '/');
+		if (!previous_slash)
+			op = new_argv;
+		else
+			op = previous_slash;
+		*op = '\0';
+	}
+
+	if (!strcmp(old_argv, new_argv)) {
+		FREE(new_argv);
+		return NULL;
+	}
+
+	return new_argv;
+}
+
 unsigned
 check_script_secure(notify_script_t *script,
 #ifndef _HAVE_LIBMAGIC_
@@ -696,14 +775,16 @@ check_script_secure(notify_script_t *script,
 								     magic_t magic)
 {
 	unsigned flags;
-	int ret, ret_real, ret_new;
-	struct stat file_buf, real_buf;
+	int ret;
+	struct stat file_buf;
 	bool need_script_protection = false;
-	char *new_path;
-	char *sav_path;
+	const char *real_path;
+	const char *new_argv_0;
+	union {
+		char *nc;	// needed for free()
+		const char *c;
+	} sav_path;
 	int sav_errno;
-	char *real_file_path;
-	char *orig_file_part, *new_file_part;
 	int sav_death_sig;
 
 	if (!script)
@@ -744,8 +825,7 @@ check_script_secure(notify_script_t *script,
 		}
 	}
 
-	/* Remove /./, /../, multiple /'s, and resolve symbolic links */
-	new_path = realpath(script->args[0], NULL);
+	real_path = realpath(script->args[0], NULL);
 	sav_errno = errno;
 
 	if (script->gid != our_gid || script->uid != our_uid) {
@@ -761,64 +841,40 @@ check_script_secure(notify_script_t *script,
 			kill(getpid(), SIGTERM);
 	}
 
-	if (!new_path)
-	{
+	if (!real_path) {
 		log_message(LOG_INFO, "Script %s cannot be accessed - %s", script->args[0], strerror(sav_errno));
 
 		return SC_NOTFOUND;
 	}
 
-	/* It is much easier to ensure that new_path is part of
+	/* It is much easier to ensure that real_path is part of
 	 * keepalived's malloc handling. */
-	sav_path = new_path;
-	new_path = STRDUP(new_path);
-	free(sav_path);	/* malloc'd returned by realpath() */
+	sav_path.c = real_path;
+	real_path = STRDUP(real_path);
+	free(sav_path.nc);	/* malloc'd returned by realpath() */
 
-	real_file_path = NULL;
+	/* Get the permissions for the file itself */
+	if (stat(real_path, &file_buf)) {
+		log_message(LOG_INFO, "Unable to access script `%s` - disabling", script->args[0]);
 
-	orig_file_part = strrchr(script->args[0], '/');
-	new_file_part = strrchr(new_path, '/');
-	if (strcmp(script->args[0], new_path)) {
-		/* The path name is different */
+		FREE_CONST(real_path);
 
-		/* If the file name parts don't match, we need to be careful to
-		 * ensure that we preserve the file name part since some executables
-		 * alter their behaviour based on what they are called */
-		if (strcmp(orig_file_part + 1, new_file_part + 1)) {
-			real_file_path = new_path;
-			new_path = MALLOC(new_file_part - real_file_path + 1 + strlen(orig_file_part) - 1 + 1);
-			strncpy(new_path, real_file_path, new_file_part + 1 - real_file_path);
-			strcpy(new_path + (new_file_part + 1 - real_file_path), orig_file_part + 1);
+		return SC_NOTFOUND;
+	}
 
-			/* Now check this is the same file */
-			ret_real = stat(real_file_path, &real_buf);
-			ret_new = stat(new_path, &file_buf);
-			if (!ret_real &&
-			    (ret_new ||
-			     real_buf.st_dev != file_buf.st_dev ||
-			     real_buf.st_ino != file_buf.st_ino)) {
-				/* It doesn't resolve to the same file */
-				FREE(new_path);
-				new_path = real_file_path;
-				real_file_path = NULL;
-			}
-		}
-
-		if (strcmp(script->args[0], new_path)) {
-			/* We need to set up all the args again */
-			replace_cmd_name(script, new_path);
+	if (use_symlinks || strcmp(real_path, script->args[0])) {
+		/* Remove /./, /../, repeated /'s from argv[0] */
+		new_argv_0 = clean_path(script->args[0]);
+		if (new_argv_0) {
+			/* The path name is different */
+			replace_cmd_name(script, new_argv_0);
+			FREE_CONST_ONLY(new_argv_0);
 		}
 	}
 
-	FREE(new_path);
-
-	/* Get the permissions for the file itself */
-	if (stat(real_file_path ? real_file_path : script->args[0], &file_buf)) {
-		log_message(LOG_INFO, "Unable to access script `%s` - disabling", script->args[0]);
-
-		FREE(real_file_path);
-
-		return SC_NOTFOUND;
+	if (strcmp(real_path, script->args[0]) && !use_symlinks) {
+		script->path = real_path;
+		real_path = NULL;
 	}
 
 	flags = SC_ISSCRIPT;
@@ -837,7 +893,7 @@ check_script_secure(notify_script_t *script,
 	script->flags |= SC_EXECABLE;
 #ifdef _HAVE_LIBMAGIC_
 	if (magic && flags & SC_EXECUTABLE) {
-		const char *magic_desc = magic_file(magic, real_file_path ? real_file_path : script->args[0]);
+		const char *magic_desc = magic_file(magic, real_path ? real_path : script->path ? script->path : script->args[0]);
 		if (!strstr(magic_desc, " executable") &&
 		    !strstr(magic_desc, " shared object")) {
 			log_message(LOG_INFO, "Please add a #! shebang to script %s", script->args[0]);
@@ -846,19 +902,15 @@ check_script_secure(notify_script_t *script,
 	}
 #endif
 
-	if (!need_script_protection) {
-		if (real_file_path)
-			FREE(real_file_path);
+	if (real_path)
+		FREE_CONST(real_path);
 
-		return flags;
-	}
+	if (need_script_protection) {
+		/* Make sure that all parts of the path(s) are not non-root writable */
+		flags |= check_security(script->args[0], script_security);
 
-	/* Make sure that all parts of the path are not non-root writable */
-	flags |= check_security(script->args[0], script_security);
-
-	if (real_file_path) {
-		flags |= check_security(real_file_path, script_security);
-		FREE(real_file_path);
+		if (script->path)
+			flags |= check_security(script->path, script_security);
 	}
 
 	return flags;
@@ -1118,6 +1170,13 @@ add_script_param(notify_script_t *script, const char *param)
 
 	/* Add the extra parameter in the pre-reserved slot at the end */
 	script->args[script->num_args++] = param;
+}
+
+void
+notify_free_script(notify_script_t *script)
+{
+	FREE_CONST_PTR(script->path);
+	FREE_CONST(script->args);
 }
 
 void

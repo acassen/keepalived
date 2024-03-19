@@ -143,6 +143,7 @@ enum snmp_vrrp_magic {
 	VRRP_SNMP_SCRIPT_RESULT,
 	VRRP_SNMP_SCRIPT_RISE,
 	VRRP_SNMP_SCRIPT_FALL,
+	VRRP_SNMP_SCRIPT_PATH,
 	VRRP_SNMP_FILE_NAME,
 	VRRP_SNMP_FILE_PATH,
 	VRRP_SNMP_FILE_RESULT,
@@ -594,6 +595,10 @@ vrrp_snmp_script(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_SCRIPT_FALL:
 		long_ret.s = scr->fall;
 		return PTR_CAST(u_char, &long_ret);
+	case VRRP_SNMP_SCRIPT_PATH:
+		ret.cp = scr->script.path ? scr->script.path : scr->script.args[0];
+		*var_len = strlen(ret.cp);
+		return ret.p;
 	default:
 		break;
 	}
@@ -2903,6 +2908,7 @@ static struct variable8 vrrp_vars[] = {
 	{VRRP_SNMP_SCRIPT_RISE, ASN_UNSIGNED, RONLY, vrrp_snmp_script, 3, {9, 1, 7}},
 	{VRRP_SNMP_SCRIPT_FALL, ASN_UNSIGNED, RONLY, vrrp_snmp_script, 3, {9, 1, 8}},
 	{VRRP_SNMP_SCRIPT_WEIGHT_REVERSE, ASN_INTEGER, RONLY, vrrp_snmp_script, 3, {9, 1, 9}},
+	{VRRP_SNMP_SCRIPT_PATH, ASN_OCTET_STR, RONLY, vrrp_snmp_script, 3, {9, 1, 10}},
 
 	/* vrrpRouteNextHopTable */
 	{VRRP_SNMP_ROUTE_NEXT_HOP_ADDRESS_TYPE, ASN_INTEGER, RONLY,
