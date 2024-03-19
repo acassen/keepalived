@@ -2781,12 +2781,26 @@ keepalived_main(int argc, char **argv)
 	}
 
 	/* daemonize process */
-	if (!__test_bit(DONT_FORK_BIT, &debug) && xdaemon() > 0) {
-		closelog();
-		FREE_CONST_PTR(config_id);
-		FREE_PTR(orig_core_dump_pattern);
-		close_std_fd();
-		exit(0);
+	if (!__test_bit(DONT_FORK_BIT, &debug)) {
+		pid_t old_ppid = getpid();
+
+		if (xdaemon() > 0) {
+			/* Parent process */
+			closelog();
+			FREE_CONST_PTR(config_id);
+			FREE_PTR(orig_core_dump_pattern);
+			close_std_fd();
+			exit(0);
+		}
+
+		/* Child process */
+
+		/* check_start_stop_script_secure() called below makes a check
+		 * that our parent process hasn't changed, but it can take a while
+		 * for the parent of the fork to exit which is when our parent pid
+		 * changes. We need to loop until that has happened. */
+		while (old_ppid == getppid())
+			usleep(10);
 	}
 
 #ifdef _MEM_CHECK_
@@ -2794,6 +2808,9 @@ keepalived_main(int argc, char **argv)
 #endif
 
 	if (global_data->startup_script || global_data->shutdown_script) {
+		/* This is a workaround for the check in check_start_stop_script_secure() */
+		main_pid = getppid();
+
 		magic = ka_magic_open();
 		script_flags = 0;
 		if (global_data->startup_script)
