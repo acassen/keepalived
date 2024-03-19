@@ -246,6 +246,10 @@ possibly following any cleanup actions needed.
     \fBchecker_process_name\fR NAME
     \fBbfd_process_name\fR NAME
 
+    # keepalived by default resolves script path names to remove symlinks.
+    # To keep symlinks in pathnames, specify use_syslink_paths.
+    \fBuse_symlink_paths \fR[<BOOL>]
+
     # The startup and shutdown scripts are run once, when keepalived starts
     # before any child processes are run, and when keepalived stops after
     # all child processes have terminated, respectively.

@@ -1270,7 +1270,8 @@ vrrp_script_child_thread(thread_ref_t thread)
 					vscript->state = SCRIPT_STATE_IDLE;
 					timeout = 0;
 				} else {
-					log_message(LOG_INFO, "kill -%d of process %s(%d) with new state %u failed with errno %d", sig_num, vscript->script.args[0], pid, vscript->state, errno);
+					log_message(LOG_INFO, "kill -%d of process %s(%d) with new state %u failed with errno %d",
+							sig_num, vscript->script.path ? vscript->script.path : vscript->script.args[0], pid, vscript->state, errno);
 					timeout = 1000;
 				}
 			}

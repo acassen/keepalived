@@ -57,8 +57,7 @@ free_misc_check(checker_t *checker)
 {
 	misc_checker_t *misck_checker = checker->data;
 
-	if (misck_checker->script.args)
-		FREE(misck_checker->script.args);
+	notify_free_script(&misck_checker->script);
 	FREE(misck_checker);
 	FREE(checker);
 }
@@ -70,6 +69,8 @@ dump_misc_check(FILE *fp, const checker_t *checker)
 	char time_str[26];
 
 	conf_write(fp, "   Keepalive method = MISC_CHECK");
+	if (misck_checker->script.path)
+		conf_write(fp, "   path = %s", misck_checker->script.path);
 	conf_write(fp, "   script = %s", cmd_str(&misck_checker->script));
 	conf_write(fp, "   timeout = %lu", misck_checker->timeout/TIMER_HZ);
 	conf_write(fp, "   dynamic = %s", misck_checker->dynamic ? "YES" : "NO");

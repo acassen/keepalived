@@ -192,8 +192,12 @@ dump_notify_script(FILE *fp, const notify_script_t *script, const char *type)
 	if (!script)
 		return;
 
-	conf_write(fp, "   %s state transition script = %s, uid:gid %u:%u"
-		     , type, cmd_str(script), script->uid, script->gid);
+	if (script->path)
+		conf_write(fp, "   %s state transition script = %s, params = %s, uid:gid %u:%u"
+			     , type, script->path, cmd_str(script), script->uid, script->gid);
+	else
+		conf_write(fp, "   %s state transition script = %s, uid:gid %u:%u"
+			     , type, cmd_str(script), script->uid, script->gid);
 }
 
 static void
@@ -275,7 +279,7 @@ free_vscript(vrrp_script_t *vscript)
 	list_del_init(&vscript->e_list);
 	free_tracking_obj_list(&vscript->tracking_vrrp);
 	FREE_CONST(vscript->sname);
-	FREE_PTR(vscript->script.args);
+	notify_free_script(&vscript->script);
 	FREE(vscript);
 }
 static void
@@ -293,6 +297,8 @@ dump_vscript(FILE *fp, const vrrp_script_t *vscript)
 
 	conf_write(fp, " VRRP Script = %s", vscript->sname);
 	conf_write(fp, "   Command = %s", cmd_str(&vscript->script));
+	if (vscript->script.path)
+		conf_write(fp, "   Path = %s", vscript->script.path);
 	conf_write(fp, "   Interval = %lu sec", vscript->interval / TIMER_HZ);
 	conf_write(fp, "   Timeout = %lu sec", vscript->timeout / TIMER_HZ);
 	conf_write(fp, "   Weight = %d%s", vscript->weight, vscript->weight_reverse ? " reverse" : "");

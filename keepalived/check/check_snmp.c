@@ -125,6 +125,8 @@ enum check_snmp_virtualserver_magic {
 #endif
 #endif
 	CHECK_SNMP_VSNAME,
+	CHECK_SNMP_VSQUORUMUPPATH,
+	CHECK_SNMP_VSQUORUMDOWNPATH,
 };
 
 enum check_snmp_realserver_magic {
@@ -188,6 +190,8 @@ enum check_snmp_realserver_magic {
 #endif
 #endif
 	CHECK_SNMP_RSNAME,
+	CHECK_SNMP_RSNOTIFYUPPATH,
+	CHECK_SNMP_RSNOTIFYDOWNPATH,
 };
 
 #define STATE_VSGM_FWMARK 1
@@ -756,6 +760,16 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		*var_len = strlen(v->snmp_name);
 		ret.cp = v->snmp_name;
 		return ret.p;
+	case CHECK_SNMP_VSQUORUMUPPATH:
+		if (!v->notify_quorum_up) break;
+		ret.cp = v->notify_quorum_up->path ? v->notify_quorum_up->path : v->notify_quorum_up->args[0] ;
+		*var_len = strlen(ret.cp);
+		return ret.p;
+	case CHECK_SNMP_VSQUORUMDOWNPATH:
+		if (!v->notify_quorum_down) break;
+		ret.cp = v->notify_quorum_down->path ? v->notify_quorum_down->path : v->notify_quorum_down->args[0];
+		*var_len = strlen(ret.cp);
+		return ret.p;
 	default:
 		return NULL;
 	}
@@ -1178,6 +1192,18 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		*var_len = strlen(be->snmp_name);
 		ret.cp = be->snmp_name;
 		return ret.p;
+	case CHECK_SNMP_RSNOTIFYUPPATH:
+		if (type == STATE_RS_SORRY) break;
+		if (!be->notify_up) break;
+		ret.cp = be->notify_up->path ? be->notify_up->path : be->notify_up->args[0];
+		*var_len = strlen(ret.cp);
+		return ret.p;
+	case CHECK_SNMP_RSNOTIFYDOWNPATH:
+		if (type == STATE_RS_SORRY) break;
+		if (!be->notify_down) break;
+		ret.cp = be->notify_down->path ? be->notify_down->path : be->notify_down->args[0];
+		*var_len = strlen(ret.cp);
+		return ret.p;
 	default:
 		return NULL;
 	}
@@ -1456,6 +1482,10 @@ static struct variable8 check_vars[] = {
 #endif
 	{CHECK_SNMP_VSNAME, ASN_OCTET_STR, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 71}},
+	{CHECK_SNMP_VSQUORUMUPPATH, ASN_OCTET_STR, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 72}},
+	{CHECK_SNMP_VSQUORUMDOWNPATH, ASN_OCTET_STR, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 73}},
 
 	/* realServerTable */
 	{CHECK_SNMP_RSTYPE, ASN_INTEGER, RONLY,
@@ -1572,6 +1602,10 @@ static struct variable8 check_vars[] = {
 #endif
 	{CHECK_SNMP_RSNAME, ASN_OCTET_STR, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 55}},
+	{CHECK_SNMP_RSNOTIFYUPPATH, ASN_OCTET_STR, RONLY,
+	 check_snmp_realserver, 3, {4, 1, 56}},
+	{CHECK_SNMP_RSNOTIFYDOWNPATH, ASN_OCTET_STR, RONLY,
+	 check_snmp_realserver, 3, {4, 1, 57}},
 
 #ifdef _WITH_VRRP_
 	/* LVS sync daemon configuration */

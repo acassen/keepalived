@@ -60,6 +60,7 @@ typedef enum {
 typedef struct _notify_script {
 	const char **args;	/* Script args - should be "char const * const *" */
 	int	num_args;	/* Used for notify script when adding last 4 parameters */
+	const char *path;	/* The path to the executable if different from args[0] */
 	int	flags;
 	uid_t	uid;		/* uid of user to execute script */
 	gid_t	gid;		/* gid of group to execute script */
@@ -89,6 +90,7 @@ free_notify_script(notify_script_t **script)
 extern bool script_security;
 
 /* prototypes */
+extern void set_symlinks(bool);
 extern const char *cmd_str_r(const notify_script_t *, char *, size_t);
 extern const char *cmd_str(const notify_script_t *);
 extern void notify_fifo_open(notify_fifo_t*, notify_fifo_t*, thread_func_t, const char *);
@@ -106,6 +108,7 @@ extern bool set_script_uid_gid(const vector_t *, unsigned, uid_t *, gid_t *);
 extern void set_script_params_array(const vector_t *, notify_script_t *, unsigned);
 extern notify_script_t* notify_script_init(int, const char *);
 extern void add_script_param(notify_script_t *, const char *);
+extern void notify_free_script(notify_script_t *);
 extern void notify_resource_release(void);
 extern bool notify_script_compare(const notify_script_t *, const notify_script_t *) __attribute__ ((pure));
 extern void set_our_uid_gid(void);
