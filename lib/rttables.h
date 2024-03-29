@@ -31,7 +31,9 @@ extern void clear_rt_names(void);
 extern bool find_rttables_table(const char *, uint32_t *);
 extern bool find_rttables_dsfield(const char *, uint8_t *);
 extern bool find_rttables_realms(const char *, uint32_t *);
+#if HAVE_DECL_FRA_SUPPRESS_IFGROUP && defined _WITH_SNMP_VRRP_
 extern bool find_rttables_group(const char *, uint32_t *);
+#endif
 extern bool find_rttables_proto(const char *, uint8_t *);
 extern bool find_rttables_rtntype(const char *, uint8_t *);
 extern bool find_rttables_scope(const char *, uint8_t *);
