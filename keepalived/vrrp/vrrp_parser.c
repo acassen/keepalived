@@ -571,6 +571,7 @@ vrrp_vmac_handler(const vector_t *strvec)
 			continue;
 		}
 
+#if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 		if (!strcmp(strvec_slot(strvec, i), "group")) {
 			uint32_t group;
 			if (!find_rttables_group(strvec_slot(strvec, ++i), &group)) {
@@ -581,6 +582,7 @@ vrrp_vmac_handler(const vector_t *strvec)
 			current_vrrp->vmac_group = group;
 			continue;
 		}
+#endif
 
 		if (!strcmp(strvec_slot(strvec, i), "name")) {
 			/* Skip over "name" */
@@ -695,6 +697,7 @@ vrrp_ipvlan_handler(const vector_t *strvec)
 			continue;
 		}
 
+#if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 		if (!strcmp(strvec_slot(strvec, i), "group")) {
 			uint32_t group;
 			if (!find_rttables_group(strvec_slot(strvec, ++i), &group)) {
@@ -705,6 +708,7 @@ vrrp_ipvlan_handler(const vector_t *strvec)
 			current_vrrp->vmac_group = group;
 			continue;
 		}
+#endif
 
 		if (!strcmp(strvec_slot(strvec, i), "name")) {
 			i++;

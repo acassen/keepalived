@@ -322,11 +322,13 @@ find_rttables_dsfield(const char *name, uint8_t *id)
 	return ret;
 }
 
+#if HAVE_DECL_FRA_SUPPRESS_IFGROUP && defined _WITH_SNMP_VRRP_
 bool
 find_rttables_group(const char *name, uint32_t *id)
 {
 	return find_entry(name, id, &rt_groups, RT_GROUPS_FILE, NULL, INT32_MAX);
 }
+#endif
 
 bool
 find_rttables_realms(const char *name, uint32_t *id)
