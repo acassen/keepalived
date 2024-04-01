@@ -2066,7 +2066,7 @@ check_definition(const char *buf)
 	char *str;
 
 	if (buf[0] != '$')
-		return false;
+		return NULL;
 
 	if (!isalpha(buf[1]) && buf[1] != '_')
 		return NULL;

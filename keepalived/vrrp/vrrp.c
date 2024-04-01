@@ -3792,7 +3792,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 							memcpy(addr_vrrp.ll_addr, vrrp->ll_addr, sizeof(vrrp->ll_addr));
 						}
 
-						netlink_link_add_vmac(&addr_vrrp, false);
+						netlink_link_add_vmac(&addr_vrrp, NULL);
 					} else {
 						ifp->is_ours = true;
 						ifp->if_type = IF_TYPE_MACVLAN;

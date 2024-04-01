@@ -1317,7 +1317,7 @@ AC_CHECK_DECLS([IPV6_MULTICAST_ALL],
   [
     add_system_opt([IPV6_MULTICAST_ALL])
 
-    # We can't include <linux/in6.h> before <netinet/in.h> otherwise there a a lot of
+    # We can't include <linux/in6.h> before <netinet/in.h> otherwise there are a lot of
     #   duplicate definitions. If we include them the other way around and <netinet/in.h>
     #   doesn't define IPV6_MULTICAST_ALL, then we don't get the definition from
     #   <linux/in6.h> due to the UAPI guards to stop compile errors.
