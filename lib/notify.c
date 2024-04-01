@@ -712,7 +712,7 @@ clean_path(const char *old_argv)
 
 	slash = strchr(ip, '/');
 	if (!slash)
-		strcpy(op, slash);
+		strcpy(op, ip);
 	else if (slash > ip) {
 		strncpy(op, ip, slash - ip);
 		op += slash - ip;
