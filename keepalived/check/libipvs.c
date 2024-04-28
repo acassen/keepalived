@@ -383,6 +383,7 @@ static int ipvs_getinfo_parse_cb(struct nl_msg *msg, __attribute__((unused)) voi
 
 	return NL_OK;
 }
+#endif
 
 static int ipvs_getinfo(void)
 {
@@ -391,6 +392,7 @@ static int ipvs_getinfo(void)
 
 	ipvs_func = ipvs_getinfo;
 
+#ifdef LIBIPVS_USE_NL
 	if (try_nl) {
 		struct nl_msg *msg;
 		if (!(msg = ipvs_nl_message(IPVS_CMD_GET_INFO, 0)))
@@ -398,11 +400,11 @@ static int ipvs_getinfo(void)
 
 		return ipvs_nl_send_message(msg, ipvs_getinfo_parse_cb, NULL);
 	}
+#endif
 
 	len = sizeof(ipvs_info);
 	return getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO, &ipvs_info, &len);
 }
-#endif
 
 int ipvs_init(void)
 {
