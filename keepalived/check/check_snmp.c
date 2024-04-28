@@ -919,7 +919,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		curreal = 0;
 		if (target_len && (curvirtual < target[0]))
 			continue; /* Optimization: cannot be part of our set */
-		state = STATE_RS_SORRY;
+		state = vs->s_svr ? STATE_RS_SORRY : STATE_RS_REGULAR_FIRST;
 		while (state != STATE_RS_END) {
 			switch (state) {
 			case STATE_RS_SORRY:
