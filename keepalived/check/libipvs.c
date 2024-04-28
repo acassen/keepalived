@@ -435,8 +435,6 @@ int ipvs_init(void)
 	try_nl = libnl_init();
 	if (!try_nl)
 		log_message(LOG_INFO, "Note: IPVS with IPv6 will not be supported");
-#else
-	try_nl = true;
 #endif
 
 	if (try_nl && ipvs_nl_send_message(NULL, NULL, NULL) == 0)
@@ -966,7 +964,6 @@ static int ipvs_parse_stats(ip_vs_stats_t *stats, struct nlattr *nla)
 	stats->outbps = nla_get_u32(attrs[IPVS_STATS_ATTR_OUTBPS]);
 
 	return 0;
-
 }
 
 static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg)
@@ -1133,6 +1130,29 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 }
 #endif	/* LIBIPVS_USE_NL */
 
+#ifdef _WITH_LVS_64BIT_STATS_
+static void
+ipvs_copy_stats(ip_vs_stats_t *stats_out, const struct ip_vs_stats_user *stats_in)
+{
+	stats_out->conns = stats_in->conns;
+	stats_out->inpkts = stats_in->inpkts;
+	stats_out->outpkts = stats_in->outpkts;
+	stats_out->inbytes = stats_in->inbytes;
+	stats_out->outbytes = stats_in->outbytes;
+	stats_out->cps = stats_in->cps;
+	stats_out->inpps = stats_in->inpps;
+	stats_out->outpps = stats_in->outpps;
+	stats_out->inbps = stats_in->inbps;
+	stats_out->outbps = stats_in->outbps;
+}
+#else
+static void
+ipvs_copy_stats(ip_vs_stats_t *stats_out, const ip_vs_stats_user *stats_in)
+{
+	*stats_out = *stats_in;
+}
+#endif
+
 struct ip_vs_get_dests_app *ipvs_get_dests(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr *addr, __u16 port, unsigned num_dests)
 {
 	struct ip_vs_get_dests_app *d;
@@ -1226,6 +1246,7 @@ ipvs_nl_dest_failure:
 		d->user.entrytable[i].user = dk->entrytable[i];
 		d->user.entrytable[i].af = AF_INET;
 		d->user.entrytable[i].nf_addr.ip = d->user.entrytable[i].user.addr;
+		ipvs_copy_stats(&d->user.entrytable[i].stats, &dk->entrytable[i].stats);
 	}
 	FREE(dk);
 	return d;
@@ -1311,6 +1332,7 @@ ipvs_get_service_err2:
 	svc->af = AF_INET;
 	svc->nf_addr.ip = svc->user.addr;
 	svc->pe_name[0] = '\0';
+	ipvs_copy_stats(&svc->stats, &svc->user.stats);
 
 	return svc;
 out_err:
