@@ -288,12 +288,12 @@ static u_char*
 check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 			 int exact, size_t *var_len, WriteMethod **write_method)
 {
-	oid *target, current[2], best[2];
+	oid *target;
+	oid current[2] = { 0 };
 	int result;
 	size_t target_len;
-	unsigned curgroup = 0, curentry;
 	virtual_server_group_t *group;
-	virtual_server_group_entry_t *vsge, *be = NULL;
+	virtual_server_group_entry_t *vsge;
 	int state;
 	list_head_t *l;
 
@@ -312,15 +312,14 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 	/* We search the best match: equal if exact, the lower OID in
 	   the set of the OID strictly superior to the target
 	   otherwise. */
-	best[0] = best[1] = MAX_SUBID; /* Our best match */
 	target = &name[vp->namelen];   /* Our target match */
 	target_len = *length - vp->namelen;
 	list_for_each_entry(group, &check_data->vs_group, e_list) {
-		curgroup++;
-		curentry = 0;
-		if (target_len && (curgroup < target[0]))
+		current[0]++;
+		current[1] = 0;
+		if (target_len && (current[0] < target[0]))
 			continue; /* Optimization: cannot be part of our set */
-		state = STATE_VSGM_FWMARK;
+		state = list_empty(&group->vfwmark) ? STATE_VSGM_ADDRESS_RANGE : STATE_VSGM_FWMARK;
 		while (state < STATE_VSGM_END) {
 			switch (state) {
 			case STATE_VSGM_FWMARK:
@@ -335,27 +334,23 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 			}
 			state++;
 			list_for_each_entry(vsge, l, e_list) {
-				curentry++;
-				/* We build our current match */
-				current[0] = curgroup;
-				current[1] = curentry;
+				current[1]++;
 				/* And compare it to our target match */
 				if ((result = snmp_oid_compare(current, 2, target,
 							       target_len)) < 0)
 					continue;
-				if ((result == 0) && !exact)
-					continue;
 				if (result == 0) {
+					if (!exact)
+						continue;
+
 					/* Got an exact match and asked for it */
-					be = vsge;
-					goto vsgmember_found;
-				}
-				if (snmp_oid_compare(current, 2, best, 2) < 0) {
+				} else {
 					/* This is our best match */
-					memcpy(best, current, sizeof(oid) * 2);
-					be = vsge;
-					goto vsgmember_be_found;
+					target[0] = current[0];
+					target[1] = current[1];
+					*length = (unsigned)vp->namelen + 2;
 				}
+				goto vsgmember_found;
 			}
 		}
 	}
@@ -363,51 +358,47 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 	/* Nothing found */
 	return NULL;
 
- vsgmember_be_found:
-	/* Let's use our best match */
-	memcpy(target, best, sizeof(oid) * 2);
-	*length = (unsigned)vp->namelen + 2;
  vsgmember_found:
 	switch (vp->magic) {
 	case CHECK_SNMP_VSGROUPMEMBERTYPE:
-		if (be->is_fwmark)
+		if (vsge->is_fwmark)
 			long_ret.u = 1;
-		else if (inet_sockaddrcmp(&be->addr, &be->addr_end))
+		else if (inet_sockaddrcmp(&vsge->addr, &vsge->addr_end))
 			long_ret.u = 3;
 		else
 			long_ret.u = 2;
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSGROUPMEMBERFWMARK:
-		if (!be->is_fwmark) break;
-		long_ret.u = be->vfwmark;
+		if (!vsge->is_fwmark) break;
+		long_ret.u = vsge->vfwmark;
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSGROUPMEMBERADDRTYPE:
-		if (be->is_fwmark) break;
-		long_ret.u = SNMP_InetAddressType(be->addr.ss_family);
+		if (vsge->is_fwmark) break;
+		long_ret.u = SNMP_InetAddressType(vsge->addr.ss_family);
 		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSGROUPMEMBERADDRESS:
-		if (be->is_fwmark || inet_sockaddrcmp(&be->addr, &be->addr_end)) break;
-		RETURN_IP46ADDRESS(be);
+		if (vsge->is_fwmark || inet_sockaddrcmp(&vsge->addr, &vsge->addr_end)) break;
+		RETURN_IP46ADDRESS(vsge);
 		break;
 	case CHECK_SNMP_VSGROUPMEMBERADDR1:
-		if (be->is_fwmark || !inet_sockaddrcmp(&be->addr, &be->addr_end)) break;
-		RETURN_IP46ADDRESS(be);
+		if (vsge->is_fwmark || !inet_sockaddrcmp(&vsge->addr, &vsge->addr_end)) break;
+		RETURN_IP46ADDRESS(vsge);
 		break;
 	case CHECK_SNMP_VSGROUPMEMBERADDR2:
-		if (!inet_sockaddrcmp(&be->addr, &be->addr_end) || be->is_fwmark) break;
-		if (be->addr.ss_family == AF_INET6) {
-			struct sockaddr_in6 *addr6 = PTR_CAST(struct sockaddr_in6, &be->addr_end);
-			*var_len = 16;
+		if (!inet_sockaddrcmp(&vsge->addr, &vsge->addr_end) || vsge->is_fwmark) break;
+		if (vsge->addr.ss_family == AF_INET6) {
+			struct sockaddr_in6 *addr6 = PTR_CAST(struct sockaddr_in6, &vsge->addr_end);
+			*var_len = sizeof(addr6->sin6_addr);
 			return PTR_CAST(u_char, &addr6->sin6_addr);
 		} else {
-			struct sockaddr_in *addr4 = PTR_CAST(struct sockaddr_in, &be->addr_end);
-			*var_len = 4;
+			struct sockaddr_in *addr4 = PTR_CAST(struct sockaddr_in, &vsge->addr_end);
+			*var_len = sizeof(addr4->sin_addr);
 			return PTR_CAST(u_char, &addr4->sin_addr);
 		}
 		break;
 	case CHECK_SNMP_VSGROUPMEMBERPORT:
-		if (be->is_fwmark) break;
-		long_ret.u = htons(inet_sockaddrport(&be->addr));
+		if (vsge->is_fwmark) break;
+		long_ret.u = htons(inet_sockaddrport(&vsge->addr));
 		return PTR_CAST(u_char, &long_ret);
 	default:
 		return NULL;
@@ -1356,11 +1347,11 @@ check_snmp_lvs_sync_daemon(struct variable *vp, oid *name, size_t *length,
 			return NULL;
 		if (global_data->lvs_syncd.mcast_group.ss_family == AF_INET6) {
 			struct sockaddr_in6 *addr6 = PTR_CAST(struct sockaddr_in6, &global_data->lvs_syncd.mcast_group);
-			*var_len = 16;
+			*var_len = sizeof(addr6->sin6_addr);
 			return PTR_CAST(u_char, &addr6->sin6_addr);
 		} else {
 			struct sockaddr_in *addr4 = PTR_CAST(struct sockaddr_in, &global_data->lvs_syncd.mcast_group);
-			*var_len = 4;
+			*var_len = sizeof(addr4->sin_addr);
 			return PTR_CAST(u_char, &addr4->sin_addr);
 		}
 #endif
