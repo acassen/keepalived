@@ -82,8 +82,10 @@ extern void remove_fwmark_vs(virtual_server_t *, int);
 extern void add_fwmark_vs(virtual_server_t *, int);
 #endif
 
-/* Refresh statistics at most every 5 seconds */
-#define STATS_REFRESH 5
-extern void ipvs_update_stats(virtual_server_t * vs);
+/* Refresh VS statistics at most every global_data->snmp_vs_stats_update_interval */
+extern void ipvs_vs_update_stats(virtual_server_t * vs);
+
+/* Refresh RS statistics at most every global_data->snmp_rs_stats_update_interval */
+extern void ipvs_rs_update_stats(virtual_server_t * vs);
 
 #endif

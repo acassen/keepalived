@@ -41,8 +41,10 @@ struct ip_vs_stats64 {
 	__u64	outbps;		/* current out byte rate */
 };
 typedef struct ip_vs_stats64 ip_vs_stats_t;
+#define	ip_vs_stats	stats
 #else
 typedef struct ip_vs_stats_user ip_vs_stats_t;
+#define	ip_vs_stats	user.stats
 #endif
 
 struct ip_vs_service_app {
@@ -68,7 +70,9 @@ struct ip_vs_dest_app {
 
 struct ip_vs_service_entry_app {
 	struct ip_vs_service_entry user;
+#ifdef _WITH_LVS_64BIT_STATS_
 	ip_vs_stats_t		stats;
+#endif
 	uint16_t		af;
 	union nf_inet_addr	nf_addr;
 	char			pe_name[IP_VS_PENAME_MAXLEN + 1];
@@ -76,39 +80,35 @@ struct ip_vs_service_entry_app {
 
 struct ip_vs_dest_entry_app {
 	struct ip_vs_dest_entry user;
+#ifdef _WITH_LVS_64BIT_STATS_
 	ip_vs_stats_t		stats;
+#endif
 	uint16_t		af;
 	union nf_inet_addr	nf_addr;
-
 };
 
 struct ip_vs_get_dests_app {
-	uint16_t		af;
-	union nf_inet_addr	nf_addr;
+	uint16_t		af;		/* Needed if don't get IPVS_DEST_ATTR_ADDR_FAMILY */
 
-	struct {
-	/* which service: user fills in these */
-	__u16			protocol;
-	__be32			addr;		/* virtual address */
-	__be16			port;
-	__u32			fwmark;		/* firwall mark of service */
+	unsigned		num_entries;	/* Number of entries space allocated for */
 
-	/* number of real servers */
-	unsigned int		num_dests;
+	struct ip_vs_get_dests_entries_app {
+		/* number of real servers */
+		unsigned int		num_dests;
 
-	/* the real servers */
-	struct ip_vs_dest_entry_app	entrytable[];
+		/* the real servers */
+		struct ip_vs_dest_entry_app	entrytable[];
 	} user;
 };
 
 /* The argument to IP_VS_SO_GET_SERVICES */
 struct ip_vs_get_services_app {
 	struct {
-	/* number of virtual services */
-	unsigned int		num_services;
+		/* number of virtual services */
+		unsigned int		num_services;
 
-	/* service table */
-	struct ip_vs_service_entry_app entrytable[0];
+		/* service table */
+		struct ip_vs_service_entry_app entrytable[];
 	} user;
 };
 
@@ -117,27 +117,8 @@ struct ip_vs_get_services_app {
 	#error The code assumes that IP_VS_IFNAME_MAXLEN <= IFNAMSIZ
 #endif
 
-/* The argument to IP_VS_SO_GET_DAEMON */
-struct ip_vs_daemon_kern {
-	/* sync daemon state (master/backup) */
-	int			state;
-
-	/* multicast interface name */
-	char			mcast_ifn[IP_VS_IFNAME_MAXLEN];
-
-	/* SyncID we belong to */
-	int			syncid;
-};
-
 struct ip_vs_daemon_app {
-	/* sync daemon state (master/backup) */
-	int			state;
-
-	/* multicast interface name */
-	char			mcast_ifn[IP_VS_IFNAME_MAXLEN];
-
-	/* SyncID we belong to */
-	int			syncid;
+	struct ip_vs_daemon_user user;
 
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
 	/* UDP Payload Size */

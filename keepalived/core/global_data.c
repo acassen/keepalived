@@ -281,6 +281,10 @@ alloc_global_data(void)
 
 	if (snmp_socket)
 		new->snmp_socket = STRDUP(snmp_socket);
+#ifdef _WITH_SNMP_CHECKER_
+	new->snmp_vs_stats_update_interval = 5 * TIMER_HZ;	/* 5 seconds */
+	new->snmp_rs_stats_update_interval = 0;
+#endif
 #endif
 
 #ifdef _WITH_LVS_
@@ -412,6 +416,10 @@ init_global_data(data_t * data, data_t *prev_global_data, bool copy_unchangeable
 		}
 #endif
 	}
+#ifdef _WITH_SNMP_CHECKER_
+	if (!data->snmp_rs_stats_update_interval)
+		data->snmp_rs_stats_update_interval = data->snmp_vs_stats_update_interval;
+#endif
 #endif
 }
 
@@ -851,6 +859,10 @@ dump_global_data(FILE *fp, data_t * data)
 #ifdef _WITH_SNMP_
 	conf_write(fp, " SNMP traps %s", data->enable_traps ? "enabled" : "disabled");
 	conf_write(fp, " SNMP socket = %s", data->snmp_socket ? data->snmp_socket : "default (unix:/var/agentx/master)");
+#endif
+#ifdef _WITH_SNMP_CHECKER_
+	conf_write(fp, " SNMP VS stats update interval = %s", format_decimal(data->snmp_vs_stats_update_interval, TIMER_HZ_DIGITS));
+	conf_write(fp, " SNMP RS stats update interval = %s", format_decimal(data->snmp_rs_stats_update_interval, TIMER_HZ_DIGITS));
 #endif
 #ifdef _WITH_DBUS_
 	conf_write(fp, " DBus %s", data->enable_dbus ? "enabled" : "disabled");

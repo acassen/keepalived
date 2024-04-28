@@ -670,7 +670,9 @@ rs_end_handler(void)
 	}
 
 	list_add_tail(&current_rs->e_list, &current_vs->rs);
+#ifdef _WITH_SNMP_CHECKER_
 	current_vs->rs_cnt++;
+#endif
 }
 
 static void

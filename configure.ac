@@ -1507,6 +1507,7 @@ dnl ----[ Checks for libraries ]----
 NETLINK_VER=0
 IPVS_USE_NL=No
 if test .$enable_lvs != .no -a .${enable_libnl} != .no; then
+  dnl -- IPVS netlink support since linux 2.6.28 - 24/12/08
   $PKG_CONFIG --exists libnl-3.0
   if test $? -eq 0; then
     add_pkg_config([libnl-3.0], [NL3], [remove-requires])

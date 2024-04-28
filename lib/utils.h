@@ -279,6 +279,7 @@ extern int inet_sockaddrip6(const sockaddr_t *, struct in6_addr *);
 extern int inet_inaddrcmp(int, const void *, const void *); __attribute__ ((pure))
 extern int inet_sockaddrcmp(const sockaddr_t *, const sockaddr_t *) __attribute__ ((pure));
 extern void format_mac_buf(char *, size_t, const unsigned char *, size_t);
+extern const char *format_decimal(unsigned long, int);
 extern const char *get_local_name(void) __attribute__((malloc));
 extern bool string_equal(const char *, const char *) __attribute__ ((pure));
 extern int integer_to_string(const int, char *, size_t);

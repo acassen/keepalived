@@ -940,6 +940,21 @@ format_mac_buf(char *op, size_t op_len, const unsigned char *addr, size_t addr_l
 	}
 }
 
+const char *
+format_decimal(unsigned long val, int dp)
+{
+	static char buf[22];	/* Sufficient for 2^64 as decimal plus decimal point */
+	unsigned dp_factor = 1;
+	int i;
+
+	for (i = 0; i < dp; i++)
+		dp_factor *= 10;
+
+	snprintf(buf, sizeof(buf), "%lu.%*.*lu", val / dp_factor, dp, dp, val % dp_factor);
+
+	return buf;
+}
+
 /* Getting localhost official canonical name */
 const char * __attribute__((malloc))
 get_local_name(void)

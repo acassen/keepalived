@@ -205,7 +205,6 @@ typedef struct _virtual_server {
 							   if not set on real servers */
 	int				weight;
 	list_head_t			rs;		/* real_server_t */
-	unsigned			rs_cnt;		/* Number of real_server in list */
 	int				alive;
 	bool				alpha;		/* Set if alpha mode is default. */
 	bool				omega;		/* Omega mode enabled. */
@@ -223,9 +222,12 @@ typedef struct _virtual_server {
 	int				smtp_alert;	/* Send email on status change */
 	bool				quorum_state_up; /* Reflects result of the last transition done. */
 	bool				reloaded;	/* quorum_state was copied from old config while reloading */
-#if defined(_WITH_SNMP_CHECKER_)
+#if defined _WITH_SNMP_CHECKER_
 	/* Statistics */
-	time_t				lastupdated;
+	struct timespec			vs_stats_last_updated;
+	struct timespec			rs_stats_last_updated;
+	unsigned			rs_cnt;		/* Number of real_server in list */
+	unsigned			num_dests;	/* Only needed if using old socket interface */
 #ifndef _WITH_LVS_64BIT_STATS_
 	struct ip_vs_stats_user		stats;
 #else
