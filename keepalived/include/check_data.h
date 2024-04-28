@@ -223,9 +223,9 @@ typedef struct _virtual_server {
 	int				smtp_alert;	/* Send email on status change */
 	bool				quorum_state_up; /* Reflects result of the last transition done. */
 	bool				reloaded;	/* quorum_state was copied from old config while reloading */
-#if defined(_WITH_SNMP_CHECKER_)
+#if defined _WITH_SNMP_CHECKER_
 	/* Statistics */
-	time_t				lastupdated;
+	struct timespec			lastupdated;
 #ifndef _WITH_LVS_64BIT_STATS_
 	struct ip_vs_stats_user		stats;
 #else

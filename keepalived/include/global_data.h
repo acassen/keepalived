@@ -251,6 +251,7 @@ typedef struct _data {
 #endif
 #ifdef _WITH_LVS_
 	bool				enable_snmp_checker;
+	unsigned long			snmp_vs_stats_update_interval;
 #endif
 #endif
 #ifdef _WITH_DBUS_

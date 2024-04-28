@@ -911,10 +911,12 @@ ipvs_update_stats(virtual_server_t *vs)
 	uint16_t port;
 	union nf_inet_addr nfaddr;
 	real_server_t *rs;
-	time_t cur_time = time(NULL);
+	struct timespec cur_time;
 	uint16_t af;
 
-	if (cur_time - vs->lastupdated < STATS_REFRESH)
+	clock_gettime(CLOCK_MONOTONIC, &cur_time);
+	if ((unsigned long)((cur_time.tv_sec - vs->lastupdated.tv_sec) * TIMER_HZ +
+	    cur_time.tv_nsec / (NSEC_PER_SEC / TIMER_HZ) - vs->lastupdated.tv_nsec / (NSEC_PER_SEC / TIMER_HZ)) < global_data->snmp_vs_stats_update_interval)
 		return;
 	vs->lastupdated = cur_time;
 

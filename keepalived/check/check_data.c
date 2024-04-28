@@ -469,21 +469,6 @@ dump_tracking_rs(FILE *fp, const void *data)
 	conf_write(fp, "     %s -> %s, weight %d%s", FMT_VS(checker->vs), FMT_RS(checker->rs, checker->vs), top->weight, top->weight_multiplier == -1 ? " reverse" : "");
 }
 
-static const char *
-format_decimal(unsigned long val, int dp)
-{
-	static char buf[22];	/* Sufficient for 2^64 as decimal plus decimal point */
-	unsigned dp_factor = 1;
-	int i;
-
-	for (i = 0; i < dp; i++)
-		dp_factor *= 10;
-
-	snprintf(buf, sizeof(buf), "%lu.%*.*lu", val / dp_factor, dp, dp, val % dp_factor);
-
-	return buf;
-}
-
 static void
 dump_notify_vs_rs_script(FILE *fp, const notify_script_t *script, const char *type, const char *state)
 {

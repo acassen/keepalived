@@ -678,6 +678,13 @@ possibly following any cleanup actions needed.
     # enable SNMP traps
     \fBenable_traps\fR
 
+    # When SNMP requests are made, the checker process only updates the
+    # virtual and real server stats from the kernel if the last time the
+    # stats for that virtual server were read was more than this configured
+    # interval. The default interval is 5 seconds, and the valid range is
+    # 1 milli-second to 30 seconds.
+    \fBsnmp_vs_stats_update_interval\fR <TIMER>
+
     # If Keepalived has been build with DBus support, the following
     # keywords are available.
     # --
