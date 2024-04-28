@@ -249,9 +249,10 @@ typedef struct _data {
 	bool				enable_snmp_rfcv3;
 #endif
 #endif
-#ifdef _WITH_LVS_
+#ifdef _WITH_SNMP_CHECKER_
 	bool				enable_snmp_checker;
 	unsigned long			snmp_vs_stats_update_interval;
+	unsigned long			snmp_rs_stats_update_interval;
 #endif
 #endif
 #ifdef _WITH_DBUS_

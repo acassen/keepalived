@@ -224,8 +224,10 @@ typedef struct _virtual_server {
 	bool				reloaded;	/* quorum_state was copied from old config while reloading */
 #if defined _WITH_SNMP_CHECKER_
 	/* Statistics */
-	struct timespec			lastupdated;
+	struct timespec			vs_stats_last_updated;
+	struct timespec			rs_stats_last_updated;
 	unsigned			rs_cnt;		/* Number of real_server in list */
+	unsigned			num_dests;	/* Only needed if using old socket interface */
 #ifndef _WITH_LVS_64BIT_STATS_
 	struct ip_vs_stats_user		stats;
 #else

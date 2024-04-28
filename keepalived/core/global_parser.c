@@ -1638,6 +1638,17 @@ snmp_vs_stats_update_interval_handler(const vector_t *strvec)
 	else
 		report_config_error(CONFIG_GENERAL_ERROR, "snmp stats vs update interval '%s' invalid - ignoring", strvec_slot(strvec, 1));
 }
+static void
+snmp_rs_stats_update_interval_handler(const vector_t *strvec)
+{
+	unsigned long interval;
+
+	/* Valid range is 1 ms to 30s */
+	if (read_timer(strvec, 1, &interval, 1000, 30 * TIMER_HZ, true))
+		global_data->snmp_rs_stats_update_interval = interval;
+	else
+		report_config_error(CONFIG_GENERAL_ERROR, "snmp stats vs update interval '%s' invalid - ignoring", strvec_slot(strvec, 1));
+}
 #endif
 #endif
 
@@ -2527,6 +2538,7 @@ init_global_keywords(bool global_active)
 #ifdef _WITH_SNMP_CHECKER_
 	install_keyword("enable_snmp_checker", &snmp_checker_handler);
 	install_keyword("snmp_vs_stats_update_interval", &snmp_vs_stats_update_interval_handler);
+	install_keyword("snmp_rs_stats_update_interval", &snmp_rs_stats_update_interval_handler);
 #endif
 #endif
 #ifdef _WITH_DBUS_

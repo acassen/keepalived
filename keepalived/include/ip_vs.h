@@ -99,6 +99,8 @@ struct ip_vs_get_dests_app {
 	/* the real servers */
 	struct ip_vs_dest_entry_app	entrytable[];
 	} user;
+
+	unsigned		num_entries;	/* Number of entries space allocated for */
 };
 
 /* The argument to IP_VS_SO_GET_SERVICES */
@@ -108,7 +110,7 @@ struct ip_vs_get_services_app {
 	unsigned int		num_services;
 
 	/* service table */
-	struct ip_vs_service_entry_app entrytable[0];
+	struct ip_vs_service_entry_app entrytable[];
 	} user;
 };
 

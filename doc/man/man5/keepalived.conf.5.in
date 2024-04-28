@@ -685,6 +685,11 @@ possibly following any cleanup actions needed.
     # 1 milli-second to 30 seconds.
     \fBsnmp_vs_stats_update_interval\fR <TIMER>
 
+    # Like snmp_vs_stats_update_interval but for real servers. Stats for
+    # real servers are only read if there is an SNMP request for real server
+    # stats.
+    \fBsnmp_rs_stats_update_interval\fR <TIMER>
+
     # If Keepalived has been build with DBus support, the following
     # keywords are available.
     # --
