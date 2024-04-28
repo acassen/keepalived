@@ -246,18 +246,19 @@ enum check_snmp_lvs_timeouts {
 do {										\
   if (entity->addr.ss_family == AF_INET6) {					\
     struct sockaddr_in6 *addr6 = PTR_CAST(struct sockaddr_in6, &entity->addr);	\
-    *var_len = 16;								\
+    *var_len = sizeof(struct in6_addr);						\
     return PTR_CAST(u_char, &addr6->sin6_addr);					\
   } else {									\
     struct sockaddr_in *addr4 = PTR_CAST(struct sockaddr_in, &entity->addr);	\
-    *var_len = 4;								\
+    *var_len = sizeof(struct in_addr);						\
     return PTR_CAST(u_char, &addr4->sin_addr);					\
   }										\
 } while(0)
 
-/* Static return value */
+/* Static return values */
 static longret_t long_ret;
 static char buf[MAXBUF];
+static struct counter64 counter64_ret;
 
 static u_char*
 check_snmp_vsgroup(struct variable *vp, oid *name, size_t *length,
@@ -423,7 +424,6 @@ static u_char *
 check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 			 int exact, size_t *var_len, WriteMethod **write_method)
 {
-	static struct counter64 counter64_ret;
 	virtual_server_t *v;
 	real_server_t *rs;
 	snmp_ret_t ret;
@@ -886,7 +886,6 @@ static u_char *
 check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		      int exact, size_t *var_len, WriteMethod **write_method)
 {
-	static struct counter64 counter64_ret;
 	oid *target, current[2];
 	int result;
 	size_t target_len;
