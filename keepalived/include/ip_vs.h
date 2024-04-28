@@ -86,31 +86,31 @@ struct ip_vs_get_dests_app {
 	uint16_t		af;
 	union nf_inet_addr	nf_addr;
 
-	struct {
-	/* which service: user fills in these */
-	__u16			protocol;
-	__be32			addr;		/* virtual address */
-	__be16			port;
-	__u32			fwmark;		/* firwall mark of service */
-
-	/* number of real servers */
-	unsigned int		num_dests;
-
-	/* the real servers */
-	struct ip_vs_dest_entry_app	entrytable[];
-	} user;
-
 	unsigned		num_entries;	/* Number of entries space allocated for */
+
+	struct ip_vs_get_dests_entries_app {
+		/* which service: user fills in these */
+		__u16			protocol;
+		__be32			addr;		/* virtual address */
+		__be16			port;
+		__u32			fwmark;		/* firwall mark of service */
+
+		/* number of real servers */
+		unsigned int		num_dests;
+
+		/* the real servers */
+		struct ip_vs_dest_entry_app	entrytable[];
+	} user;
 };
 
 /* The argument to IP_VS_SO_GET_SERVICES */
 struct ip_vs_get_services_app {
 	struct {
-	/* number of virtual services */
-	unsigned int		num_services;
+		/* number of virtual services */
+		unsigned int		num_services;
 
-	/* service table */
-	struct ip_vs_service_entry_app entrytable[];
+		/* service table */
+		struct ip_vs_service_entry_app entrytable[];
 	} user;
 };
 

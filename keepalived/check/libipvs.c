@@ -342,13 +342,13 @@ static int ipvs_nl_send_message(struct nl_msg *msg, nl_recvmsg_msg_cb_t func, vo
 	int err = EINVAL;
 	int ret = 0;
 
+	if (!msg)
+		return 0;
+
 	if (!sock && open_nl_sock()) {
 		nlmsg_free(msg);
 		return -1;
 	}
-
-	if (!msg)
-		return 0;
 
 	if (func != cur_nl_sock_cb_func) {
 		if (!nl_socket_modify_cb(sock, NL_CB_VALID, NL_CB_CUSTOM, func, arg))
@@ -1090,6 +1090,7 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 	if (d->user.num_dests == d->num_entries) {
 		/* There are more RS than we expected. Allow space for another 10. */
 		d = REALLOC(d, sizeof(*d) + sizeof(ipvs_dest_entry_t) * (d->num_entries += 10));
+		*dp = d;
 	}
 
 	memset(&(d->user.entrytable[i]), 0, sizeof(d->user.entrytable[i]));
@@ -1127,7 +1128,6 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 	}
 
 	d->user.num_dests++;
-	*dp = d;
 
 	return 0;
 }
@@ -1158,7 +1158,7 @@ struct ip_vs_get_dests_app *ipvs_get_dests(__u32 fwmark, __u16 af, __u16 protoco
 		if (addr)
 			d->nf_addr = *addr;
 		d->user.port = port;
-		d->user.num_dests = num_dests;
+		d->user.num_dests = 0;
 		d->af = af;
 
 		msg = ipvs_nl_message(IPVS_CMD_GET_DEST, NLM_F_DUMP);
@@ -1180,7 +1180,6 @@ struct ip_vs_get_dests_app *ipvs_get_dests(__u32 fwmark, __u16 af, __u16 protoco
 		}
 		nla_nest_end(msg, nl_service);
 
-// Does ipvs_nl_send_message() free msg?
 		if (ipvs_nl_send_message(msg, ipvs_dests_parse_cb, &d))
 			goto ipvs_nl_dest_failure;
 
@@ -1218,13 +1217,13 @@ ipvs_nl_dest_failure:
 		FREE(dk);
 		return NULL;
 	}
-	memcpy(&d->user, dk, sizeof(struct ip_vs_get_dests));
+
+	d->user = *(struct ip_vs_get_dests_entries_app *)dk;
 	d->af = AF_INET;
 	if (addr)
 		d->nf_addr.ip = dk->addr;
 	for (i = 0; i < dk->num_dests; i++) {
-		memcpy(&d->user.entrytable[i], &dk->entrytable[i],
-		       sizeof(struct ip_vs_dest_entry));
+		d->user.entrytable[i].user = dk->entrytable[i];
 		d->user.entrytable[i].af = AF_INET;
 		d->user.entrytable[i].nf_addr.ip = d->user.entrytable[i].user.addr;
 	}
@@ -1243,13 +1242,9 @@ ipvs_get_service(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr *add
 
 #ifdef LIBIPVS_USE_NL
 	if (try_nl) {
-// get should be a ip_vs_get_services_app???
 		struct ip_vs_get_services_app *get;
 		struct nlattr *nl_service;
 		struct nl_msg *msg;
-//		ipvs_service_t tsvc = { .user.fwmark = fwmark, .af = af, .user.protocol = protocol, .user.port = port };
-//		if (addr)
-//			tsvc.nf_addr = *addr;
 
 		svc = MALLOC(sizeof(*svc));
 		if (!svc)
@@ -1263,8 +1258,6 @@ ipvs_get_service(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr *add
 		msg = ipvs_nl_message(IPVS_CMD_GET_SERVICE, 0);
 		if (!msg)
 			goto ipvs_get_service_err;
-//		if (ipvs_nl_fill_service_attr(msg, &tsvc))
-//			goto nla_put_failure;
 		nl_service = nla_nest_start(msg, IPVS_CMD_ATTR_SERVICE);
 		if (!nl_service)
 			goto nla_put_failure;
@@ -1280,7 +1273,6 @@ ipvs_get_service(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr *add
 		}
 		nla_nest_end(msg, nl_service);
 
-// Does ipvs_nl_send_message free msg?
 		if (ipvs_nl_send_message(msg, ipvs_services_parse_cb, &get))
 			goto ipvs_get_service_err;
 
