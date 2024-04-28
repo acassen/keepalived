@@ -406,9 +406,6 @@ static int ipvs_getinfo(void)
 
 int ipvs_init(void)
 {
-	socklen_t len;
-	struct ip_vs_getinfo ipvs_info;
-
 	ipvs_func = ipvs_init;
 
 #ifdef LIBIPVS_USE_NL
@@ -430,8 +427,7 @@ int ipvs_init(void)
 	if (sockfd == -1)
 		return -1;
 
-	len = sizeof(ipvs_info);
-	if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO, &ipvs_info, &len)) {
+	if (ipvs_getinfo()) {
 		close(sockfd);
 		sockfd = -1;
 		return -1;
