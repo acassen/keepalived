@@ -205,7 +205,6 @@ typedef struct _virtual_server {
 							   if not set on real servers */
 	int				weight;
 	list_head_t			rs;		/* real_server_t */
-	unsigned			rs_cnt;		/* Number of real_server in list */
 	int				alive;
 	bool				alpha;		/* Set if alpha mode is default. */
 	bool				omega;		/* Omega mode enabled. */
@@ -226,6 +225,7 @@ typedef struct _virtual_server {
 #if defined _WITH_SNMP_CHECKER_
 	/* Statistics */
 	struct timespec			lastupdated;
+	unsigned			rs_cnt;		/* Number of real_server in list */
 #ifndef _WITH_LVS_64BIT_STATS_
 	struct ip_vs_stats_user		stats;
 #else

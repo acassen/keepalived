@@ -1161,7 +1161,9 @@ validate_check_config(void)
 				if (rs_iseq(rs, rs1)) {
 					report_config_error(CONFIG_GENERAL_ERROR, "VS %s: real server %s is duplicated - removing second rs", FMT_VS(vs), FMT_RS(rs, vs));
 					free_rs(rs);
+#ifdef _WITH_SNMP_CHECKER_
 					vs->rs_cnt--;
+#endif
 					rs_removed = true;
 					break;
 				}
