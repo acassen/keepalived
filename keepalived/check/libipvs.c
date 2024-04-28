@@ -737,9 +737,8 @@ nla_put_failure:
 
 int ipvs_start_daemon(ipvs_daemon_t *dm)
 {
-	struct ip_vs_daemon_kern dmk;
-
 	ipvs_func = ipvs_start_daemon;
+
 #ifdef LIBIPVS_USE_NL
 	if (try_nl) {
 		struct nlattr *nl_daemon;
@@ -750,9 +749,9 @@ int ipvs_start_daemon(ipvs_daemon_t *dm)
 		if (!nl_daemon)
 			goto nla_put_failure;
 
-		NLA_PUT_S32(msg, IPVS_DAEMON_ATTR_STATE, dm->state);
-		NLA_PUT_STRING(msg, IPVS_DAEMON_ATTR_MCAST_IFN, dm->mcast_ifn);
-		NLA_PUT_S32(msg, IPVS_DAEMON_ATTR_SYNC_ID, dm->syncid);
+		NLA_PUT_S32(msg, IPVS_DAEMON_ATTR_STATE, dm->user.state);
+		NLA_PUT_STRING(msg, IPVS_DAEMON_ATTR_MCAST_IFN, dm->user.mcast_ifn);
+		NLA_PUT_S32(msg, IPVS_DAEMON_ATTR_SYNC_ID, dm->user.syncid);
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
 		if (dm->sync_maxlen)
 			NLA_PUT_U16(msg, IPVS_DAEMON_ATTR_SYNC_MAXLEN, dm->sync_maxlen);
@@ -775,19 +774,15 @@ nla_put_failure:
 		return -1;
 	}
 #endif
-	memset(&dmk, 0, sizeof(dmk));
-	dmk.state = dm->state;
-	strcpy(dmk.mcast_ifn, dm->mcast_ifn);
-	dmk.syncid = dm->syncid;
-	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_STARTDAEMON, &dmk, sizeof(dmk));
+
+	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_STARTDAEMON, &dm->user, sizeof(dm->user));
 }
 
 
 int ipvs_stop_daemon(ipvs_daemon_t *dm)
 {
-	struct ip_vs_daemon_kern dmk;
-
 	ipvs_func = ipvs_stop_daemon;
+
 #ifdef LIBIPVS_USE_NL
 	if (try_nl) {
 		struct nlattr *nl_daemon;
@@ -798,8 +793,8 @@ int ipvs_stop_daemon(ipvs_daemon_t *dm)
 		if (!nl_daemon)
 			goto nla_put_failure;
 
-		NLA_PUT_S32(msg, IPVS_DAEMON_ATTR_STATE, dm->state);
-		NLA_PUT_S32(msg, IPVS_DAEMON_ATTR_SYNC_ID, dm->syncid);
+		NLA_PUT_S32(msg, IPVS_DAEMON_ATTR_STATE, dm->user.state);
+		NLA_PUT_S32(msg, IPVS_DAEMON_ATTR_SYNC_ID, dm->user.syncid);
 
 		nla_nest_end(msg, nl_daemon);
 
@@ -810,9 +805,8 @@ nla_put_failure:
 		return -1;
 	}
 #endif
-	memset(&dmk, 0, sizeof(dmk));
-	dmk.state = dm->state;
-	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_STOPDAEMON, &dmk, sizeof(dmk));
+
+	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_STOPDAEMON, &dm->user, sizeof(dm->user));
 }
 
 #ifdef _WITH_SNMP_CHECKER_

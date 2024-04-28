@@ -252,9 +252,9 @@ ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool i
 
 	/* prepare user rule */
 	if (config) {
-		daemonrule.syncid = (int)config->syncid;
+		daemonrule.user.syncid = (int)config->syncid;
 		if (cmd == IPVS_STARTDAEMON) {
-			strcpy_safe(daemonrule.mcast_ifn, config->ifname);
+			strcpy_safe(daemonrule.user.mcast_ifn, config->ifname);
 
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
 			if (config->sync_maxlen)
@@ -276,14 +276,14 @@ ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool i
 	}
 
 	if (state & IPVS_MASTER) {
-		daemonrule.state = IP_VS_STATE_MASTER;
+		daemonrule.user.state = IP_VS_STATE_MASTER;
 
 		/* Talk to the IPVS channel */
 		ipvs_talk(cmd, NULL, NULL, &daemonrule, ignore_error);
 	}
 
 	if (state & IPVS_BACKUP) {
-		daemonrule.state = IP_VS_STATE_BACKUP;
+		daemonrule.user.state = IP_VS_STATE_BACKUP;
 
 		/* Talk to the IPVS channel */
 		ipvs_talk(cmd, NULL, NULL, &daemonrule, ignore_error);

@@ -124,27 +124,8 @@ struct ip_vs_get_services_app {
 	#error The code assumes that IP_VS_IFNAME_MAXLEN <= IFNAMSIZ
 #endif
 
-/* The argument to IP_VS_SO_GET_DAEMON */
-struct ip_vs_daemon_kern {
-	/* sync daemon state (master/backup) */
-	int			state;
-
-	/* multicast interface name */
-	char			mcast_ifn[IP_VS_IFNAME_MAXLEN];
-
-	/* SyncID we belong to */
-	int			syncid;
-};
-
 struct ip_vs_daemon_app {
-	/* sync daemon state (master/backup) */
-	int			state;
-
-	/* multicast interface name */
-	char			mcast_ifn[IP_VS_IFNAME_MAXLEN];
-
-	/* SyncID we belong to */
-	int			syncid;
+	struct ip_vs_daemon_user user;
 
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
 	/* UDP Payload Size */
