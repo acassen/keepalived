@@ -88,18 +88,11 @@ struct ip_vs_dest_entry_app {
 };
 
 struct ip_vs_get_dests_app {
-	uint16_t		af;
-	union nf_inet_addr	nf_addr;
+	uint16_t		af;		/* Needed if don't get IPVS_DEST_ATTR_ADDR_FAMILY */
 
 	unsigned		num_entries;	/* Number of entries space allocated for */
 
 	struct ip_vs_get_dests_entries_app {
-		/* which service: user fills in these */
-		__u16			protocol;
-		__be32			addr;		/* virtual address */
-		__be16			port;
-		__u32			fwmark;		/* firwall mark of service */
-
 		/* number of real servers */
 		unsigned int		num_dests;
 

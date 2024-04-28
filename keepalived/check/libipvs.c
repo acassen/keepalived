@@ -987,12 +987,10 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 	struct nlmsghdr *nlh = nlmsg_hdr(msg);
 	struct nlattr *attrs[IPVS_CMD_ATTR_MAX + 1];
 	struct nlattr *dest_attrs[IPVS_DEST_ATTR_MAX + 1];
-#if HAVE_DECL_IPVS_DEST_ATTR_ADDR_FAMILY
-	struct nlattr *attr_addr_family = NULL;
-#endif
 	struct ip_vs_get_dests_app **dp = PTR_CAST(struct ip_vs_get_dests_app *, arg);
 	struct ip_vs_get_dests_app *d = PTR_CAST(struct ip_vs_get_dests_app, *dp);
 	unsigned i = d->user.num_dests;
+	struct ip_vs_dest_entry_app *ent;
 
 	if (genlmsg_parse(nlh, 0, attrs, IPVS_CMD_ATTR_MAX, ipvs_cmd_policy) != 0)
 		return -1;
@@ -1020,37 +1018,35 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 		*dp = d;
 	}
 
-	memset(&(d->user.entrytable[i]), 0, sizeof(d->user.entrytable[i]));
+	ent = &d->user.entrytable[i];
+	memset(ent, 0, sizeof(*ent));
 
-	memcpy(&(d->user.entrytable[i].nf_addr),
+	memcpy(&ent->nf_addr,
 	       nla_data(dest_attrs[IPVS_DEST_ATTR_ADDR]),
-	       sizeof(d->user.entrytable[i].nf_addr));
-	d->user.entrytable[i].user.port = nla_get_u16(dest_attrs[IPVS_DEST_ATTR_PORT]);
-	d->user.entrytable[i].user.conn_flags = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_FWD_METHOD]);
-	d->user.entrytable[i].user.weight = nla_get_s32(dest_attrs[IPVS_DEST_ATTR_WEIGHT]);
-	d->user.entrytable[i].user.u_threshold = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_U_THRESH]);
-	d->user.entrytable[i].user.l_threshold = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_L_THRESH]);
-	d->user.entrytable[i].user.activeconns = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_ACTIVE_CONNS]);
-	d->user.entrytable[i].user.inactconns = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_INACT_CONNS]);
-	d->user.entrytable[i].user.persistconns = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_PERSIST_CONNS]);
+	       nla_len(dest_attrs[IPVS_DEST_ATTR_ADDR]));
+	ent->user.port = nla_get_u16(dest_attrs[IPVS_DEST_ATTR_PORT]);
+	ent->user.conn_flags = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_FWD_METHOD]);
+	ent->user.weight = nla_get_s32(dest_attrs[IPVS_DEST_ATTR_WEIGHT]);
+	ent->user.u_threshold = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_U_THRESH]);
+	ent->user.l_threshold = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_L_THRESH]);
+	ent->user.activeconns = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_ACTIVE_CONNS]);
+	ent->user.inactconns = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_INACT_CONNS]);
+	ent->user.persistconns = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_PERSIST_CONNS]);
 #if HAVE_DECL_IPVS_DEST_ATTR_ADDR_FAMILY
-	attr_addr_family = dest_attrs[IPVS_DEST_ATTR_ADDR_FAMILY];
-	if (attr_addr_family)
-		d->user.entrytable[i].af = nla_get_u16(attr_addr_family);
+	if (dest_attrs[IPVS_DEST_ATTR_ADDR_FAMILY])
+		ent->af = nla_get_u16(dest_attrs[IPVS_DEST_ATTR_ADDR_FAMILY]);
 	else
 #endif
-		d->user.entrytable[i].af = d->af;
+		ent->af = d->af;
 
 #ifdef _WITH_LVS_64BIT_STATS_
 	if (dest_attrs[IPVS_DEST_ATTR_STATS64]) {
-		if (ipvs_parse_stats64(&(d->user.entrytable[i].ip_vs_stats),
-				     dest_attrs[IPVS_DEST_ATTR_STATS64]) != 0)
+		if (ipvs_parse_stats64(&ent->ip_vs_stats, dest_attrs[IPVS_DEST_ATTR_STATS64]) != 0)
 			return -1;
 	} else if (dest_attrs[IPVS_DEST_ATTR_STATS])
 #endif
 	{
-		if (ipvs_parse_stats(&(d->user.entrytable[i].ip_vs_stats),
-				     dest_attrs[IPVS_DEST_ATTR_STATS]) != 0)
+		if (ipvs_parse_stats(&ent->ip_vs_stats, dest_attrs[IPVS_DEST_ATTR_STATS]) != 0)
 			return -1;
 	}
 
@@ -1080,13 +1076,8 @@ struct ip_vs_get_dests_app *ipvs_get_dests(__u32 fwmark, __u16 af, __u16 protoco
 	if (try_nl) {
 		struct nl_msg *msg;
 		struct nlattr *nl_service;
-		d->user.fwmark = fwmark;
-		d->user.protocol = protocol;
-		if (addr)
-			d->nf_addr = *addr;
-		d->user.port = port;
-		d->user.num_dests = 0;
 		d->af = af;
+		d->user.num_dests = 0;
 
 		msg = ipvs_nl_message(IPVS_CMD_GET_DEST, NLM_F_DUMP);
 		if (!msg)
@@ -1102,7 +1093,7 @@ struct ip_vs_get_dests_app *ipvs_get_dests(__u32 fwmark, __u16 af, __u16 protoco
 			NLA_PUT_U32(msg, IPVS_SVC_ATTR_FWMARK, fwmark);
 		} else {
 			NLA_PUT_U16(msg, IPVS_SVC_ATTR_PROTOCOL, protocol);
-			NLA_PUT(msg, IPVS_SVC_ATTR_ADDR, sizeof(*addr), addr);
+			NLA_PUT(msg, IPVS_SVC_ATTR_ADDR, af == AF_INET ? sizeof(struct in_addr) : sizeof(struct in6_addr), addr);
 			NLA_PUT_U16(msg, IPVS_SVC_ATTR_PORT, port);
 		}
 		nla_nest_end(msg, nl_service);
@@ -1137,7 +1128,6 @@ ipvs_nl_dest_failure:
 	if (addr)
 		dk->addr = addr->ip;
 	dk->port = port;
-	dk->num_dests = num_dests;
 
 	if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_DESTS, dk, &len) < 0) {
 		FREE(d);
@@ -1145,10 +1135,7 @@ ipvs_nl_dest_failure:
 		return NULL;
 	}
 
-	d->user = *(struct ip_vs_get_dests_entries_app *)dk;
-	d->af = AF_INET;
-	if (addr)
-		d->nf_addr.ip = dk->addr;
+	d->user.num_dests = dk->num_dests;
 	for (i = 0; i < dk->num_dests; i++) {
 		d->user.entrytable[i].user = dk->entrytable[i];
 		d->user.entrytable[i].af = AF_INET;
