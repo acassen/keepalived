@@ -1274,7 +1274,7 @@ ipvs_get_service_err2:
 #endif
 
 	len = sizeof(*svc);
-	svc = calloc(1, len);
+	svc = MALLOC(len);
 	if (!svc)
 		return NULL;
 
