@@ -73,8 +73,15 @@ snmp_header_list_head_table(struct variable *vp, oid *name, size_t *length,
 	if (header_simple_table(vp, name, length, exact, var_len, write_method, -1) != MATCH_SUCCEEDED)
 		return NULL;
 
-	if (list_empty(l))
+	/* header_simple_table sets *var_len = 0 on error. On success it sets
+	   *var_len = sizeof(long), and *write_method = NULL.
+	   If we reach here, the success values will have been written. */
+
+	if (list_empty(l)) {
+		if (var_len)
+			*var_len = 0;
 		return NULL;
+	}
 
 	target = name[*length - 1];
 
@@ -85,9 +92,12 @@ snmp_header_list_head_table(struct variable *vp, oid *name, size_t *length,
 		if (current == target)
 			/* Exact match */
 			return e;
-		if (exact)
+		if (exact) {
 			/* No exact match found */
+			if (var_len)
+				*var_len = 0;
 			return NULL;
+		}
 		/* current is the best match */
 		name[*length - 1] = current;
 		return e;
@@ -95,6 +105,9 @@ snmp_header_list_head_table(struct variable *vp, oid *name, size_t *length,
 
 	/* There are insufficent entries in the list or no match
 	 * at the end then just return no match */
+	if (var_len)
+		*var_len = 0;
+
 	return NULL;
 }
 
