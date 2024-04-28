@@ -842,16 +842,16 @@ ipvs_update_vs_stats(virtual_server_t *vs, uint16_t af, uint32_t fwmark, union n
 		return;
 
 	/* Update virtual server stats */
-	vs->stats.conns		+= serv->stats.conns;
-	vs->stats.inpkts	+= serv->stats.inpkts;
-	vs->stats.outpkts	+= serv->stats.outpkts;
-	vs->stats.inbytes	+= serv->stats.inbytes;
-	vs->stats.outbytes	+= serv->stats.outbytes;
-	vs->stats.cps		+= serv->stats.cps;
-	vs->stats.inpps		+= serv->stats.inpps;
-	vs->stats.outpps	+= serv->stats.outpps;
-	vs->stats.inbps		+= serv->stats.inbps;
-	vs->stats.outbps	+= serv->stats.outbps;
+	vs->stats.conns		+= serv->ip_vs_stats.conns;
+	vs->stats.inpkts	+= serv->ip_vs_stats.inpkts;
+	vs->stats.outpkts	+= serv->ip_vs_stats.outpkts;
+	vs->stats.inbytes	+= serv->ip_vs_stats.inbytes;
+	vs->stats.outbytes	+= serv->ip_vs_stats.outbytes;
+	vs->stats.cps		+= serv->ip_vs_stats.cps;
+	vs->stats.inpps		+= serv->ip_vs_stats.inpps;
+	vs->stats.outpps	+= serv->ip_vs_stats.outpps;
+	vs->stats.inbps		+= serv->ip_vs_stats.inbps;
+	vs->stats.outbps	+= serv->ip_vs_stats.outbps;
 
 	vs->num_dests = serv->user.num_dests;		// Only needed if using old socket interface
 
@@ -897,16 +897,16 @@ ipvs_update_rs_stats(virtual_server_t *vs, uint16_t af, uint32_t fwmark, union n
 		rs->activeconns		+= dests->user.entrytable[i].user.activeconns;
 		rs->inactconns		+= dests->user.entrytable[i].user.inactconns;
 		rs->persistconns	+= dests->user.entrytable[i].user.persistconns;
-		rs->stats.conns		+= dests->user.entrytable[i].stats.conns;
-		rs->stats.inpkts	+= dests->user.entrytable[i].stats.inpkts;
-		rs->stats.outpkts	+= dests->user.entrytable[i].stats.outpkts;
-		rs->stats.inbytes	+= dests->user.entrytable[i].stats.inbytes;
-		rs->stats.outbytes	+= dests->user.entrytable[i].stats.outbytes;
-		rs->stats.cps		+= dests->user.entrytable[i].stats.cps;
-		rs->stats.inpps		+= dests->user.entrytable[i].stats.inpps;
-		rs->stats.outpps	+= dests->user.entrytable[i].stats.outpps;
-		rs->stats.inbps		+= dests->user.entrytable[i].stats.inbps;
-		rs->stats.outbps	+= dests->user.entrytable[i].stats.outbps;
+		rs->stats.conns		+= dests->user.entrytable[i].ip_vs_stats.conns;
+		rs->stats.inpkts	+= dests->user.entrytable[i].ip_vs_stats.inpkts;
+		rs->stats.outpkts	+= dests->user.entrytable[i].ip_vs_stats.outpkts;
+		rs->stats.inbytes	+= dests->user.entrytable[i].ip_vs_stats.inbytes;
+		rs->stats.outbytes	+= dests->user.entrytable[i].ip_vs_stats.outbytes;
+		rs->stats.cps		+= dests->user.entrytable[i].ip_vs_stats.cps;
+		rs->stats.inpps		+= dests->user.entrytable[i].ip_vs_stats.inpps;
+		rs->stats.outpps	+= dests->user.entrytable[i].ip_vs_stats.outpps;
+		rs->stats.inbps		+= dests->user.entrytable[i].ip_vs_stats.inbps;
+		rs->stats.outbps	+= dests->user.entrytable[i].ip_vs_stats.outbps;
 	}
 
 	FREE(dests);

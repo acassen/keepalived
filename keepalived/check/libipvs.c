@@ -897,6 +897,23 @@ nla_put_failure:
 }
 
 #ifdef _WITH_SNMP_CHECKER_
+#ifdef _WITH_LVS_64BIT_STATS_
+static void
+ipvs_copy_stats(ip_vs_stats_t *stats_out, const struct ip_vs_stats_user *stats_in)
+{
+	stats_out->conns = stats_in->conns;
+	stats_out->inpkts = stats_in->inpkts;
+	stats_out->outpkts = stats_in->outpkts;
+	stats_out->inbytes = stats_in->inbytes;
+	stats_out->outbytes = stats_in->outbytes;
+	stats_out->cps = stats_in->cps;
+	stats_out->inpps = stats_in->inpps;
+	stats_out->outpps = stats_in->outpps;
+	stats_out->inbps = stats_in->inbps;
+	stats_out->outbps = stats_in->outbps;
+}
+#endif
+
 #ifdef LIBIPVS_USE_NL
 #ifdef _WITH_LVS_64BIT_STATS_
 static int ipvs_parse_stats64(ip_vs_stats_t *stats, struct nlattr *nla)
@@ -1033,7 +1050,7 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg)
 	} else if (svc_attrs[IPVS_SVC_ATTR_STATS])
 #endif
 	{
-		if (ipvs_parse_stats(&(get->user.entrytable[0].stats),
+		if (ipvs_parse_stats64(&(get->user.entrytable[0].ip_vs_stats),
 				     svc_attrs[IPVS_SVC_ATTR_STATS]) != 0)
 			return -1;
 	}
@@ -1113,13 +1130,13 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 
 #ifdef _WITH_LVS_64BIT_STATS_
 	if (dest_attrs[IPVS_DEST_ATTR_STATS64]) {
-		if (ipvs_parse_stats64(&(d->user.entrytable[i].stats),
+		if (ipvs_parse_stats64(&(d->user.entrytable[i].ip_vs_stats),
 				     dest_attrs[IPVS_DEST_ATTR_STATS64]) != 0)
 			return -1;
 	} else if (dest_attrs[IPVS_DEST_ATTR_STATS])
 #endif
 	{
-		if (ipvs_parse_stats(&(d->user.entrytable[i].stats),
+		if (ipvs_parse_stats(&(d->user.entrytable[i].ip_vs_stats),
 				     dest_attrs[IPVS_DEST_ATTR_STATS]) != 0)
 			return -1;
 	}
@@ -1129,29 +1146,6 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 	return 0;
 }
 #endif	/* LIBIPVS_USE_NL */
-
-#ifdef _WITH_LVS_64BIT_STATS_
-static void
-ipvs_copy_stats(ip_vs_stats_t *stats_out, const struct ip_vs_stats_user *stats_in)
-{
-	stats_out->conns = stats_in->conns;
-	stats_out->inpkts = stats_in->inpkts;
-	stats_out->outpkts = stats_in->outpkts;
-	stats_out->inbytes = stats_in->inbytes;
-	stats_out->outbytes = stats_in->outbytes;
-	stats_out->cps = stats_in->cps;
-	stats_out->inpps = stats_in->inpps;
-	stats_out->outpps = stats_in->outpps;
-	stats_out->inbps = stats_in->inbps;
-	stats_out->outbps = stats_in->outbps;
-}
-#else
-static void
-ipvs_copy_stats(ip_vs_stats_t *stats_out, const ip_vs_stats_user *stats_in)
-{
-	*stats_out = *stats_in;
-}
-#endif
 
 struct ip_vs_get_dests_app *ipvs_get_dests(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr *addr, __u16 port, unsigned num_dests)
 {
@@ -1246,7 +1240,9 @@ ipvs_nl_dest_failure:
 		d->user.entrytable[i].user = dk->entrytable[i];
 		d->user.entrytable[i].af = AF_INET;
 		d->user.entrytable[i].nf_addr.ip = d->user.entrytable[i].user.addr;
-		ipvs_copy_stats(&d->user.entrytable[i].stats, &dk->entrytable[i].stats);
+#ifdef _WITH_LVS_64BIT_STATS_
+		ipvs_copy_stats(&d->user.entrytable[i].ip_vs_stats, &dk->entrytable[i].stats);
+#endif
 	}
 	FREE(dk);
 	return d;
@@ -1332,7 +1328,9 @@ ipvs_get_service_err2:
 	svc->af = AF_INET;
 	svc->nf_addr.ip = svc->user.addr;
 	svc->pe_name[0] = '\0';
+#ifdef _WITH_LVS_64BIT_STATS_
 	ipvs_copy_stats(&svc->stats, &svc->user.stats);
+#endif
 
 	return svc;
 out_err:

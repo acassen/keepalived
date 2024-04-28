@@ -41,8 +41,10 @@ struct ip_vs_stats64 {
 	__u64	outbps;		/* current out byte rate */
 };
 typedef struct ip_vs_stats64 ip_vs_stats_t;
+#define	ip_vs_stats	stats
 #else
 typedef struct ip_vs_stats_user ip_vs_stats_t;
+#define	ip_vs_stats	user.stats
 #endif
 
 struct ip_vs_service_app {
@@ -68,7 +70,9 @@ struct ip_vs_dest_app {
 
 struct ip_vs_service_entry_app {
 	struct ip_vs_service_entry user;
+#ifdef _WITH_LVS_64BIT_STATS_
 	ip_vs_stats_t		stats;
+#endif
 	uint16_t		af;
 	union nf_inet_addr	nf_addr;
 	char			pe_name[IP_VS_PENAME_MAXLEN + 1];
@@ -76,7 +80,9 @@ struct ip_vs_service_entry_app {
 
 struct ip_vs_dest_entry_app {
 	struct ip_vs_dest_entry user;
+#ifdef _WITH_LVS_64BIT_STATS_
 	ip_vs_stats_t		stats;
+#endif
 	uint16_t		af;
 	union nf_inet_addr	nf_addr;
 
