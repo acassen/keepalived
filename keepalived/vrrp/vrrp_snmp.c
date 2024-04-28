@@ -2574,7 +2574,7 @@ vrrp_snmp_group_trackedprocess(struct variable *vp, oid *name, size_t *length,
 #endif
 
 static oid vrrp_oid[] = {VRRP_OID};
-static struct variable8 vrrp_vars[] = {
+static struct variable3 vrrp_vars[] = {
 	/* vrrpSyncGroupTable */
 	{VRRP_SNMP_SYNCGROUP_NAME, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_syncgroup, 3, {1, 1, 2}},
@@ -3667,7 +3667,7 @@ vrrp_rfcv2_snmp_statstable(struct variable *vp, oid *name, size_t *length,
 }
 
 static oid vrrp_rfcv2_oid[] = {VRRP_RFC_OID};
-static struct variable8 vrrp_rfcv2_vars[] = {
+static struct variable4 vrrp_rfcv2_vars[] = {
 	{ VRRP_RFC_SNMP_NODE_VER, ASN_INTEGER, RONLY,
 	  vrrp_rfcv2_snmp_node_info, 2, {1, 1}},
 	{ VRRP_RFC_SNMP_NOTIF_CNTL, ASN_INTEGER, RONLY,
@@ -4341,7 +4341,7 @@ vrrp_rfcv3_snmp_statstable(struct variable *vp, oid *name, size_t *length,
 }
 
 static oid vrrp_rfcv3_oid[] = {VRRP_RFCv3_OID};
-static struct variable8 vrrp_rfcv3_vars[] = {
+static struct variable7 vrrp_rfcv3_vars[] = {
 	/* vrrpOperTable */
 	{ VRRP_RFCv3_SNMP_OPER_MIP, ASN_OCTET_STR, RONLY,
 	  vrrp_rfcv3_snmp_opertable, 5, {1, 1, 1, 1, 3}},
@@ -4539,22 +4539,22 @@ vrrp_snmp_agent_init(const char *snmp_socket_name)
 	if (global_data->enable_snmp_vrrp)
 		snmp_register_mib(vrrp_oid, OID_LENGTH(vrrp_oid), "KEEPALIVED-VRRP",
 				  PTR_CAST(struct variable, vrrp_vars),
-				  sizeof(struct variable8),
-				  sizeof(vrrp_vars)/sizeof(struct variable8));
+				  sizeof(vrrp_vars[0]),
+				  sizeof(vrrp_vars)/sizeof(vrrp_vars[0]));
 #endif
 #ifdef _WITH_SNMP_RFCV2_
 	if (global_data->enable_snmp_rfcv2)
 		snmp_register_mib(vrrp_rfcv2_oid, OID_LENGTH(vrrp_rfcv2_oid), "VRRP",
 				  PTR_CAST(struct variable, vrrp_rfcv2_vars),
-				  sizeof(struct variable8),
-				  sizeof(vrrp_rfcv2_vars)/sizeof(struct variable8));
+				  sizeof(vrrp_rfcv2_vars[0]),
+				  sizeof(vrrp_rfcv2_vars)/sizeof(vrrp_rfcv2_vars[0]));
 #endif
 #ifdef _WITH_SNMP_RFCV3_
 	if (global_data->enable_snmp_rfcv3)
 		snmp_register_mib(vrrp_rfcv3_oid, OID_LENGTH(vrrp_rfcv3_oid), "VRRPV3",
 				  PTR_CAST(struct variable, vrrp_rfcv3_vars),
-				  sizeof(struct variable8),
-				  sizeof(vrrp_rfcv3_vars)/sizeof(struct variable8));
+				  sizeof(vrrp_rfcv3_vars[0]),
+				  sizeof(vrrp_rfcv3_vars)/sizeof(vrrp_rfcv3_vars[0]));
 #endif
 }
 

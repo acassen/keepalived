@@ -1397,7 +1397,7 @@ check_snmp_lvs_timeouts(struct variable *vp, oid *name, size_t *length,
 }
 
 static oid check_oid[] = {CHECK_OID};
-static struct variable8 check_vars[] = {
+static struct variable3 check_vars[] = {
 	/* virtualServerGroupTable */
 	{CHECK_SNMP_VSGROUPNAME, ASN_OCTET_STR, RONLY,
 	 check_snmp_vsgroup, 3, {1, 1, 2}},
@@ -1756,8 +1756,8 @@ check_snmp_agent_init(const char *snmp_socket)
 	snmp_agent_init(snmp_socket, true);
 	snmp_register_mib(check_oid, OID_LENGTH(check_oid), "Healthchecker",
 			  PTR_CAST(struct variable, check_vars),
-			  sizeof(struct variable8),
-			  sizeof(check_vars)/sizeof(struct variable8));
+			  sizeof(check_vars[0]),
+			  sizeof(check_vars)/sizeof(check_vars[0]));
 }
 
 void

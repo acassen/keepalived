@@ -353,7 +353,7 @@ snmp_mail(struct variable *vp, oid *name, size_t *length,
 
 static const char global_name[] = "Keepalived";
 static oid global_oid[] = GLOBAL_OID;
-static struct variable8 global_vars[] = {
+static struct variable4 global_vars[] = {
 	/* version */
 	{SNMP_KEEPALIVEDVERSION, ASN_OCTET_STR, RONLY, snmp_scalar, 1, {1}},
 	/* routerId */
@@ -487,8 +487,8 @@ snmp_agent_init(const char *snmp_socket_name, bool base_mib)
 	if (base_mib)
 		snmp_register_mib(global_oid, OID_LENGTH(global_oid), global_name,
 				  PTR_CAST(struct variable, global_vars),
-				  sizeof(struct variable8),
-				  sizeof(global_vars)/sizeof(struct variable8));
+				  sizeof(global_vars[0]),
+				  sizeof(global_vars)/sizeof(global_vars[0]));
 	init_snmp(global_name);
 
 	master->snmp_timer_thread = thread_add_timer(master, snmp_timeout_thread, 0, TIMER_NEVER);
