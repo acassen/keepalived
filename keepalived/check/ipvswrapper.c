@@ -857,7 +857,7 @@ ipvs_update_vs_stats(virtual_server_t *vs, uint16_t af, uint32_t fwmark, union n
 	vs->stats.outbps	+= serv->stats.outbps;
 
 	/* Get real servers */
-	dests = ipvs_get_dests(serv);
+	dests = ipvs_get_dests(fwmark, af, vs->service_type, nfaddr, port, serv->user.num_dests);
 	FREE(serv);
 	if (!dests)
 		return;

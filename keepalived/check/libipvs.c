@@ -1124,14 +1124,14 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 }
 #endif	/* LIBIPVS_USE_NL */
 
-struct ip_vs_get_dests_app *ipvs_get_dests(ipvs_service_entry_t *svc)
+struct ip_vs_get_dests_app *ipvs_get_dests(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr *addr, __u16 port, unsigned num_dests)
 {
 	struct ip_vs_get_dests_app *d;
 	struct ip_vs_get_dests *dk;
 	socklen_t len;
 	unsigned i;
 
-	len = (socklen_t)(sizeof(*d) + sizeof(ipvs_dest_entry_t) * svc->user.num_dests);
+	len = (socklen_t)(sizeof(*d) + sizeof(ipvs_dest_entry_t) * (num_dests ? num_dests : 1));
 	if (!(d = MALLOC(len)))
 		return NULL;
 
@@ -1141,14 +1141,12 @@ struct ip_vs_get_dests_app *ipvs_get_dests(ipvs_service_entry_t *svc)
 	if (try_nl) {
 		struct nl_msg *msg;
 		struct nlattr *nl_service;
-		if (svc->user.num_dests == 0)
-			d = REALLOC(d,sizeof(*d) + sizeof(ipvs_dest_entry_t));
-		d->user.fwmark = svc->user.fwmark;
-		d->user.protocol = svc->user.protocol;
-		d->nf_addr = svc->nf_addr;
-		d->user.port = svc->user.port;
-		d->user.num_dests = svc->user.num_dests;
-		d->af = svc->af;
+		d->user.fwmark = fwmark;
+		d->user.protocol = protocol;
+		d->nf_addr = *addr;
+		d->user.port = port;
+		d->user.num_dests = num_dests;
+		d->af = af;
 
 		msg = ipvs_nl_message(IPVS_CMD_GET_DEST, NLM_F_DUMP);
 		if (!msg)
@@ -1158,15 +1156,14 @@ struct ip_vs_get_dests_app *ipvs_get_dests(ipvs_service_entry_t *svc)
 		if (!nl_service)
 			goto nla_put_failure;
 
-		NLA_PUT_U16(msg, IPVS_SVC_ATTR_AF, svc->af);
+		NLA_PUT_U16(msg, IPVS_SVC_ATTR_AF, af);
 
-		if (svc->user.fwmark) {
-			NLA_PUT_U32(msg, IPVS_SVC_ATTR_FWMARK, svc->user.fwmark);
+		if (fwmark) {
+			NLA_PUT_U32(msg, IPVS_SVC_ATTR_FWMARK, fwmark);
 		} else {
-			NLA_PUT_U16(msg, IPVS_SVC_ATTR_PROTOCOL, svc->user.protocol);
-			NLA_PUT(msg, IPVS_SVC_ATTR_ADDR, sizeof(svc->nf_addr),
-				&svc->nf_addr);
-			NLA_PUT_U16(msg, IPVS_SVC_ATTR_PORT, svc->user.port);
+			NLA_PUT_U16(msg, IPVS_SVC_ATTR_PROTOCOL, protocol);
+			NLA_PUT(msg, IPVS_SVC_ATTR_ADDR, sizeof(*addr), addr);
+			NLA_PUT_U16(msg, IPVS_SVC_ATTR_PORT, port);
 		}
 
 		nla_nest_end(msg, nl_service);
@@ -1183,33 +1180,32 @@ ipvs_nl_dest_failure:
 	}
 #endif	/* LIBIPVS_USE_NL */
 
-	if (svc->af != AF_INET) {
+	if (af != AF_INET) {
 		errno = EAFNOSUPPORT;
 		FREE(d);
 		return NULL;
 	}
 
-	len = (socklen_t)(sizeof(*dk) + sizeof(struct ip_vs_dest_entry) * svc->user.num_dests);
+	len = (socklen_t)(sizeof(*dk) + sizeof(struct ip_vs_dest_entry) * num_dests);
 	if (!(dk = MALLOC(len))) {
 		FREE(d);
 		return NULL;
 	}
 
-	dk->fwmark = svc->user.fwmark;
-	dk->protocol = svc->user.protocol;
-	dk->addr = svc->nf_addr.ip;
-	dk->port = svc->user.port;
-	dk->num_dests = svc->user.num_dests;
+	dk->fwmark = fwmark;
+	dk->protocol = protocol;
+	dk->addr = addr->ip;
+	dk->port = port;
+	dk->num_dests = num_dests;
 
-	if (getsockopt(sockfd, IPPROTO_IP,
-		       IP_VS_SO_GET_DESTS, dk, &len) < 0) {
+	if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_DESTS, dk, &len) < 0) {
 		FREE(d);
 		FREE(dk);
 		return NULL;
 	}
-	memcpy(d, dk, sizeof(struct ip_vs_get_dests));
+	memcpy(&d->user, dk, sizeof(struct ip_vs_get_dests));
 	d->af = AF_INET;
-	d->nf_addr.ip = d->user.addr;
+	d->nf_addr.ip = dk->addr;
 	for (i = 0; i < dk->num_dests; i++) {
 		memcpy(&d->user.entrytable[i], &dk->entrytable[i],
 		       sizeof(struct ip_vs_dest_entry));
