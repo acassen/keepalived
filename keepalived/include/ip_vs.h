@@ -85,7 +85,6 @@ struct ip_vs_dest_entry_app {
 #endif
 	uint16_t		af;
 	union nf_inet_addr	nf_addr;
-
 };
 
 struct ip_vs_get_dests_app {
