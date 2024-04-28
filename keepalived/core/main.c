@@ -994,7 +994,7 @@ reload_check_child_thread(thread_ref_t thread)
 static void
 start_validate_reload_conf_child(void)
 {
-	notify_script_t script;
+	notify_script_t script = { .path = NULL };
 	int i;
 	int ret;
 	int argc;

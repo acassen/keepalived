@@ -214,7 +214,7 @@ system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned 
 		execve(script->path ? script->path : script->args[0], args.execve_args, environ);
 
 		/* error */
-		log_message(LOG_ALERT, "Error exec-ing command '%s', error %d: %m", script->args[0], errno);
+		log_message(LOG_ALERT, "Error exec-ing command '%s', error %d: %m", script->path ? script->path : script->args[0], errno);
 	} else {
 		retval = system(str = cmd_str(script));
 
