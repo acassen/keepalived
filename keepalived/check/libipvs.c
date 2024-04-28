@@ -1229,18 +1229,11 @@ ipvs_get_service(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr *add
 	if (try_nl) {
 		struct ip_vs_get_services *get;
 		struct nl_msg *msg;
-		ipvs_service_t tsvc;
+		ipvs_service_t tsvc = { .user.fwmark = fwmark, .af = af, .user.protocol = protocol, .nf_addr = *addr, .user.port = port };
 
 		svc = MALLOC(sizeof(*svc));
 		if (!svc)
 			return NULL;
-
-		memset(&tsvc, 0, sizeof(tsvc));
-		tsvc.user.fwmark = fwmark;
-		tsvc.af = af;
-		tsvc.user.protocol= protocol;
-		tsvc.nf_addr = *addr;
-		tsvc.user.port = port;
 
 		if (!(get = MALLOC(sizeof(*get) + sizeof(ipvs_service_entry_t))))
 			goto ipvs_get_service_err2;
