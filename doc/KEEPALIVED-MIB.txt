@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "202403180001Z"
+     LAST-UPDATED "202404050001Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "202404050001Z"
+     DESCRIPTION "add missing 64 bit counters for 64 bit stats"
      REVISION "202403180001Z"
      DESCRIPTION "add separate path and argv[0] for scripts"
      REVISION "202212090001Z"
@@ -3426,7 +3428,12 @@ VirtualServerEntry ::= SEQUENCE {
     virtualServerTunnelCsum INTEGER,
     virtualServerName DisplayString,
     virtualServerQuorumUpPath DisplayString,
-    virtualServerQuorumDownPath DisplayString
+    virtualServerQuorumDownPath DisplayString,
+    virtualServerRateCps64 Counter64,
+    virtualServerRateInPPS64 Counter64,
+    virtualServerRateOutPPS64 Counter64,
+    virtualServerRateInBPS64 Counter64,
+    virtualServerRateOutBPS64 Counter64
 }
 
 virtualServerIndex OBJECT-TYPE
@@ -4084,6 +4091,51 @@ virtualServerQuorumDownPath OBJECT-TYPE
         "Path to command to execute when the quorum is not met."
     ::= { virtualServerEntry 73 }
 
+virtualServerRateCps64 OBJECT-TYPE
+    SYNTAX Counter64
+    UNITS "connections/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current connection rate for this virtual server."
+    ::= { virtualServerEntry 74 }
+
+virtualServerRateInPPS64 OBJECT-TYPE
+    SYNTAX Counter64
+    UNITS "packets/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current in packet rate for this virtual server."
+    ::= { virtualServerEntry 75 }
+
+virtualServerRateOutPPS64 OBJECT-TYPE
+    SYNTAX Counter64
+    UNITS "packets/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current out packet rate for this virtual server."
+    ::= { virtualServerEntry 76 }
+
+virtualServerRateInBPS64 OBJECT-TYPE
+    SYNTAX Counter64
+    UNITS "bytes/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current incoming rate for this virtual server."
+    ::= { virtualServerEntry 77 }
+
+virtualServerRateOutBPS64 OBJECT-TYPE
+    SYNTAX Counter64
+    UNITS "bytes/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current outgoing rate for this virtual server."
+    ::= { virtualServerEntry 78 }
+
 
 -- real servers
 
@@ -4161,7 +4213,12 @@ RealServerEntry ::= SEQUENCE {
     realServerTunnelCsum INTEGER,
     realServerName DisplayString,
     realServerNotifyUpPath DisplayString,
-    realServerNotifyDownPath DisplayString
+    realServerNotifyDownPath DisplayString,
+    realServerRateCps64 Counter64,
+    realServerRateInPPS64 Counter64,
+    realServerRateOutPPS64 Counter64,
+    realServerRateInBPS64 Counter64,
+    realServerRateOutBPS64 Counter64
 }
 
 realServerIndex OBJECT-TYPE
@@ -4665,6 +4722,51 @@ realServerNotifyDownPath OBJECT-TYPE
     DESCRIPTION
         "Path to command to execute when this server becomes dead."
     ::= { realServerEntry 57 }
+
+realServerRateCps64 OBJECT-TYPE
+    SYNTAX Counter64
+    UNITS "connections/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current connection rate for this real server."
+    ::= { realServerEntry 58 }
+
+realServerRateInPPS64 OBJECT-TYPE
+    SYNTAX Counter64
+    UNITS "packets/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current in packet rate for this real server."
+    ::= { realServerEntry 59 }
+
+realServerRateOutPPS64 OBJECT-TYPE
+    SYNTAX Counter64
+    UNITS "packets/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current out packet rate for this real server."
+    ::= { realServerEntry 60 }
+
+realServerRateInBPS64 OBJECT-TYPE
+    SYNTAX Counter64
+    UNITS "bytes/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current incoming rate for this real server."
+    ::= { realServerEntry 61 }
+
+realServerRateOutBPS64 OBJECT-TYPE
+    SYNTAX Counter64
+    UNITS "bytes/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current outgoing rate for this real server."
+    ::= { realServerEntry 62 }
 
 lvsSyncDaemon    OBJECT IDENTIFIER ::= { check 6 }
 
@@ -5299,7 +5401,12 @@ virtualServerGroup OBJECT-GROUP
     virtualServerTunnelCsum,
     virtualServerName,
     virtualServerQuorumUpPath,
-    virtualServerQuorumDownPath
+    virtualServerQuorumDownPath,
+    virtualServerRateCps64,
+    virtualServerRateInPPS64,
+    virtualServerRateOutPPS64,
+    virtualServerRateInBPS64,
+    virtualServerRateOutBPS64
     }
     STATUS current
     DESCRIPTION
@@ -5363,7 +5470,12 @@ realServerGroup OBJECT-GROUP
     realServerTunnelCsum,
     realServerName,
     realServerNotifyUpPath,
-    realServerNotifyDownPath
+    realServerNotifyDownPath,
+    realServerRateCps64,
+    realServerRateInPPS64,
+    realServerRateOutPPS64,
+    realServerRateInBPS64,
+    realServerRateOutBPS64
     }
     STATUS current
     DESCRIPTION

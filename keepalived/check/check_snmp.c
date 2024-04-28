@@ -90,6 +90,7 @@ enum check_snmp_virtualserver_magic {
 	CHECK_SNMP_VSSTATSCONNS64,
 	CHECK_SNMP_VSSTATSINPKTS64,
 	CHECK_SNMP_VSSTATSOUTPKTS64,
+	/* See below for VSRATECPS64 64 bit counters for rates */
 	CHECK_SNMP_VSRATECPSLOW,
 	CHECK_SNMP_VSRATECPSHIGH,
 	CHECK_SNMP_VSRATEINPPSLOW,
@@ -127,6 +128,13 @@ enum check_snmp_virtualserver_magic {
 	CHECK_SNMP_VSNAME,
 	CHECK_SNMP_VSQUORUMUPPATH,
 	CHECK_SNMP_VSQUORUMDOWNPATH,
+#ifdef _WITH_LVS_64BIT_STATS_
+	CHECK_SNMP_VSRATECPS64,
+	CHECK_SNMP_VSRATEINPPS64,
+	CHECK_SNMP_VSRATEOUTPPS64,
+	CHECK_SNMP_VSRATEINBPS64,
+	CHECK_SNMP_VSRATEOUTBPS64,
+#endif
 };
 
 enum check_snmp_realserver_magic {
@@ -159,6 +167,7 @@ enum check_snmp_realserver_magic {
 	CHECK_SNMP_RSSTATSCONNS64,
 	CHECK_SNMP_RSSTATSINPKTS64,
 	CHECK_SNMP_RSSTATSOUTPKTS64,
+	/* See below for RSRATECPS64 etc 64 bit counters for rates */
 	CHECK_SNMP_RSRATECPSLOW,
 	CHECK_SNMP_RSRATECPSHIGH,
 	CHECK_SNMP_RSRATEINPPSLOW,
@@ -192,6 +201,13 @@ enum check_snmp_realserver_magic {
 	CHECK_SNMP_RSNAME,
 	CHECK_SNMP_RSNOTIFYUPPATH,
 	CHECK_SNMP_RSNOTIFYDOWNPATH,
+#ifdef _WITH_LVS_64BIT_STATS_
+	CHECK_SNMP_RSRATECPS64,
+	CHECK_SNMP_RSRATEINPPS64,
+	CHECK_SNMP_RSRATEOUTPPS64,
+	CHECK_SNMP_RSRATEINBPS64,
+	CHECK_SNMP_RSRATEOUTBPS64,
+#endif
 };
 
 #define STATE_VSGM_FWMARK 1
@@ -631,6 +647,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		counter64_ret.high = v->stats.outpkts >> 32;
 		*var_len = sizeof(struct counter64);
 		return PTR_CAST(u_char, &counter64_ret);
+	/* See below for VSRATECPS64 etc 64 bit counters for rates */
 	case CHECK_SNMP_VSRATECPSLOW:
 		ipvs_vs_update_stats(v);
 		long_ret.u = v->stats.cps & 0xffffffff;
@@ -770,6 +787,38 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		ret.cp = v->notify_quorum_down->path ? v->notify_quorum_down->path : v->notify_quorum_down->args[0];
 		*var_len = strlen(ret.cp);
 		return ret.p;
+#ifdef _WITH_LVS_64BIT_STATS_
+	case CHECK_SNMP_VSRATECPS64:
+		ipvs_vs_update_stats(v);
+		counter64_ret.low = v->stats.cps & 0xffffffff;
+		counter64_ret.high = v->stats.cps >> 32;
+		*var_len = sizeof(struct counter64);
+		return PTR_CAST(u_char, &counter64_ret);
+	case CHECK_SNMP_VSRATEINPPS64:
+		ipvs_vs_update_stats(v);
+		counter64_ret.low = v->stats.inpps & 0xffffffff;
+		counter64_ret.high = v->stats.inpps >> 32;
+		*var_len = sizeof(struct counter64);
+		return PTR_CAST(u_char, &counter64_ret);
+	case CHECK_SNMP_VSRATEOUTPPS64:
+		ipvs_vs_update_stats(v);
+		counter64_ret.low = v->stats.outpps & 0xffffffff;
+		counter64_ret.high = v->stats.outpps >> 32;
+		*var_len = sizeof(struct counter64);
+		return PTR_CAST(u_char, &counter64_ret);
+	case CHECK_SNMP_VSRATEINBPS64:
+		ipvs_vs_update_stats(v);
+		counter64_ret.low = v->stats.inbps & 0xffffffff;
+		counter64_ret.high = v->stats.inbps >> 32;
+		*var_len = sizeof(struct counter64);
+		return PTR_CAST(u_char, &counter64_ret);
+	case CHECK_SNMP_VSRATEOUTBPS64:
+		ipvs_vs_update_stats(v);
+		counter64_ret.low = v->stats.outbps & 0xffffffff;
+		counter64_ret.high = v->stats.outbps >> 32;
+		*var_len = sizeof(struct counter64);
+		return PTR_CAST(u_char, &counter64_ret);
+#endif
 	default:
 		return NULL;
 	}
@@ -1083,6 +1132,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		counter64_ret.high = be->stats.outpkts >> 32;
 		*var_len = sizeof(struct counter64);
 		return PTR_CAST(u_char, &counter64_ret);
+	/* See below for RSRATECPS64 etc 64 bit counters for rates */
 	case CHECK_SNMP_RSRATECPSLOW:
 		ipvs_rs_update_stats(bvs);
 		long_ret.u = be->stats.cps & 0xffffffff;
@@ -1204,6 +1254,38 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		ret.cp = be->notify_down->path ? be->notify_down->path : be->notify_down->args[0];
 		*var_len = strlen(ret.cp);
 		return ret.p;
+#ifdef _WITH_LVS_64BIT_STATS_
+	case CHECK_SNMP_RSRATECPS64:
+		ipvs_rs_update_stats(bvs);
+		counter64_ret.low = be->stats.cps & 0xffffffff;
+		counter64_ret.high = be->stats.cps >> 32;
+		*var_len = sizeof(struct counter64);
+		return PTR_CAST(u_char, &counter64_ret);
+	case CHECK_SNMP_RSRATEINPPS64:
+		ipvs_rs_update_stats(bvs);
+		counter64_ret.low = be->stats.inpps & 0xffffffff;
+		counter64_ret.high = be->stats.inpps >> 32;
+		*var_len = sizeof(struct counter64);
+		return PTR_CAST(u_char, &counter64_ret);
+	case CHECK_SNMP_RSRATEOUTPPS64:
+		ipvs_rs_update_stats(bvs);
+		counter64_ret.low = be->stats.outpps & 0xffffffff;
+		counter64_ret.high = be->stats.outpps >> 32;
+		*var_len = sizeof(struct counter64);
+		return PTR_CAST(u_char, &counter64_ret);
+	case CHECK_SNMP_RSRATEINBPS64:
+		ipvs_rs_update_stats(bvs);
+		counter64_ret.low = be->stats.inbps & 0xffffffff;
+		counter64_ret.high = be->stats.inbps >> 32;
+		*var_len = sizeof(struct counter64);
+		return PTR_CAST(u_char, &counter64_ret);
+	case CHECK_SNMP_RSRATEOUTBPS64:
+		ipvs_rs_update_stats(bvs);
+		counter64_ret.low = be->stats.outbps & 0xffffffff;
+		counter64_ret.high = be->stats.outbps >> 32;
+		*var_len = sizeof(struct counter64);
+		return PTR_CAST(u_char, &counter64_ret);
+#endif
 	default:
 		return NULL;
 	}
@@ -1415,6 +1497,7 @@ static struct variable8 check_vars[] = {
 	 check_snmp_virtualserver, 3, {3, 1, 39}},
 	{CHECK_SNMP_VSSTATSOUTPKTS64, ASN_COUNTER64, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 40}},
+	/* See below for VSRATECPS64 etc 64 bit counters for rates */
 	{CHECK_SNMP_VSRATECPSLOW, ASN_UNSIGNED, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 41}},
 	{CHECK_SNMP_VSRATECPSHIGH, ASN_UNSIGNED, RONLY,
@@ -1486,6 +1569,18 @@ static struct variable8 check_vars[] = {
 	 check_snmp_virtualserver, 3, {3, 1, 72}},
 	{CHECK_SNMP_VSQUORUMDOWNPATH, ASN_OCTET_STR, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 73}},
+#ifdef _WITH_LVS_64BIT_STATS_
+	{CHECK_SNMP_VSRATECPS64, ASN_COUNTER64, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 74}},
+	{CHECK_SNMP_VSRATEINPPS64, ASN_COUNTER64, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 75}},
+	{CHECK_SNMP_VSRATEOUTPPS64, ASN_COUNTER64, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 76}},
+	{CHECK_SNMP_VSRATEINBPS64, ASN_COUNTER64, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 77}},
+	{CHECK_SNMP_VSRATEOUTBPS64, ASN_COUNTER64, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 78}},
+#endif
 
 	/* realServerTable */
 	{CHECK_SNMP_RSTYPE, ASN_INTEGER, RONLY,
@@ -1545,6 +1640,7 @@ static struct variable8 check_vars[] = {
 	 check_snmp_realserver, 3, {4, 1, 28}},
 	{CHECK_SNMP_RSSTATSOUTPKTS64, ASN_COUNTER64, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 29}},
+	/* See below for RSRATECPS64 64 bit counters for rates */
 	{CHECK_SNMP_RSRATECPSLOW, ASN_UNSIGNED, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 30}},
 	{CHECK_SNMP_RSRATECPSHIGH, ASN_UNSIGNED, RONLY,
@@ -1606,6 +1702,18 @@ static struct variable8 check_vars[] = {
 	 check_snmp_realserver, 3, {4, 1, 56}},
 	{CHECK_SNMP_RSNOTIFYDOWNPATH, ASN_OCTET_STR, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 57}},
+#ifdef _WITH_LVS_64BIT_STATS_
+	{CHECK_SNMP_RSRATECPS64, ASN_COUNTER64, RONLY,
+	 check_snmp_realserver, 3, {4, 1, 58}},
+	{CHECK_SNMP_RSRATEINPPS64, ASN_COUNTER64, RONLY,
+	 check_snmp_realserver, 3, {4, 1, 59}},
+	{CHECK_SNMP_RSRATEOUTPPS64, ASN_COUNTER64, RONLY,
+	 check_snmp_realserver, 3, {4, 1, 60}},
+	{CHECK_SNMP_RSRATEINBPS64, ASN_COUNTER64, RONLY,
+	 check_snmp_realserver, 3, {4, 1, 61}},
+	{CHECK_SNMP_RSRATEOUTBPS64, ASN_COUNTER64, RONLY,
+	 check_snmp_realserver, 3, {4, 1, 62}},
+#endif
 
 #ifdef _WITH_VRRP_
 	/* LVS sync daemon configuration */
