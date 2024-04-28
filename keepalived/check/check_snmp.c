@@ -634,7 +634,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_VSRATECPSLOW:
 		ipvs_vs_update_stats(v);
 		long_ret.u = v->stats.cps & 0xffffffff;
-		return PTR_CAST(u_char, &counter64_ret);
+		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSRATECPSHIGH:
 		ipvs_vs_update_stats(v);
 		long_ret.u = v->stats.cps >> 32;
@@ -642,7 +642,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_VSRATEINPPSLOW:
 		ipvs_vs_update_stats(v);
 		long_ret.u = v->stats.inpps & 0xffffffff;
-		return PTR_CAST(u_char, &counter64_ret);
+		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSRATEINPPSHIGH:
 		ipvs_vs_update_stats(v);
 		long_ret.u = v->stats.inpps >> 32;
@@ -650,7 +650,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_VSRATEOUTPPSLOW:
 		ipvs_vs_update_stats(v);
 		long_ret.u = v->stats.outpps & 0xffffffff;
-		return PTR_CAST(u_char, &counter64_ret);
+		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSRATEOUTPPSHIGH:
 		ipvs_vs_update_stats(v);
 		long_ret.u = v->stats.outpps >> 32;
@@ -658,7 +658,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_VSRATEINBPSLOW:
 		ipvs_vs_update_stats(v);
 		long_ret.u = v->stats.inbps & 0xffffffff;
-		return PTR_CAST(u_char, &counter64_ret);
+		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSRATEINBPSHIGH:
 		ipvs_vs_update_stats(v);
 		long_ret.u = v->stats.inbps >> 32;
@@ -666,7 +666,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_VSRATEOUTBPSLOW:
 		ipvs_vs_update_stats(v);
 		long_ret.u = v->stats.outbps & 0xffffffff;
-		return PTR_CAST(u_char, &counter64_ret);
+		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_VSRATEOUTBPSHIGH:
 		ipvs_vs_update_stats(v);
 		long_ret.u = v->stats.outbps >> 32;
@@ -1086,7 +1086,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_RSRATECPSLOW:
 		ipvs_rs_update_stats(bvs);
 		long_ret.u = be->stats.cps & 0xffffffff;
-		return PTR_CAST(u_char, &counter64_ret);
+		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_RSRATECPSHIGH:
 		ipvs_rs_update_stats(bvs);
 		long_ret.u = be->stats.cps >> 32;
@@ -1094,7 +1094,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_RSRATEINPPSLOW:
 		ipvs_rs_update_stats(bvs);
 		long_ret.u = be->stats.inpps & 0xffffffff;
-		return PTR_CAST(u_char, &counter64_ret);
+		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_RSRATEINPPSHIGH:
 		ipvs_rs_update_stats(bvs);
 		long_ret.u = be->stats.inpps >> 32;
@@ -1102,7 +1102,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_RSRATEOUTPPSLOW:
 		ipvs_rs_update_stats(bvs);
 		long_ret.u = be->stats.outpps & 0xffffffff;
-		return PTR_CAST(u_char, &counter64_ret);
+		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_RSRATEOUTPPSHIGH:
 		ipvs_rs_update_stats(bvs);
 		long_ret.u = be->stats.outpps >> 32;
@@ -1110,7 +1110,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_RSRATEINBPSLOW:
 		ipvs_rs_update_stats(bvs);
 		long_ret.u = be->stats.inbps & 0xffffffff;
-		return PTR_CAST(u_char, &counter64_ret);
+		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_RSRATEINBPSHIGH:
 		ipvs_rs_update_stats(bvs);
 		long_ret.u = be->stats.inbps >> 32;
@@ -1118,7 +1118,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_RSRATEOUTBPSLOW:
 		ipvs_rs_update_stats(bvs);
 		long_ret.u = be->stats.outbps & 0xffffffff;
-		return PTR_CAST(u_char, &counter64_ret);
+		return PTR_CAST(u_char, &long_ret);
 	case CHECK_SNMP_RSRATEOUTBPSHIGH:
 		ipvs_rs_update_stats(bvs);
 		long_ret.u = be->stats.outbps >> 32;
