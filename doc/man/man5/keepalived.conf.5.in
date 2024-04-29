@@ -681,8 +681,8 @@ possibly following any cleanup actions needed.
     # When SNMP requests are made, the checker process only updates the
     # virtual and real server stats from the kernel if the last time the
     # stats for that virtual server were read was more than this configured
-    # interval. The default interval is 5 seconds, and the valid range is
-    # 1 milli-second to 30 seconds.
+    # interval (in seconds). The default interval is 5 seconds, and the
+    # valid range is 0.001 (1 milli-second) to 30 seconds.
     \fBsnmp_vs_stats_update_interval\fR <TIMER>
 
     # Like snmp_vs_stats_update_interval but for real servers. Stats for

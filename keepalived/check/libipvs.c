@@ -961,7 +961,7 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg)
 	} else if (svc_attrs[IPVS_SVC_ATTR_STATS])
 #endif
 	{
-		if (ipvs_parse_stats64(&(get->user.entrytable[0].ip_vs_stats),
+		if (ipvs_parse_stats(&(get->user.entrytable[0].ip_vs_stats),
 				     svc_attrs[IPVS_SVC_ATTR_STATS]) != 0)
 			return -1;
 	}
@@ -969,12 +969,6 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg)
 	get->user.entrytable[0].user.num_dests = 0;
 
 	get->user.num_services++;
-
-#if 0
-	get = REALLOC(get, sizeof(*get)
-	      + sizeof(ipvs_service_entry_t) * (get->user.num_services + 1));
-	*getp = get;
-#endif
 
 	return 0;
 }
