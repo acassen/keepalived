@@ -758,8 +758,6 @@ sigusr2_vrrp(__attribute__((unused)) void *v, int sig)
 static void
 sigjson_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
-	log_message(LOG_INFO, "Printing VRRP as json for process(%d) on signal",
-		getpid());
 	thread_add_event(master, print_vrrp_json, NULL, 0);
 }
 #endif
