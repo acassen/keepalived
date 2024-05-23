@@ -3154,7 +3154,7 @@ AC_DEFINE_UNQUOTED([DEFAULT_CONFIG_FILE], ["$dcf"], [The default configuration f
 
 # Remove a leading ${prefix} since that is not part of the old file name
 eval dcf_old=`echo $default_config_file`
-dcf_old=`echo $dcf_old | $SED -e "s|^\\\${prefix}||"`
+dcf_old=`echo $dcf_old | $SED -e "s|^${prefix}||"`
 AS_IF([test .$dcf != .$dcf_old],
   [
     AC_DEFINE_UNQUOTED([OLD_DEFAULT_CONFIG_FILE], ["$dcf_old"], [The old default configuration file])
