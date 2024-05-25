@@ -608,10 +608,24 @@ start_vrrp(data_t *prev_global_data)
 		/* Init & start the VRRP packet dispatcher */
 		thread_add_event(master, vrrp_dispatcher_init, NULL, 0);
 
-		if (!reload && global_data->vrrp_startup_delay) {
-			vrrp_delayed_start_time = timer_add_long(time_now, global_data->vrrp_startup_delay);
-			thread_add_timer(master, delayed_start_clear_thread, NULL, global_data->vrrp_startup_delay);
-			log_message(LOG_INFO, "Delaying startup for %g seconds", global_data->vrrp_startup_delay / TIMER_HZ_DOUBLE);
+		if (global_data->vrrp_startup_delay) {
+			if (!reload) {
+				vrrp_delayed_start_time = timer_add_long(time_now, global_data->vrrp_startup_delay);
+				thread_add_timer(master, delayed_start_clear_thread, NULL, global_data->vrrp_startup_delay);
+				log_message(LOG_INFO, "Delaying startup for %g seconds", global_data->vrrp_startup_delay / TIMER_HZ_DOUBLE);
+			} else if (vrrp_delayed_start_time.tv_sec) {
+				if (time_now.tv_sec > vrrp_delayed_start_time.tv_sec ||
+				    (time_now.tv_sec == vrrp_delayed_start_time.tv_sec &&
+				     time_now.tv_usec >= vrrp_delayed_start_time.tv_usec))
+					vrrp_delayed_start_time.tv_sec = 0;
+				else {
+					unsigned delay_left;
+					delay_left = (vrrp_delayed_start_time.tv_sec - time_now.tv_sec) * 1000000UL
+							+ vrrp_delayed_start_time.tv_usec - time_now.tv_usec;
+					thread_add_timer(master, delayed_start_clear_thread, NULL, delay_left);
+					log_message(LOG_INFO, "Delaying startup for a further %g seconds", delay_left / TIMER_HZ_DOUBLE);
+				}
+			}
 		}
 
 		if (!reload && global_data->disable_local_igmp)
@@ -979,6 +993,7 @@ register_vrrp_thread_addresses(void)
 	register_thread_address("start_vrrp_termination_thread", start_vrrp_termination_thread);
 	register_thread_address("send_reload_advert_thread", send_reload_advert_thread);
 #endif
+	register_thread_address("delayed_start_clear_thread", delayed_start_clear_thread);
 	register_thread_address("vrrp_shutdown_backstop_thread", vrrp_shutdown_backstop_thread);
 	register_thread_address("vrrp_shutdown_timer_thread", vrrp_shutdown_timer_thread);
 
@@ -1181,6 +1196,5 @@ register_vrrp_parent_addresses(void)
 	register_thread_address("vrrp_respawn_thread", vrrp_respawn_thread);
 	register_thread_address("delayed_restart_vrrp_child_thread", delayed_restart_vrrp_child_thread);
 #endif
-	register_thread_address("delayed_start_clear_thread", delayed_start_clear_thread);
 }
 #endif
