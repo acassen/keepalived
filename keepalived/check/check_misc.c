@@ -403,7 +403,8 @@ misc_check_child_thread(thread_ref_t thread)
 				checker->cur_weight = 0;
 				misck_checker->last_exit_code = status;
 			}
-		}
+		} else	//  if (status != misck_checker->last_exit_code)
+			misck_checker->last_exit_code = status;
 	}
 	else if (WIFSIGNALED(wait_status)) {
 		if (misck_checker->state == SCRIPT_STATE_REQUESTING_TERMINATION && WTERMSIG(wait_status) == SIGTERM) {
