@@ -1852,10 +1852,8 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 		vrrp->state = vrrp->wantstate;
 		send_instance_notifies(vrrp);
 
-		if (vrrp->state == VRRP_STATE_BACK) {
+		if (vrrp->state == VRRP_STATE_BACK)
 			vrrp->preempt_time.tv_sec = 0;
-			vrrp->master_adver_int = vrrp->adver_int;
-		}
 	}
 
 	/* Set the down timer */
@@ -3346,8 +3344,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			vrrp->adver_int = vrrp->adver_int + (TIMER_CENTI_HZ / 2);
 			vrrp->adver_int -= vrrp->adver_int % TIMER_CENTI_HZ;
 
+			/* Ensure don't round outside [0.01,40.95] */
 			if (vrrp->adver_int == 0)
 				vrrp->adver_int = TIMER_CENTI_HZ;
+			else if (vrrp->adver_int == (1<<12) * TIMER_CENTI_HZ)
+				vrrp->adver_int = ((1<<12) - 1) * TIMER_CENTI_HZ;
 		}
 	}
 	vrrp->master_adver_int = vrrp->adver_int;
