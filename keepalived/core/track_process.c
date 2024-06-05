@@ -687,7 +687,7 @@ check_process_termination(pid_t pid)
 				tpr->terminate_timer_thread = thread_add_timer(master, process_lost_quorum_timer_thread, tpr, tpr->terminate_delay);
 #ifdef _TRACK_PROCESS_DEBUG_
 				if (do_track_process_debug_detail)
-					log_message(LOG_INFO, "Adding timer %d for %s termination", tpr->fork_delay, tpr->pname);
+					log_message(LOG_INFO, "Adding timer %d for %s termination", tpr->terminate_delay, tpr->pname);
 #endif
 				continue;
 			}
@@ -893,8 +893,9 @@ reinitialise_track_processes(void)
 							    , tpr->sav_num_cur_proc
 							    , tpr->num_cur_proc);
 				if (tpr->fork_delay)
-					tpr->fork_timer_thread = thread_add_timer(master, process_gained_quorum_timer_thread, tpr, tpr->terminate_delay);
-				process_update_track_process_status(tpr, true);
+					tpr->fork_timer_thread = thread_add_timer(master, process_gained_quorum_timer_thread, tpr, tpr->fork_delay);
+				else
+					process_update_track_process_status(tpr, true);
 			} else {
 				if (__test_bit(LOG_DETAIL_BIT, &debug))
 					log_message(LOG_INFO, "Process %s, number of current processes changed"
@@ -909,8 +910,6 @@ reinitialise_track_processes(void)
 			}
 		}
 	}
-
-	return;
 }
 
 static void
