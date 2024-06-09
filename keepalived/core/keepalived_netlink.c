@@ -276,9 +276,10 @@ compare_route(struct rtattr *tb[RTA_MAX + 1], ip_route_t *route, uint32_t table,
 	if (route->oif) {
 		if (!tb[RTA_OIF] || route->oif->ifindex != *PTR_CAST(uint32_t, RTA_DATA(tb[RTA_OIF])))
 			return false;
-	} else {
-		if (route->set && route->configured_ifindex &&
-		    (!tb[RTA_OIF] || route->configured_ifindex != *PTR_CAST(uint32_t, RTA_DATA(tb[RTA_OIF]))))
+	} else if (route->set) {
+		if (!tb[RTA_OIF] != !route->configured_ifindex)
+			return false;
+		if (tb[RTA_OIF] && route->configured_ifindex != *PTR_CAST(uint32_t, RTA_DATA(tb[RTA_OIF])))
 			return false;
 	}
 
@@ -2360,9 +2361,8 @@ netlink_route_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlm
 			route->configured_ifindex = *PTR_CAST(uint32_t, RTA_DATA(tb[RTA_OIF]));
 			if (route->oif && route->oif->ifindex != route->configured_ifindex)
 				log_message(LOG_INFO, "route added index %" PRIu32 " != config index %u", route->configured_ifindex, route->oif->ifindex);
-		}
-		else
-			log_message(LOG_INFO, "New route doesn't have i/f index");
+		} else
+			route->configured_ifindex = 0;
 
 		return 0;
 	}
