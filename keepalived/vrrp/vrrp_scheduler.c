@@ -65,6 +65,8 @@
 #ifdef _WITH_LVS_
 #include "ipvswrapper.h"
 #endif
+#include "keepalived_netlink.h"
+
 
 /* For load testing recvmsg() */
 /* #define DEBUG_RECVMSG */
@@ -266,7 +268,9 @@ vrrp_init_state(list_head_t *l)
 #endif
 
 			/* Set interface state */
-			vrrp_restore_interface(vrrp, false, false);
+			netlink_error_ignore = ESRCH;		// returned if route does not exist
+			vrrp_restore_interface(vrrp, false, true);
+			netlink_error_ignore = 0;
 			if (is_up &&
 			    new_state != VRRP_STATE_FAULT &&
 			    !vrrp->num_script_init &&

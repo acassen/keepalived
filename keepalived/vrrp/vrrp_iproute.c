@@ -531,9 +531,10 @@ netlink_rtlist(list_head_t *rt_list, int cmd, bool force)
 
 	list_for_each_entry(ip_route, rt_list, e_list) {
 		if ((cmd == IPROUTE_DEL) == ip_route->set || force) {
-			if (!netlink_route(ip_route, cmd))
-				ip_route->set = (cmd == IPROUTE_ADD);
-			else if (cmd != IPROUTE_ADD)
+			if (!netlink_route(ip_route, cmd)) {
+				if (cmd == IPROUTE_DEL)
+					ip_route->set = false;
+			} else if (cmd != IPROUTE_ADD)
 				ip_route->set = false;
 		}
 	}
@@ -1871,21 +1872,6 @@ alloc_route(list_head_t *rt_list, const vector_t *strvec, bool allow_track_group
 			report_config_error(CONFIG_GENERAL_ERROR, "Route cannot be tracked if protocol is not RTPROT_KEEPALIVED(%d), resetting protocol", RTPROT_KEEPALIVED);
 		new->protocol = RTPROT_KEEPALIVED;
 		new->mask |= IPROUTE_BIT_PROTOCOL;
-
-		if (!new->oif) {
-			/* Alternative is to track oif from when route last added.
-			 * The interface will need to be added temporarily. tracking_obj_t will need
-			 * a flag to specify permanent track, and a counter for number of temporary
-			 * trackers. If the termporary tracker count becomes 0 and there is no permanent
-			 * track, then the tracking_obj_t will need to be removed.
-			 *
-			 * We also have a problem if using nexthop, since the route will only be deleted
-			 * when the interfaces for all of the hops have gone down. We would need to track
-			 * all of the interfaces being used, and only mark the route as down if all the
-			 * interfaces are down. */
-			report_config_error(CONFIG_GENERAL_ERROR, "Warning - cannot track route %s with no interface specified, not tracking", dest);
-			new->dont_track = true;
-		}
 	}
 
 	if (new->track_group && !new->oif) {

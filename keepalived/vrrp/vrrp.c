@@ -1764,7 +1764,7 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 
 	/* remove virtual routes */
 	if (!list_empty(&vrrp->vroutes))
-		vrrp_handle_iproutes(vrrp, IPROUTE_DEL, false);
+		vrrp_handle_iproutes(vrrp, IPROUTE_DEL, force);
 
 	/* empty the delayed arp list */
 	vrrp_remove_delayed_arp(vrrp);
