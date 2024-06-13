@@ -211,6 +211,9 @@ static bool create_core_dump = false;
 static const char *core_dump_pattern = "core";
 static char *orig_core_dump_pattern = NULL;
 
+/* Signal handling */
+bool ignore_sigint = false;
+
 /* debug flags */
 #if defined _TIMER_CHECK_ || \
     defined _SMTP_ALERT_DEBUG_ || \
@@ -1289,7 +1292,10 @@ signal_init(void)
 #ifdef _WITH_JSON_
 	signal_set(SIGJSON, propagate_signal, NULL);
 #endif
-	signal_set(SIGINT, sigend, NULL);
+	if (ignore_sigint)
+		signal_ignore(SIGINT);
+	else
+		signal_set(SIGINT, sigend, NULL);
 	signal_set(SIGTERM, sigend, NULL);
 #ifdef THREAD_DUMP
 	signal_set(SIGTDUMP, thread_dump_signal, NULL);
@@ -1886,6 +1892,7 @@ usage(const char *prog)
 	fprintf(stderr, "  -i, --config-id id           Skip any configuration lines beginning '@' that don't match id\n"
 			"                                or any lines beginning @^ that do match.\n"
 			"                                The config-id defaults to the node name if option not used\n");
+	fprintf(stderr, "      --ignore-sigint          ignore SIGINT (default means terminate) - used for debugging with GDB\n");
 	fprintf(stderr, "      --signum=SIGFUNC         Return signal number for STOP, RELOAD, DATA, STATS, STATS_CLEAR"
 #ifdef _WITH_JSON_
 								", JSON"
@@ -2051,6 +2058,7 @@ parse_cmdline(int argc, char **argv)
 		{"signum",		required_argument,	NULL,  4 },
 		{"config-test",		optional_argument,	NULL, 't'},
 		{"config-fd",		required_argument,	NULL,  8 },
+		{"ignore-sigint",	no_argument,		NULL,  9 },
 #ifdef _WITH_PERF_
 		{"perf",		optional_argument,	NULL,  5 },
 #endif
@@ -2355,6 +2363,9 @@ parse_cmdline(int argc, char **argv)
 #endif
 		case 8:
 			set_config_fd(atoi(optarg));
+			break;
+		case 9:
+			ignore_sigint = true;
 			break;
 		case '?':
 			if (optopt && argv[curind][1] != '-')
