@@ -240,7 +240,10 @@ static void
 bfd_signal_init(void)
 {
 	signal_set(SIGHUP, sigreload_bfd, NULL);
-	signal_set(SIGINT, sigend_bfd, NULL);
+	if (ignore_sigint)
+		signal_ignore(SIGINT);
+	else
+		signal_set(SIGINT, sigend_bfd, NULL);
 	signal_set(SIGTERM, sigend_bfd, NULL);
 	signal_set(SIGUSR1, sigdump_bfd, NULL);
 #ifdef THREAD_DUMP

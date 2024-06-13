@@ -44,6 +44,7 @@ keepalived \- load\-balancing and high\-availability service
 [\fB\-\-perf\fP[={all|run|end}]]
 [\fB\-\-debug\fP[=debug-options]]
 [\fB\-\-no-mem-check\fP]
+[\fB\-\-ignore-sigint\fP]
 [\fB\-v\fP|\fB\-\-version\fP]
 [\fB\-h\fP|\fB\-\-help\fP]
 
@@ -215,6 +216,10 @@ The data recorded is for use with the perf tool.
 .TP
 \fB --no-mem-check\fP
 Disable malloc() etc mem-checks if they have been compiled into keepalived.
+.TP
+\fB --ignore-sigint\fP
+Disable SIGINT handling (defaults to terminating keepalived). This is needed
+for running keepalived under GDB.
 .TP
 \fB --debug\fP[=debug-options]]
 Enables debug options if they have been compiled into keepalived.

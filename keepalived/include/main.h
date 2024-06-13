@@ -82,6 +82,8 @@ extern unsigned os_major;		/* Kernel version */
 extern unsigned os_minor;
 extern unsigned os_release;
 
+extern bool ignore_sigint;
+
 extern void free_parent_mallocs_startup(bool);
 extern void free_parent_mallocs_exit(void);
 extern const char *make_syslog_ident(const char*);

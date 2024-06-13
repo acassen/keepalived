@@ -565,7 +565,10 @@ static void
 check_signal_init(void)
 {
 	signal_set(SIGHUP, sigreload_check, NULL);
-	signal_set(SIGINT, sigend_check, NULL);
+	if (ignore_sigint)
+		signal_ignore(SIGINT);
+	else
+		signal_set(SIGINT, sigend_check, NULL);
 	signal_set(SIGTERM, sigend_check, NULL);
 	signal_set(SIGUSR1, sigusr1_check, NULL);
 #ifdef THREAD_DUMP
