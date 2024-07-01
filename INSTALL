@@ -129,6 +129,11 @@ For building the documentation, the following packages need to be installed:
    For latex or pdf files, the following are also needed:
 	texlive-core texlive-bin texlive-latexextra
 
+openSUSE
+========
+    1. zypper install -t pattern devel_C_C++
+    2. Install packages with same names as Red Hat variants (except libopenssl-devel instead of openssl-devel and libkmod-devel instead of kmod-devel)
+
 Kernel configuration requirements
 ---------------------------------
 The following list is probably incomplete, and will be updated as other
@@ -150,6 +155,8 @@ NETFILTER_XTABLES - if strict_mode or no_accept.
 NF_TABLES and associated components - to use nftables for strict_mode or no_accept
 IP_ADVANCED_ROUTER and various associated options if static/dynamic routes specified
 FIB_RULES if static or dynamic rules are specified
+PROC_EVENTS for track_process
+
 
 Installing from a git repo
 ==========================
