@@ -817,7 +817,7 @@ static int set_proc_ev_listen(int nl_sd, bool enable)
 
 	rc = send(nl_sd, &nlcn_msg, sizeof(nlcn_msg), 0);
 	if (rc == -1) {
-		log_message(LOG_INFO, "Failed to set/clear process event listen - errno %d - %m", errno);
+		log_message(LOG_INFO, "Failed to %s process event listen - errno %d - %m", enable ? "set" : "clear", errno);
 		return -1;
 	}
 
