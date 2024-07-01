@@ -385,20 +385,45 @@ static int ipvs_getinfo_parse_cb(struct nl_msg *msg, __attribute__((unused)) voi
 }
 #endif
 
-static int ipvs_getinfo(void)
+static int ipvs_getinfo(bool retry)
 {
 	socklen_t len;
 	struct ip_vs_getinfo ipvs_info;
+	unsigned retries = retry ? 1 : 0;
+
+	/* It appears that if we need to install the ip_vs module
+	 * (via keepalived_modprobe), then the first ipvs_nl_send_message()
+	 * call afterwards fails, but it succeeds thereafter.
+	 *
+	 * On some distros the call genl_ctrl_resolve(sock, IPVS_GENL_NAME) loads
+	 * the ip_vs module, so we don't need to call keepalived_modprobe(), and
+	 * we don't need to retry the ipvs_nl_send_message(). On the other hand,
+	 * if genl_ctrl_resolve() does not load the ip_vs module, then we need to
+	 * make the second call of ipvs_nl_send_message().
+	 *
+	 * It appears that if there is an entry:
+	 *   alias net-pf-16-proto-16-family-IPVS ip_vs
+	 * in /lib/modules/{KERNEL_VER}/modules.alias then genl_ctrl_resolve() causes
+	 * the ip_vs module to be loaded, and if there is no such entry, then it does
+	 * not load the ip_vs module. Whether this is cause and effect, or whether they
+	 * are both caused by some other aspect of the configuration I do not know.
+	 */
 
 	ipvs_func = ipvs_getinfo;
 
 #ifdef LIBIPVS_USE_NL
 	if (try_nl) {
 		struct nl_msg *msg;
-		if (!(msg = ipvs_nl_message(IPVS_CMD_GET_INFO, 0)))
-			return -1;
 
-		return ipvs_nl_send_message(msg, ipvs_getinfo_parse_cb, NULL);
+		do {
+			if (!(msg = ipvs_nl_message(IPVS_CMD_GET_INFO, 0)))
+				return -1;
+
+			if (!ipvs_nl_send_message(msg, ipvs_getinfo_parse_cb, NULL))
+				return 0;
+		} while (retries--);
+
+		return -1;
 	}
 #endif
 
@@ -406,7 +431,7 @@ static int ipvs_getinfo(void)
 	return getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO, &ipvs_info, &len);
 }
 
-int ipvs_init(void)
+int ipvs_init(bool retry)
 {
 	ipvs_func = ipvs_init;
 
@@ -418,7 +443,7 @@ int ipvs_init(void)
 #endif
 
 	if (try_nl && ipvs_nl_send_message(NULL, NULL, NULL) == 0)
-		return ipvs_getinfo();
+		return ipvs_getinfo(retry);
 
 	try_nl = false;
 #else
@@ -429,7 +454,7 @@ int ipvs_init(void)
 	if (sockfd == -1)
 		return -1;
 
-	if (ipvs_getinfo()) {
+	if (ipvs_getinfo(false)) {
 		close(sockfd);
 		sockfd = -1;
 		return -1;

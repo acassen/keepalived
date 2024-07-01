@@ -34,7 +34,7 @@ typedef struct ip_vs_dest_entry_app	ipvs_dest_entry_t;
 
 
 /* init socket and get ipvs info */
-extern int ipvs_init(void);
+extern int ipvs_init(bool);
 
 /* Set timeout parameters */
 extern int ipvs_set_timeout(const ipvs_timeout_t *to);
