@@ -442,7 +442,7 @@ int ipvs_init(bool retry)
 		log_message(LOG_INFO, "Note: IPVS with IPv6 will not be supported");
 #endif
 
-	if (try_nl && ipvs_nl_send_message(NULL, NULL, NULL) == 0)
+	if (try_nl)
 		return ipvs_getinfo(retry);
 
 	try_nl = false;
