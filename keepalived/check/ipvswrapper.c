@@ -879,9 +879,7 @@ ipvs_update_rs_stats(virtual_server_t *vs, uint16_t af, uint32_t fwmark, union n
 		else {
 			/* Search for a match in the list of real servers */
 			rs_match = NULL;
-			int no = 0;
 			list_for_each_entry(rs, &vs->rs, e_list) {
-				no++;
 				if (vsd_equal(rs, &dests->user.entrytable[i])) {
 					rs_match = rs;
 					break;
