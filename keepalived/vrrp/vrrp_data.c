@@ -611,7 +611,7 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 			conf_write(fp, "   Master router = %s", inet_sockaddrtos(&vrrp->master_saddr));
 			conf_write(fp, "   Master priority = %d", vrrp->master_priority);
 			if (vrrp->version == VRRP_VERSION_3)
-				conf_write(fp, "   Master advert int = %.2f sec", vrrp->master_adver_int / TIMER_HZ_DOUBLE);
+				conf_write(fp, "   Master advert interval = %u milli-sec", vrrp->master_adver_int / (TIMER_HZ / 1000));
 		}
 	}
 	if (vrrp->flags) {
@@ -747,8 +747,6 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 		(vrrp->adver_int / (TIMER_HZ / 1000)),
 		(vrrp->version == VRRP_VERSION_2) ? "sec" : "milli-sec");
 	conf_write(fp, "   Last advert sent = %ld.%6.6ld", vrrp->last_advert_sent.tv_sec, vrrp->last_advert_sent.tv_usec);
-	if (vrrp->state == VRRP_STATE_BACK && vrrp->version == VRRP_VERSION_3)
-		conf_write(fp, "   Master advert interval = %u milli-sec", vrrp->master_adver_int / (TIMER_HZ / 1000));
 #ifdef _WITH_FIREWALL_
 	conf_write(fp, "   Accept = %s", vrrp->accept ? "enabled" : "disabled");
 #endif

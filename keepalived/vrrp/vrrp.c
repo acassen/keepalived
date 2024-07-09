@@ -40,6 +40,7 @@
 #include <netinet/ip6.h>
 #include <stdint.h>
 #include <net/if_arp.h>
+#include <linux/if_ether.h>
 #include <net/ethernet.h>
 #ifdef _NETWORK_TIMESTAMP_
 #include <linux/net_tstamp.h>
@@ -89,6 +90,11 @@
 #ifdef _WITH_LVS_
 #include "ipvswrapper.h"
 #endif
+
+/* Ideally we would use a struct from a system header to determine the
+ * size of a vlan tag, but there doesn't seem to be one exposed to
+ * user space. */
+#define VLAN_TAG_SIZE	4
 
 /* If we don't have certain configuration, then we can optimise the
  * resources that keepalived uses. These are cleared by start_vrrp()
@@ -841,12 +847,27 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 	 * packet (including fixed fields, and IPvX address(es)).
 	 */
 	if (buflen != expected_len) {
-		log_message(LOG_INFO, "(%s) vrrp packet too %s, length %zu and expect %zu",
-			      vrrp->iname,
-			      buflen > expected_len ? "long" : "short",
-			      buflen, expected_len);
-		++vrrp->stats->packet_len_err;
-		return VRRP_PACKET_KO;
+		/* Allow for Ethernet frame padding. If there is padding, the
+		 * frame length (excluding FCS) is 60 octets (ETH_ZLEN).
+		 * The Ethernet header (14 bytes - ETH_HLEN) and any Vlan
+		 * headers (4 bytes each) are removed before we receive the
+		 * packet.
+		 * Padding added is ETH_ZLEN - ETH_HLEN - expected_len, or
+		 * multiples of 4 (Vlan header) less than that. Checking the
+		 * amount of padding added can therefore only be done modulo 4.
+		 */
+		if (expected_len < ETH_ZLEN - ETH_HLEN &&
+		    expected_len < buflen &&
+		    (buflen - expected_len) % VLAN_TAG_SIZE == (VLAN_TAG_SIZE - (ETH_ZLEN - ETH_HLEN) % VLAN_TAG_SIZE) % VLAN_TAG_SIZE) {
+			/* This is OK, there is some padding */
+		} else {
+			log_message(LOG_INFO, "(%s) vrrp packet too %s, length %zu and expect %zu",
+				      vrrp->iname,
+				      buflen > expected_len ? "long" : "short",
+				      buflen, expected_len);
+			++vrrp->stats->packet_len_err;
+			return VRRP_PACKET_KO;
+		}
 	}
 
 	/* MUST verify that the IPv4 TTL/IPv6 HL is 255 (but not if unicast) */
@@ -974,11 +995,19 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 
 	/* Check the IP header total packet length matches what we received */
 	if (vrrp->family == AF_INET && ntohs(ip->tot_len) != buflen) {
-		log_message(LOG_INFO,
-		       "(%s) ip_tot_len mismatch against received length. %d and received %zu",
-		       vrrp->iname, ntohs(ip->tot_len), buflen);
-		++vrrp->stats->packet_len_err;
-		return VRRP_PACKET_KO;
+		/* Allow for Ethernet frame padding. See earlier comment
+		 * for details. */
+		if (buflen <= ETH_ZLEN - ETH_HLEN &&
+		    ntohs(ip->tot_len) < buflen &&
+		    (buflen - ntohs(ip->tot_len)) % VLAN_TAG_SIZE == (VLAN_TAG_SIZE - (ETH_ZLEN - ETH_HLEN) % VLAN_TAG_SIZE) % VLAN_TAG_SIZE) {
+			/* This is OK, there is some padding */
+		} else {
+			log_message(LOG_INFO,
+			       "(%s) ip_tot_len mismatch against received length. %d and received %zu",
+			       vrrp->iname, ntohs(ip->tot_len), buflen);
+			++vrrp->stats->packet_len_err;
+			return VRRP_PACKET_KO;
+		}
 	}
 
 	/* MUST verify the VRRP checksum. Kernel takes care of checksum mismatch incase of IPv6. */
