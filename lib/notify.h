@@ -82,6 +82,7 @@ free_notify_script(notify_script_t **script)
 	if (!*script)
 		return;
 	FREE_PTR((*script)->args);
+	FREE_CONST_PTR((*script)->path);
 	FREE_PTR(*script);
 	*script = NULL;
 }
