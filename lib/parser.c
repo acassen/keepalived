@@ -1648,9 +1648,10 @@ have_brace(const char *conf_file)
 		return false;
 
 	do {
-		if (*p == '\\')
-			p++;
-		else if (*p == '{')
+		if (*p == '\\')	{	// Skip a '\' and following character
+			if (!*++p)	// Ensure '\' not last character
+				return false;
+		} else if (*p == '{')
 			return true;
 	} while (*++p);
 
