@@ -1071,9 +1071,10 @@ vrrp_higher_prio_send_advert_handler(const vector_t *strvec)
 	else
 		global_data->vrrp_higher_prio_send_advert = true;
 }
-#ifdef _WITH_IPTABLES_
+
+#if defined _WITH_IPTABLES_ || defined _WITH_NFTABLES_
 static bool
-check_valid_iptables_ipset_name(const vector_t *strvec, unsigned entry, unsigned max_len, const char *type_name, const char *log_name)
+check_valid_iptables_ipset_nftables_name(const vector_t *strvec, unsigned entry, unsigned max_len, const char *type_name, const char *log_name)
 {
 	if (strlen(strvec_slot(strvec, entry)) >= max_len - 1) {
 		report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : %s %s name too long - ignored", type_name, log_name);
@@ -1087,11 +1088,13 @@ check_valid_iptables_ipset_name(const vector_t *strvec, unsigned entry, unsigned
 
 	return true;
 }
+#endif
 
+#ifdef _WITH_IPTABLES_
 static bool
 check_valid_iptables_chain_name(const vector_t *strvec, unsigned entry, const char *log_name)
 {
-	return check_valid_iptables_ipset_name(strvec, entry, XT_EXTENSION_MAXNAMELEN, "iptables", log_name);
+	return check_valid_iptables_ipset_nftables_name(strvec, entry, XT_EXTENSION_MAXNAMELEN, "iptables", log_name);
 }
 
 static void
@@ -1120,7 +1123,7 @@ vrrp_iptables_handler(const vector_t *strvec)
 static bool
 check_valid_ipset_name(const vector_t *strvec, unsigned entry, const char *log_name)
 {
-	return check_valid_iptables_ipset_name(strvec, entry, IPSET_MAXNAMELEN, "ipset", log_name);
+	return check_valid_iptables_ipset_nftables_name(strvec, entry, IPSET_MAXNAMELEN, "ipset", log_name);
 }
 
 static void
@@ -1229,6 +1232,12 @@ vrrp_iptables_handler(__attribute__((unused)) const vector_t *strvec)
 
 #ifdef _WITH_NFTABLES_
 #ifdef _WITH_VRRP_
+static bool
+check_valid_nftables_chain_name(const vector_t *strvec, unsigned entry, const char *log_name)
+{
+	return check_valid_iptables_ipset_nftables_name(strvec, entry, NFT_TABLE_MAXNAMELEN, "nftables", log_name);
+}
+
 static void
 vrrp_nftables_handler(__attribute__((unused)) const vector_t *strvec)
 {
@@ -1240,10 +1249,8 @@ vrrp_nftables_handler(__attribute__((unused)) const vector_t *strvec)
 	}
 
 	if (vector_size(strvec) >= 2) {
-		if (strlen(strvec_slot(strvec, 1)) >= NFT_TABLE_MAXNAMELEN) {
-			report_config_error(CONFIG_GENERAL_ERROR, "nftables table name too long - ignoring");
+		if (!check_valid_nftables_chain_name(strvec, 1, "chain"))
 			return;
-		}
 		name = strvec_slot(strvec, 1);
 	}
 	else {
@@ -1283,10 +1290,8 @@ ipvs_nftables_handler(__attribute__((unused)) const vector_t *strvec)
 	}
 
 	if (vector_size(strvec) >= 2) {
-		if (strlen(strvec_slot(strvec, 1)) >= NFT_TABLE_MAXNAMELEN) {
-			report_config_error(CONFIG_GENERAL_ERROR, "ipvs nftables table name too long - ignoring");
+		if (!check_valid_nftables_chain_name(strvec, 1, "ipvs chain"))
 			return;
-		}
 		name = strvec_slot(strvec, 1);
 	}
 	else {
