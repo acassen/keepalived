@@ -263,6 +263,8 @@ AC_ARG_ENABLE(stacktrace,
   [AS_HELP_STRING([--enable-stacktrace], [compile with stacktrace support])])
 AC_ARG_ENABLE(perf,
   [AS_HELP_STRING([--enable-perf], [compile with perf performance data recording support for vrrp process])])
+AC_ARG_ENABLE(sanitize-address,
+  [AS_HELP_STRING([--enable-sanitize-address], [compile with sanitize=address (ASAN) support])])
 AC_ARG_ENABLE(log-file,
   [AS_HELP_STRING([--enable-log-file], [enable logging to file (-g)])])
 AC_ARG_ENABLE(dump-threads,
@@ -2848,6 +2850,16 @@ else
   ENABLE_PERF=No
 fi
 
+dnl ----[ sanitize=address testing or not? ]----
+if test "${enable_sanitize_address}" = yes; then
+#  AC_DEFINE([_WITH_SANITIZE_ADDRESS_], [ 1 ], [Define to 1 to build with sanitize=address support])
+  ENABLE_SANITIZE_ADDRESS=Yes
+  add_config_opt([SANITIZE_ADDRESS])
+  add_to_var([KA_CFLAGS], [-fsanitize=address -g])
+else
+  ENABLE_SANITIZE_ADDRESS=No
+fi
+
 if test "${enable_log_file}" = yes; then
   AC_DEFINE([ENABLE_LOG_TO_FILE], [ 1 ], [Define if enabling logging to files])
   ENABLE_LOG_FILE_APPEND=Yes
@@ -3270,6 +3282,9 @@ if test ${ENABLE_STACKTRACE} = Yes; then
 fi
 if test ${ENABLE_PERF} = Yes; then
   echo "Perf support             : Yes"
+fi
+if test ${ENABLE_SANITIZE_ADDRESS} = Yes; then
+  echo "sanitize=address testing : Yes"
 fi
 if test ${MEM_CHECK} = Yes; then
   echo "Memory alloc check       : Yes"
