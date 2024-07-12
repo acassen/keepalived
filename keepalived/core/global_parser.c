@@ -1072,6 +1072,28 @@ vrrp_higher_prio_send_advert_handler(const vector_t *strvec)
 		global_data->vrrp_higher_prio_send_advert = true;
 }
 #ifdef _WITH_IPTABLES_
+static bool
+check_valid_iptables_ipset_name(const vector_t *strvec, unsigned entry, unsigned max_len, const char *type_name, const char *log_name)
+{
+	if (strlen(strvec_slot(strvec, entry)) >= max_len - 1) {
+		report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : %s %s name too long - ignored", type_name, log_name);
+		return false;
+	}
+
+	if (strlen(strvec_slot(strvec, entry)) == 0) {
+		report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : %s %s name empty - ignored", type_name, log_name);
+		return false;
+	}
+
+	return true;
+}
+
+static bool
+check_valid_iptables_chain_name(const vector_t *strvec, unsigned entry, const char *log_name)
+{
+	return check_valid_iptables_ipset_name(strvec, entry, XT_EXTENSION_MAXNAMELEN, "iptables", log_name);
+}
+
 static void
 vrrp_iptables_handler(const vector_t *strvec)
 {
@@ -1081,16 +1103,12 @@ vrrp_iptables_handler(const vector_t *strvec)
 	}
 
 	if (vector_size(strvec) >= 2) {
-		if (strlen(strvec_slot(strvec,1)) >= XT_EXTENSION_MAXNAMELEN - 1) {
-			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : iptables in chain name too long - ignored");
+		if (!check_valid_iptables_chain_name(strvec, 1, "in chain"))
 			return;
-		}
 		global_data->vrrp_iptables_inchain = STRDUP(strvec_slot(strvec,1));
 		if (vector_size(strvec) >= 3) {
-			if (strlen(strvec_slot(strvec,2)) >= XT_EXTENSION_MAXNAMELEN - 1) {
-				report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : iptables out chain name too long - ignored");
+			if (!check_valid_iptables_chain_name(strvec, 2, "out chain"))
 				return;
-			}
 			global_data->vrrp_iptables_outchain = STRDUP(strvec_slot(strvec,2));
 		}
 	} else {
@@ -1102,17 +1120,7 @@ vrrp_iptables_handler(const vector_t *strvec)
 static bool
 check_valid_ipset_name(const vector_t *strvec, unsigned entry, const char *log_name)
 {
-	if (strlen(strvec_slot(strvec, entry)) >= IPSET_MAXNAMELEN - 1) {
-		report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : ipset %s name too long - ignored", log_name);
-		return false;
-	}
-
-	if (strlen(strvec_slot(strvec, entry)) == 0) {
-		report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : ipset %s name empty - ignored", log_name);
-		return false;
-	}
-
-	return true;
+	return check_valid_iptables_ipset_name(strvec, entry, IPSET_MAXNAMELEN, "ipset", log_name);
 }
 
 static void
