@@ -1071,7 +1071,32 @@ vrrp_higher_prio_send_advert_handler(const vector_t *strvec)
 	else
 		global_data->vrrp_higher_prio_send_advert = true;
 }
+
+#if defined _WITH_IPTABLES_ || defined _WITH_NFTABLES_
+static bool
+check_valid_iptables_ipset_nftables_name(const vector_t *strvec, unsigned entry, unsigned max_len, const char *type_name, const char *log_name)
+{
+	if (strlen(strvec_slot(strvec, entry)) >= max_len - 1) {
+		report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : %s %s name too long - ignored", type_name, log_name);
+		return false;
+	}
+
+	if (strlen(strvec_slot(strvec, entry)) == 0) {
+		report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : %s %s name empty - ignored", type_name, log_name);
+		return false;
+	}
+
+	return true;
+}
+#endif
+
 #ifdef _WITH_IPTABLES_
+static bool
+check_valid_iptables_chain_name(const vector_t *strvec, unsigned entry, const char *log_name)
+{
+	return check_valid_iptables_ipset_nftables_name(strvec, entry, XT_EXTENSION_MAXNAMELEN, "iptables", log_name);
+}
+
 static void
 vrrp_iptables_handler(const vector_t *strvec)
 {
@@ -1081,16 +1106,12 @@ vrrp_iptables_handler(const vector_t *strvec)
 	}
 
 	if (vector_size(strvec) >= 2) {
-		if (strlen(strvec_slot(strvec,1)) >= XT_EXTENSION_MAXNAMELEN - 1) {
-			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : iptables in chain name too long - ignored");
+		if (!check_valid_iptables_chain_name(strvec, 1, "in chain"))
 			return;
-		}
 		global_data->vrrp_iptables_inchain = STRDUP(strvec_slot(strvec,1));
 		if (vector_size(strvec) >= 3) {
-			if (strlen(strvec_slot(strvec,2)) >= XT_EXTENSION_MAXNAMELEN - 1) {
-				report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : iptables out chain name too long - ignored");
+			if (!check_valid_iptables_chain_name(strvec, 2, "out chain"))
 				return;
-			}
 			global_data->vrrp_iptables_outchain = STRDUP(strvec_slot(strvec,2));
 		}
 	} else {
@@ -1099,6 +1120,12 @@ vrrp_iptables_handler(const vector_t *strvec)
 	}
 }
 #ifdef _HAVE_LIBIPSET_
+static bool
+check_valid_ipset_name(const vector_t *strvec, unsigned entry, const char *log_name)
+{
+	return check_valid_iptables_ipset_nftables_name(strvec, entry, IPSET_MAXNAMELEN, "ipset", log_name);
+}
+
 static void
 vrrp_ipsets_handler(const vector_t *strvec)
 {
@@ -1119,17 +1146,13 @@ vrrp_ipsets_handler(const vector_t *strvec)
 		return;
 	}
 
-	if (strlen(strvec_slot(strvec,1)) >= IPSET_MAXNAMELEN - 1) {
-		report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : ipset address name too long - ignored");
+	if (!check_valid_ipset_name(strvec, 1, "address"))
 		return;
-	}
 	global_data->vrrp_ipset_address = STRDUP(strvec_slot(strvec,1));
 
 	if (vector_size(strvec) >= 3) {
-		if (strlen(strvec_slot(strvec,2)) >= IPSET_MAXNAMELEN - 1) {
-			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : ipset IPv6 address name too long - ignored");
+		if (!check_valid_ipset_name(strvec, 2, "IPv6 address"))
 			return;
-		}
 		global_data->vrrp_ipset_address6 = STRDUP(strvec_slot(strvec,2));
 	} else {
 		/* No second set specified, copy first name and add "6" */
@@ -1140,10 +1163,8 @@ vrrp_ipsets_handler(const vector_t *strvec)
 	}
 
 	if (vector_size(strvec) >= 4) {
-		if (strlen(strvec_slot(strvec,3)) >= IPSET_MAXNAMELEN - 1) {
-			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : ipset IPv6 address_iface name too long - ignored");
+		if (!check_valid_ipset_name(strvec, 3, "IPv6 address_iface"))
 			return;
-		}
 		global_data->vrrp_ipset_address_iface6 = STRDUP(strvec_slot(strvec,3));
 	} else {
 		/* No third set specified, copy second name and add "_if6" */
@@ -1157,10 +1178,8 @@ vrrp_ipsets_handler(const vector_t *strvec)
 	}
 
 	if (vector_size(strvec) >= 5) {
-		if (strlen(strvec_slot(strvec,4)) >= IPSET_MAXNAMELEN - 1) {
-			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : ipset IGMP name too long - ignored");
+		if (!check_valid_ipset_name(strvec, 4, "IGMP"))
 			return;
-		}
 		global_data->vrrp_ipset_igmp = STRDUP(strvec_slot(strvec,4));
 	} else {
 		/* No second set specified, copy first name and add "_igmp" */
@@ -1171,10 +1190,8 @@ vrrp_ipsets_handler(const vector_t *strvec)
 	}
 
 	if (vector_size(strvec) >= 6) {
-		if (strlen(strvec_slot(strvec,5)) >= IPSET_MAXNAMELEN - 1) {
-			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : ipset MLD name too long - ignored");
+		if (!check_valid_ipset_name(strvec, 5, "MLD"))
 			return;
-		}
 		global_data->vrrp_ipset_mld = STRDUP(strvec_slot(strvec,5));
 	} else {
 		/* No second set specified, copy first name and add "_mld" */
@@ -1186,10 +1203,8 @@ vrrp_ipsets_handler(const vector_t *strvec)
 
 #ifdef _HAVE_VRRP_VMAC_
 	if (vector_size(strvec) >= 7) {
-		if (strlen(strvec_slot(strvec,6)) >= IPSET_MAXNAMELEN - 1) {
-			report_config_error(CONFIG_GENERAL_ERROR, "VRRP Error : ipset ND name too long - ignored");
+		if (!check_valid_ipset_name(strvec, 6, "ND"))
 			return;
-		}
 		global_data->vrrp_ipset_vmac_nd = STRDUP(strvec_slot(strvec,6));
 	} else {
 		/* No second set specified, copy first name and add "_nd" */
@@ -1217,6 +1232,12 @@ vrrp_iptables_handler(__attribute__((unused)) const vector_t *strvec)
 
 #ifdef _WITH_NFTABLES_
 #ifdef _WITH_VRRP_
+static bool
+check_valid_nftables_chain_name(const vector_t *strvec, unsigned entry, const char *log_name)
+{
+	return check_valid_iptables_ipset_nftables_name(strvec, entry, NFT_TABLE_MAXNAMELEN, "nftables", log_name);
+}
+
 static void
 vrrp_nftables_handler(__attribute__((unused)) const vector_t *strvec)
 {
@@ -1228,10 +1249,8 @@ vrrp_nftables_handler(__attribute__((unused)) const vector_t *strvec)
 	}
 
 	if (vector_size(strvec) >= 2) {
-		if (strlen(strvec_slot(strvec, 1)) >= NFT_TABLE_MAXNAMELEN) {
-			report_config_error(CONFIG_GENERAL_ERROR, "nftables table name too long - ignoring");
+		if (!check_valid_nftables_chain_name(strvec, 1, "chain"))
 			return;
-		}
 		name = strvec_slot(strvec, 1);
 	}
 	else {
@@ -1271,10 +1290,8 @@ ipvs_nftables_handler(__attribute__((unused)) const vector_t *strvec)
 	}
 
 	if (vector_size(strvec) >= 2) {
-		if (strlen(strvec_slot(strvec, 1)) >= NFT_TABLE_MAXNAMELEN) {
-			report_config_error(CONFIG_GENERAL_ERROR, "ipvs nftables table name too long - ignoring");
+		if (!check_valid_nftables_chain_name(strvec, 1, "ipvs chain"))
 			return;
-		}
 		name = strvec_slot(strvec, 1);
 	}
 	else {

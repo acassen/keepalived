@@ -200,7 +200,7 @@ static unsigned free_list_size;
 static inline int
 memcheck_ptr_cmp(const void *key, const struct rb_node *a)
 {
-	return (const char *)key - (char *)rb_entry_const(a, MEMCHECK, t)->ptr;
+	return less_equal_greater_than((const char *)key, (char *)rb_entry_const(a, MEMCHECK, t)->ptr);
 }
 
 static inline bool
