@@ -1112,13 +1112,23 @@ vrrp_iptables_handler(const vector_t *strvec)
 		if (vector_size(strvec) >= 3) {
 			if (!check_valid_iptables_chain_name(strvec, 2, "out chain"))
 				return;
+
+			if (!strcmp(global_data->vrrp_iptables_inchain, strvec_slot(strvec, 2))) {
+				log_message(LOG_INFO, "vrrp_iptables: chain names cannot be the same");
+				FREE_CONST_PTR(global_data->vrrp_iptables_inchain);
+
+				return;
+			}
 			global_data->vrrp_iptables_outchain = STRDUP(strvec_slot(strvec,2));
 		}
-	} else {
-		global_data->vrrp_iptables_inchain = STRDUP(DEFAULT_IPTABLES_CHAIN_IN);
-		global_data->vrrp_iptables_outchain = STRDUP(DEFAULT_IPTABLES_CHAIN_OUT);
+
+		return;
 	}
+
+	global_data->vrrp_iptables_inchain = STRDUP(DEFAULT_IPTABLES_CHAIN_IN);
+	global_data->vrrp_iptables_outchain = STRDUP(DEFAULT_IPTABLES_CHAIN_OUT);
 }
+
 #ifdef _HAVE_LIBIPSET_
 static bool
 check_valid_ipset_name(const vector_t *strvec, unsigned entry, const char *log_name)
@@ -1131,6 +1141,17 @@ vrrp_ipsets_handler(const vector_t *strvec)
 {
 	size_t len;
 	char set_name[IPSET_MAXNAMELEN];
+	unsigned sn0, sn1;
+	const char **set_names[] = {
+		&global_data->vrrp_ipset_address,
+		&global_data->vrrp_ipset_address6,
+		&global_data->vrrp_ipset_address_iface6,
+		&global_data->vrrp_ipset_igmp,
+		&global_data->vrrp_ipset_mld,
+#ifdef _HAVE_VRRP_VMAC_
+		&global_data->vrrp_ipset_vmac_nd
+#endif
+						};
 
 	FREE_CONST_PTR(global_data->vrrp_ipset_address);
 	FREE_CONST_PTR(global_data->vrrp_ipset_address6);
@@ -1140,6 +1161,7 @@ vrrp_ipsets_handler(const vector_t *strvec)
 #ifdef _HAVE_VRRP_VMAC_
 	FREE_CONST_PTR(global_data->vrrp_ipset_vmac_nd);
 #endif
+	global_data->using_ipsets = PARAMETER_UNSET;
 
 	if (vector_size(strvec) < 2) {
 		global_data->using_ipsets = false;
@@ -1152,7 +1174,7 @@ vrrp_ipsets_handler(const vector_t *strvec)
 
 	if (vector_size(strvec) >= 3) {
 		if (!check_valid_ipset_name(strvec, 2, "IPv6 address"))
-			return;
+			goto ipset_error;
 		global_data->vrrp_ipset_address6 = STRDUP(strvec_slot(strvec,2));
 	} else {
 		/* No second set specified, copy first name and add "6" */
@@ -1164,7 +1186,7 @@ vrrp_ipsets_handler(const vector_t *strvec)
 
 	if (vector_size(strvec) >= 4) {
 		if (!check_valid_ipset_name(strvec, 3, "IPv6 address_iface"))
-			return;
+			goto ipset_error;
 		global_data->vrrp_ipset_address_iface6 = STRDUP(strvec_slot(strvec,3));
 	} else {
 		/* No third set specified, copy second name and add "_if6" */
@@ -1179,7 +1201,7 @@ vrrp_ipsets_handler(const vector_t *strvec)
 
 	if (vector_size(strvec) >= 5) {
 		if (!check_valid_ipset_name(strvec, 4, "IGMP"))
-			return;
+			goto ipset_error;
 		global_data->vrrp_ipset_igmp = STRDUP(strvec_slot(strvec,4));
 	} else {
 		/* No second set specified, copy first name and add "_igmp" */
@@ -1191,7 +1213,7 @@ vrrp_ipsets_handler(const vector_t *strvec)
 
 	if (vector_size(strvec) >= 6) {
 		if (!check_valid_ipset_name(strvec, 5, "MLD"))
-			return;
+			goto ipset_error;
 		global_data->vrrp_ipset_mld = STRDUP(strvec_slot(strvec,5));
 	} else {
 		/* No second set specified, copy first name and add "_mld" */
@@ -1204,7 +1226,7 @@ vrrp_ipsets_handler(const vector_t *strvec)
 #ifdef _HAVE_VRRP_VMAC_
 	if (vector_size(strvec) >= 7) {
 		if (!check_valid_ipset_name(strvec, 6, "ND"))
-			return;
+			goto ipset_error;
 		global_data->vrrp_ipset_vmac_nd = STRDUP(strvec_slot(strvec,6));
 	} else {
 		/* No second set specified, copy first name and add "_nd" */
@@ -1213,6 +1235,30 @@ vrrp_ipsets_handler(const vector_t *strvec)
 		strcat(set_name, "_nd");
 		global_data->vrrp_ipset_vmac_nd = STRDUP(set_name);
 	}
+#endif
+
+	/* Ensure all the set names are different */
+	for (sn0 = 0; sn0 < sizeof(set_names) / sizeof(set_names[0]) - 1; sn0++) {
+		for (sn1 = sn0 + 1; sn1 < sizeof(set_names) / sizeof(set_names[0]); sn1++) {
+			if (!strcmp(*set_names[sn0], *set_names[sn1])) {
+				report_config_error(CONFIG_GENERAL_ERROR, "vrrp_ipsets: set name %s used more than once", *set_names[sn0]);
+				goto ipset_error;
+			}
+		}
+	}
+
+	global_data->using_ipsets = true;
+
+	return;
+
+ipset_error:
+	FREE_CONST_PTR(global_data->vrrp_ipset_address);
+	FREE_CONST_PTR(global_data->vrrp_ipset_address6);
+	FREE_CONST_PTR(global_data->vrrp_ipset_address_iface6);
+	FREE_CONST_PTR(global_data->vrrp_ipset_igmp);
+	FREE_CONST_PTR(global_data->vrrp_ipset_mld);
+#ifdef _HAVE_VRRP_VMAC_
+	FREE_CONST_PTR(global_data->vrrp_ipset_vmac_nd);
 #endif
 }
 #endif
@@ -1252,8 +1298,7 @@ vrrp_nftables_handler(__attribute__((unused)) const vector_t *strvec)
 		if (!check_valid_nftables_chain_name(strvec, 1, "chain"))
 			return;
 		name = strvec_slot(strvec, 1);
-	}
-	else {
+	} else {
 		/* Table name defaults to "keepalived" */
 		name = DEFAULT_NFTABLES_TABLE;
 	}

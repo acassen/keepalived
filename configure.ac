@@ -265,6 +265,28 @@ AC_ARG_ENABLE(perf,
   [AS_HELP_STRING([--enable-perf], [compile with perf performance data recording support for vrrp process])])
 AC_ARG_ENABLE(sanitize-address,
   [AS_HELP_STRING([--enable-sanitize-address], [compile with sanitize=address (ASAN) support])])
+AC_ARG_ENABLE(sanitize-address-options,
+  [AS_HELP_STRING([--enable-sanitize-address-options], [compile with sanitize=address (ASAN) default options])])
+AC_ARG_ENABLE(sanitize-hwaddress,
+  [AS_HELP_STRING([--enable-sanitize-hwaddress], [compile with sanitize=hwaddress (HWASAN) support])])
+AC_ARG_ENABLE(sanitize-hwaddress-options,
+  [AS_HELP_STRING([--enable-sanitize-hwaddress-options], [compile with sanitize=hwaddress (HWASAN) default options])])
+AC_ARG_ENABLE(sanitize-undefined,
+  [AS_HELP_STRING([--enable-sanitize-undefined], [compile with sanitize=undefined (UBSAN) support])])
+AC_ARG_ENABLE(sanitize-undefined-options,
+  [AS_HELP_STRING([--enable-sanitize-undefined-options], [compile with sanitize=undefined (UBSAN) default options])])
+AC_ARG_ENABLE(sanitize-memory,
+  [AS_HELP_STRING([--enable-sanitize-memory], [compile with sanitize=memory (MSAN) support])])
+AC_ARG_ENABLE(sanitize-memory-options,
+  [AS_HELP_STRING([--enable-sanitize-memory-options], [compile with sanitize=memory (MSAN) default options])])
+AC_ARG_ENABLE(sanitize-leak,
+  [AS_HELP_STRING([--enable-sanitize-leak], [compile with sanitize=leak (LSAN) support])])
+AC_ARG_ENABLE(sanitize-leak-options,
+  [AS_HELP_STRING([--enable-sanitize-leak-options], [compile with sanitize=leak (LSAN) default options])])
+AC_ARG_ENABLE(sanitize-scudo,
+  [AS_HELP_STRING([--enable-sanitize-scudo], [compile with sanitize=scudo support])])
+AC_ARG_ENABLE(sanitize-scudo-options,
+  [AS_HELP_STRING([--enable-sanitize-scudo-options], [compile with sanitize=scudo default options])])
 AC_ARG_ENABLE(log-file,
   [AS_HELP_STRING([--enable-log-file], [enable logging to file (-g)])])
 AC_ARG_ENABLE(dump-threads,
@@ -333,6 +355,13 @@ AC_ARG_WITH([systemdsystemunitdir],
   [with_systemdsystemunitdir=auto])
 AC_ARG_WITH([dbus-data-dir],
   [AS_HELP_STRING([--with-dbus-data-dir=DIR], [Directory for Dbus interface files])])
+AC_ARG_ENABLE([cflags],
+  [AS_HELP_STRING([--enable-cflags=flags], [additional CFLAGS])])
+AC_ARG_ENABLE([cppflags],
+  [AS_HELP_STRING([--enable-cppflags=flags], [additional CPPFLAGS])])
+AC_ARG_ENABLE([ldflags],
+  [AS_HELP_STRING([--enable-ldflags=flags], [additional LDFLAGS])])
+
 
 # Set the kernel headers path
 if test -n "$kernel_src_path"; then
@@ -411,6 +440,11 @@ KA_CPPFLAGS="$kernelinc -D_GNU_SOURCE $CPPFLAGS"
 KA_CFLAGS="-g $CFLAGS"
 KA_LDFLAGS=$LDFLAGS
 KA_LIBS=$LDLIBS
+
+# Set any additional compiler flags
+AS_IF([test -n "$enable_cflags" -a "$enable_cflags" != no], [add_to_var([KA_CFLAGS], ["$enable_cflags"])])
+AS_IF([test -n "$enable_cppflags" -a "$enable_cppflags" != no], [add_to_var([KA_CPPFLAGS], ["$enable_cppflags"])])
+AS_IF([test -n "$enable_ldflags" -a "$enable_ldflags" != no], [add_to_var([KA_LDFLAGS], ["$enable_ldflags"])])
 
 # For reporting GCC bugs, uncomment the next two lines
 #KA_CPPFLAGS="$KA_CPPFLAGS -v -save-temps"
@@ -2850,15 +2884,91 @@ else
   ENABLE_PERF=No
 fi
 
+# consider -fsanitize-recover=all or -fsanitize-recover=address -fsanitize=pointer-compare -fsanitize=pointer-subtract (pointer-subtract needs option detect_invalid_pointer_pairs=2)
+SANITIZERS=
 dnl ----[ sanitize=address testing or not? ]----
-if test "${enable_sanitize_address}" = yes; then
-#  AC_DEFINE([_WITH_SANITIZE_ADDRESS_], [ 1 ], [Define to 1 to build with sanitize=address support])
-  ENABLE_SANITIZE_ADDRESS=Yes
-  add_config_opt([SANITIZE_ADDRESS])
-  add_to_var([KA_CFLAGS], [-fsanitize=address -g])
+AS_IF([test "${enable_sanitize_address}" = yes],
+  [
+    AC_DEFINE([_WITH_SANITIZE_ADDRESS_], [ 1 ], [Define to 1 to build with sanitize=address support])
+    ENABLE_SANITIZE_ADDRESS=Yes
+    add_config_opt([SANITIZE_ADDRESS])
+    SANITIZERS="$SANITIZERS,address"
+    AS_IF([test "${enable_sanitize_address_options}" != no -a -n "${enable_sanitize_address_options}"],
+      [AC_DEFINE_UNQUOTED([_ASAN_DEFAULT_OPTIONS_], ["${enable_sanitize_address_options}"], [default options for ASAN])])
+  ],[
+    ENABLE_SANITIZE_ADDRESS=No
+  ]
+)
+
+dnl ----[ sanitize=hwaddress testing or not? ]----
+if test "${enable_sanitize_hwaddress}" = yes; then
+  AC_DEFINE([_WITH_SANITIZE_HWADDRESS_], [ 1 ], [Define to 1 to build with sanitize=hwaddress support])
+  ENABLE_SANITIZE_HWADDRESS=Yes
+  add_config_opt([SANITIZE_HWADDRESS])
+  SANITIZERS="$SANITIZERS,hwaddress"
+    AS_IF([test "${enable_sanitize_hwaddress_options}" != no -a -n "${enable_sanitize_hwaddress_options}"],
+      [AC_DEFINE_UNQUOTED([_HWASAN_DEFAULT_OPTIONS_], ["${enable_sanitize_hwaddress_options}"], [default options for HWASAN])])
 else
-  ENABLE_SANITIZE_ADDRESS=No
+  ENABLE_SANITIZE_HWADDRESS=No
 fi
+
+dnl ----[ sanitize=undefined testing or not? ]----
+echo enable_Sanitize_undefined = $enable_sanitize_undefined
+if test "${enable_sanitize_undefined}" = yes; then
+  AC_DEFINE([_WITH_SANITIZE_UNDEFINED_], [ 1 ], [Define to 1 to build with sanitize=undefined support])
+  ENABLE_SANITIZE_UNDEFINED=Yes
+  add_config_opt([SANITIZE_UNDEFINED])
+  add_to_var([KA_CFLAGS], ["--param=max-inline-insns-single=100000"])
+  add_to_var([KA_CFLAGS], ["--param=large-function-growth=500"])
+  SANITIZERS="$SANITIZERS,undefined"
+    AS_IF([test "${enable_sanitize_undefined_options}" != no -a -n "${enable_sanitize_undefined_options}"],
+      [AC_DEFINE_UNQUOTED([_UBSAN_DEFAULT_OPTIONS_], ["${enable_sanitize_undefined_options}"], [default options for UBSAN])])
+else
+  ENABLE_SANITIZE_UNDEFINED=No
+fi
+
+dnl ----[ sanitize=memory testing or not? ]----
+if test "${enable_sanitize_memory}" = yes; then
+  AC_DEFINE([_WITH_SANITIZE_MEMORY_], [ 1 ], [Define to 1 to build with sanitize=memory support])
+  ENABLE_SANITIZE_MEMORY=Yes
+  add_config_opt([SANITIZE_MEMORY])
+  SANITIZERS="$SANITIZERS,memory"
+    AS_IF([test "${enable_sanitize_memory_options}" != no -a -n "${enable_sanitize_memory_options}"],
+      [AC_DEFINE_UNQUOTED([_MSAN_DEFAULT_OPTIONS_], ["${enable_sanitize_memory_options}"], [default options for MSAN])])
+else
+  ENABLE_SANITIZE_MEMORY=No
+fi
+
+dnl ----[ sanitize=leak testing or not? ]----
+if test "${enable_sanitize_leak}" = yes; then
+  AC_DEFINE([_WITH_SANITIZE_LEAK_], [ 1 ], [Define to 1 to build with sanitize=leak support])
+  ENABLE_SANITIZE_LEAK=Yes
+  add_config_opt([SANITIZE_LEAK])
+  SANITIZERS="$SANITIZERS,leak"
+    AS_IF([test "${enable_sanitize_leak_options}" != no -a -n "${enable_sanitize_leak_options}"],
+      [AC_DEFINE_UNQUOTED([_LSAN_DEFAULT_OPTIONS_], ["${enable_sanitize_leak_options}"], [default options for LSAN])])
+else
+  ENABLE_SANITIZE_LEAK=No
+fi
+
+dnl ----[ sanitize=scudo testing or not? ]----
+if test "${enable_sanitize_scudo}" = yes; then
+  AC_DEFINE([_WITH_SANITIZE_SCUDO_], [ 1 ], [Define to 1 to build with sanitize=scudo support])
+  ENABLE_SANITIZE_SCUDO=Yes
+  add_config_opt([SANITIZE_SCUDO])
+  SANITIZERS="$SANITIZERS,scudo"
+    AS_IF([test "${enable_sanitize_scudo_options}" != no -a -n "${enable_sanitize_scudo_options}"],
+      [AC_DEFINE_UNQUOTED([_SCUDO_DEFAULT_OPTIONS_], ["${enable_sanitize_scudo_options}"], [default options for SCUDO])])
+else
+  ENABLE_SANITIZE_SCUDO=No
+fi
+AS_IF([test -n "$SANITIZERS"],
+  [
+    add_to_var([KA_CFLAGS], ["-fsanitize=${SANITIZERS:1}"])	# Skip leading ,
+    add_to_var([KA_CFLAGS], ["-g"])
+    AC_DEFINE([_WITH_SANITIZER_], [ 1 ], [Define to 1 if any sanitizer is enabled])
+  ])
+AM_CONDITIONAL([WITH_SANITIZER], [test -n "$SANITIZERS"])
 
 if test "${enable_log_file}" = yes; then
   AC_DEFINE([ENABLE_LOG_TO_FILE], [ 1 ], [Define if enabling logging to files])
@@ -3284,7 +3394,22 @@ if test ${ENABLE_PERF} = Yes; then
   echo "Perf support             : Yes"
 fi
 if test ${ENABLE_SANITIZE_ADDRESS} = Yes; then
-  echo "sanitize=address testing : Yes"
+  echo "sanitize=address         : Yes"
+fi
+if test ${ENABLE_SANITIZE_HWADDRESS} = Yes; then
+  echo "sanitize=hwaddress       : Yes"
+fi
+if test ${ENABLE_SANITIZE_UNDEFINED} = Yes; then
+  echo "sanitize=undefined       : Yes"
+fi
+if test ${ENABLE_SANITIZE_MEMORY} = Yes; then
+  echo "sanitize=memory          : Yes"
+fi
+if test ${ENABLE_SANITIZE_LEAK} = Yes; then
+  echo "sanitize=leak            : Yes"
+fi
+if test ${ENABLE_SANITIZE_SCUDO} = Yes; then
+  echo "sanitize=scudo           : Yes"
 fi
 if test ${MEM_CHECK} = Yes; then
   echo "Memory alloc check       : Yes"

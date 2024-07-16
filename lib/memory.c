@@ -253,6 +253,9 @@ get_free_alloc_entry(struct mem_domain *mem)
 	return entry;
 }
 
+#if !defined _NO_UNALIGNED_ACCESS_ && defined _WITH_SANITIZE_UNDEFINED_
+__attribute__((no_sanitize("alignment")))
+#endif
 static void *
 keepalived_malloc_common(struct mem_domain *mem, size_t size, const char *file, const char *function, int line, const char *name)
 {
@@ -355,6 +358,9 @@ keepalived_strndup(const char *str, size_t size, const char *file, const char *f
 	return strncpy(str_p, str, size);
 }
 
+#if !defined _NO_UNALIGNED_ACCESS_ && defined _WITH_SANITIZE_UNDEFINED_
+__attribute__((no_sanitize("alignment")))
+#endif
 static void *
 keepalived_free_realloc_common(struct mem_domain *mem, void *buffer, size_t size, const char *file, const char *function, int line, bool is_realloc)
 {

@@ -43,7 +43,6 @@
 #include "main.h"
 #include "global_data.h"
 #include "daemon.h"
-#include "config.h"
 #ifndef _ONE_PROCESS_DEBUG_
 #include "config_notify.h"
 #endif
@@ -83,7 +82,6 @@
 #include "namespaces.h"
 #include "scheduler.h"
 #include "keepalived_netlink.h"
-#include "git-commit.h"
 #if defined THREAD_DUMP || defined _EPOLL_DEBUG_ || defined _EPOLL_THREAD_DUMP_ || defined _SCRIPT_DEBUG_
 #include "scheduler.h"
 #endif
@@ -117,6 +115,9 @@
 #endif
 #ifdef _USE_SYSTEMD_NOTIFY_
 #include "systemd.h"
+#endif
+#ifdef _WITH_SANITIZER_
+#include "sanitizer.h"
 #endif
 #include "warnings.h"
 
@@ -2468,6 +2469,10 @@ keepalived_main(int argc, char **argv)
 		check_genhash(true, argc, argv);
 		/* Not reached */
 	}
+#endif
+
+#ifdef _WITH_SANITIZER_
+	sanitizer_init();
 #endif
 
 #ifdef _REPRODUCIBLE_BUILD_

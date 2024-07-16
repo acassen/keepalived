@@ -604,7 +604,7 @@ vrrp_in_chk_ipsecah(vrrp_t *vrrp, const struct iphdr *ip, const ipsec_ah_t *ah, 
 #endif
 
 /* check if ipaddr is present in VIP buffer */
-static int
+static bool __attribute__((pure))
 vrrp_in_chk_vips(const vrrp_t *vrrp, const ip_address_t *ipaddress, const unsigned char *buffer)
 {
 	size_t i;
@@ -612,16 +612,16 @@ vrrp_in_chk_vips(const vrrp_t *vrrp, const ip_address_t *ipaddress, const unsign
 	if (vrrp->family == AF_INET) {
 		for (i = 0; i < vrrp->vip_cnt; i++) {
 			if (!memcmp(&ipaddress->u.sin.sin_addr.s_addr, buffer + i * sizeof(struct in_addr), sizeof (struct in_addr)))
-				return 1;
+				return true;
 		}
 	} else if (vrrp->family == AF_INET6) {
 		for (i = 0; i < vrrp->vip_cnt; i++) {
 			if (!memcmp(&ipaddress->u.sin6_addr, buffer + i * sizeof(struct in6_addr), sizeof (struct in6_addr)))
-				return 1;
+				return true;
 		}
 	}
 
-	return 0;
+	return false;
 }
 
 #ifdef _CHECKSUM_DEBUG_
@@ -4625,7 +4625,7 @@ vrrp_complete_init(void)
 #endif
 
 #if defined _HAVE_LIBIPSET_
-	if (!global_data->vrrp_iptables_inchain && global_data->using_ipsets == true) {
+	if (!global_data->vrrp_iptables_inchain && global_data->using_ipsets) {
 		log_message(LOG_INFO, "vrrp_ipsets has been specified but not vrrp_iptables - vrrp_ipsets will be ignored");
 		disable_ipsets();
 	}
