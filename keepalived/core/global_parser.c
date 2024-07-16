@@ -1131,6 +1131,17 @@ vrrp_ipsets_handler(const vector_t *strvec)
 {
 	size_t len;
 	char set_name[IPSET_MAXNAMELEN];
+	unsigned sn0, sn1;
+	const char **set_names[] = {
+		&global_data->vrrp_ipset_address,
+		&global_data->vrrp_ipset_address6,
+		&global_data->vrrp_ipset_address_iface6,
+		&global_data->vrrp_ipset_igmp,
+		&global_data->vrrp_ipset_mld,
+#ifdef _HAVE_VRRP_VMAC_
+		&global_data->vrrp_ipset_vmac_nd
+#endif
+						};
 
 	FREE_CONST_PTR(global_data->vrrp_ipset_address);
 	FREE_CONST_PTR(global_data->vrrp_ipset_address6);
@@ -1215,6 +1226,16 @@ vrrp_ipsets_handler(const vector_t *strvec)
 		global_data->vrrp_ipset_vmac_nd = STRDUP(set_name);
 	}
 #endif
+
+	/* Ensure all the set names are different */
+	for (sn0 = 0; sn0 < sizeof(set_names) / sizeof(set_names[0]) - 1; sn0++) {
+		for (sn1 = sn0 + 1; sn1 < sizeof(set_names) / sizeof(set_names[0]); sn1++) {
+			if (!strcmp(*set_names[sn0], *set_names[sn1])) {
+				report_config_error(CONFIG_GENERAL_ERROR, "vrrp_ipsets: set name %s used more than once", *set_names[sn0]);
+				goto ipset_error;
+			}
+		}
+	}
 
 	global_data->using_ipsets = true;
 
