@@ -43,7 +43,6 @@
 #include "main.h"
 #include "global_data.h"
 #include "daemon.h"
-#include "config.h"
 #ifndef _ONE_PROCESS_DEBUG_
 #include "config_notify.h"
 #endif
@@ -83,7 +82,6 @@
 #include "namespaces.h"
 #include "scheduler.h"
 #include "keepalived_netlink.h"
-#include "git-commit.h"
 #if defined THREAD_DUMP || defined _EPOLL_DEBUG_ || defined _EPOLL_THREAD_DUMP_ || defined _SCRIPT_DEBUG_
 #include "scheduler.h"
 #endif
