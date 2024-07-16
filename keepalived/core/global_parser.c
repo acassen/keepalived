@@ -1298,8 +1298,7 @@ vrrp_nftables_handler(__attribute__((unused)) const vector_t *strvec)
 		if (!check_valid_nftables_chain_name(strvec, 1, "chain"))
 			return;
 		name = strvec_slot(strvec, 1);
-	}
-	else {
+	} else {
 		/* Table name defaults to "keepalived" */
 		name = DEFAULT_NFTABLES_TABLE;
 	}
