@@ -1152,7 +1152,7 @@ vrrp_ipsets_handler(const vector_t *strvec)
 
 	if (vector_size(strvec) >= 3) {
 		if (!check_valid_ipset_name(strvec, 2, "IPv6 address"))
-			return;
+			goto ipset_error;
 		global_data->vrrp_ipset_address6 = STRDUP(strvec_slot(strvec,2));
 	} else {
 		/* No second set specified, copy first name and add "6" */
@@ -1164,7 +1164,7 @@ vrrp_ipsets_handler(const vector_t *strvec)
 
 	if (vector_size(strvec) >= 4) {
 		if (!check_valid_ipset_name(strvec, 3, "IPv6 address_iface"))
-			return;
+			goto ipset_error;
 		global_data->vrrp_ipset_address_iface6 = STRDUP(strvec_slot(strvec,3));
 	} else {
 		/* No third set specified, copy second name and add "_if6" */
@@ -1179,7 +1179,7 @@ vrrp_ipsets_handler(const vector_t *strvec)
 
 	if (vector_size(strvec) >= 5) {
 		if (!check_valid_ipset_name(strvec, 4, "IGMP"))
-			return;
+			goto ipset_error;
 		global_data->vrrp_ipset_igmp = STRDUP(strvec_slot(strvec,4));
 	} else {
 		/* No second set specified, copy first name and add "_igmp" */
@@ -1191,7 +1191,7 @@ vrrp_ipsets_handler(const vector_t *strvec)
 
 	if (vector_size(strvec) >= 6) {
 		if (!check_valid_ipset_name(strvec, 5, "MLD"))
-			return;
+			goto ipset_error;
 		global_data->vrrp_ipset_mld = STRDUP(strvec_slot(strvec,5));
 	} else {
 		/* No second set specified, copy first name and add "_mld" */
@@ -1204,7 +1204,7 @@ vrrp_ipsets_handler(const vector_t *strvec)
 #ifdef _HAVE_VRRP_VMAC_
 	if (vector_size(strvec) >= 7) {
 		if (!check_valid_ipset_name(strvec, 6, "ND"))
-			return;
+			goto ipset_error;
 		global_data->vrrp_ipset_vmac_nd = STRDUP(strvec_slot(strvec,6));
 	} else {
 		/* No second set specified, copy first name and add "_nd" */
@@ -1213,6 +1213,18 @@ vrrp_ipsets_handler(const vector_t *strvec)
 		strcat(set_name, "_nd");
 		global_data->vrrp_ipset_vmac_nd = STRDUP(set_name);
 	}
+#endif
+
+	return;
+
+ipset_error:
+	FREE_CONST_PTR(global_data->vrrp_ipset_address);
+	FREE_CONST_PTR(global_data->vrrp_ipset_address6);
+	FREE_CONST_PTR(global_data->vrrp_ipset_address_iface6);
+	FREE_CONST_PTR(global_data->vrrp_ipset_igmp);
+	FREE_CONST_PTR(global_data->vrrp_ipset_mld);
+#ifdef _HAVE_VRRP_VMAC_
+	FREE_CONST_PTR(global_data->vrrp_ipset_vmac_nd);
 #endif
 }
 #endif
