@@ -1112,13 +1112,23 @@ vrrp_iptables_handler(const vector_t *strvec)
 		if (vector_size(strvec) >= 3) {
 			if (!check_valid_iptables_chain_name(strvec, 2, "out chain"))
 				return;
+
+			if (!strcmp(global_data->vrrp_iptables_inchain, strvec_slot(strvec, 2))) {
+				log_message(LOG_INFO, "vrrp_iptables: chain names cannot be the same");
+				FREE_CONST_PTR(global_data->vrrp_iptables_inchain);
+
+				return;
+			}
 			global_data->vrrp_iptables_outchain = STRDUP(strvec_slot(strvec,2));
 		}
-	} else {
-		global_data->vrrp_iptables_inchain = STRDUP(DEFAULT_IPTABLES_CHAIN_IN);
-		global_data->vrrp_iptables_outchain = STRDUP(DEFAULT_IPTABLES_CHAIN_OUT);
+
+		return;
 	}
+
+	global_data->vrrp_iptables_inchain = STRDUP(DEFAULT_IPTABLES_CHAIN_IN);
+	global_data->vrrp_iptables_outchain = STRDUP(DEFAULT_IPTABLES_CHAIN_OUT);
 }
+
 #ifdef _HAVE_LIBIPSET_
 static bool
 check_valid_ipset_name(const vector_t *strvec, unsigned entry, const char *log_name)
