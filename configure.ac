@@ -355,6 +355,13 @@ AC_ARG_WITH([systemdsystemunitdir],
   [with_systemdsystemunitdir=auto])
 AC_ARG_WITH([dbus-data-dir],
   [AS_HELP_STRING([--with-dbus-data-dir=DIR], [Directory for Dbus interface files])])
+AC_ARG_ENABLE([cflags],
+  [AS_HELP_STRING([--enable-cflags=flags], [additional CFLAGS])])
+AC_ARG_ENABLE([cppflags],
+  [AS_HELP_STRING([--enable-cppflags=flags], [additional CPPFLAGS])])
+AC_ARG_ENABLE([ldflags],
+  [AS_HELP_STRING([--enable-ldflags=flags], [additional LDFLAGS])])
+
 
 # Set the kernel headers path
 if test -n "$kernel_src_path"; then
@@ -433,6 +440,11 @@ KA_CPPFLAGS="$kernelinc -D_GNU_SOURCE $CPPFLAGS"
 KA_CFLAGS="-g $CFLAGS"
 KA_LDFLAGS=$LDFLAGS
 KA_LIBS=$LDLIBS
+
+# Set any additional compiler flags
+AS_IF([test -n "$enable_cflags" -a "$enable_cflags" != no], [add_to_var([KA_CFLAGS], ["$enable_cflags"])])
+AS_IF([test -n "$enable_cppflags" -a "$enable_cppflags" != no], [add_to_var([KA_CPPFLAGS], ["$enable_cppflags"])])
+AS_IF([test -n "$enable_ldflags" -a "$enable_ldflags" != no], [add_to_var([KA_LDFLAGS], ["$enable_ldflags"])])
 
 # For reporting GCC bugs, uncomment the next two lines
 #KA_CPPFLAGS="$KA_CPPFLAGS -v -save-temps"
