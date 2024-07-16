@@ -1738,8 +1738,10 @@ vrrp_state_become_master(vrrp_t * vrrp)
 		vrrp->vmac_garp_timer = timer_add_now(vrrp->vmac_garp_intvl);
 #endif
 
-	/* Check if notify is needed */
-	send_instance_notifies(vrrp);
+    if (!vrrp->exec_before_vip) {
+        /* Check if notify is needed */
+        send_instance_notifies(vrrp);
+    }
 
 #ifdef _WITH_LVS_
 	/* Check if sync daemon handling is needed */
@@ -2056,6 +2058,9 @@ vrrp_state_master_tx(vrrp_t * vrrp)
 	if (!VRRP_VIP_ISSET(vrrp)) {
 		log_message(LOG_INFO, "(%s) Entering MASTER STATE"
 				    , vrrp->iname);
+        if (vrrp->exec_before_vip) {
+            send_instance_notifies(vrrp);
+        }
 		vrrp_state_become_master(vrrp);
 		/*
 		 * If we catch the master transition
