@@ -44,6 +44,9 @@ For setting VMAC interfaces unmanaged by NetworkManager. This is not needed for
    NetworkManager >= 1.18, and possibly some earlier versions, but is needed for
    NetworkManager 1.0.6.
 	NetworkManager-libnm-devel
+For building with sanitizers
+	libasan libubsan libhwasan liblsan (gcc)
+	compiler-rt (clang)
 
 For building the documentation, the following packages need to be installed:
 	Fedora: python-sphinx (will pull in: python2-sphinx_rtd_theme)

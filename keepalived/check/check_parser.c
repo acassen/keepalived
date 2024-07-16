@@ -925,13 +925,16 @@ vs_weight_handler(const vector_t *strvec)
 	current_vs->weight = weight;
 }
 
+#ifdef _WITH_SANITIZE_UNDEFINED_
+__attribute__((no_sanitize("null")))
+#endif
 void
 init_check_keywords(bool active)
 {
 	vpp_t check_ptr;
 
 	/* SSL mapping */
-	install_keyword_root("SSL", &ssl_handler, active, VPP &check_data->ssl);
+	install_keyword_root("SSL", &ssl_handler, active, VPP &check_data->ssl);	// Causes sanitizer error: member access within null pointer of type 'struct check_data_t'
 	install_keyword("password", &sslpass_handler);
 	install_keyword("ca", &sslca_handler);
 	install_keyword("certificate", &sslcert_handler);

@@ -116,6 +116,9 @@
 #ifdef _USE_SYSTEMD_NOTIFY_
 #include "systemd.h"
 #endif
+#ifdef _WITH_SANITIZER_
+#include "sanitizer.h"
+#endif
 #include "warnings.h"
 
 #define CHILD_WAIT_SECS	5
@@ -2466,6 +2469,10 @@ keepalived_main(int argc, char **argv)
 		check_genhash(true, argc, argv);
 		/* Not reached */
 	}
+#endif
+
+#ifdef _WITH_SANITIZER_
+	sanitizer_init();
 #endif
 
 #ifdef _REPRODUCIBLE_BUILD_
