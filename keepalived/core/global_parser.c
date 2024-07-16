@@ -1140,6 +1140,7 @@ vrrp_ipsets_handler(const vector_t *strvec)
 #ifdef _HAVE_VRRP_VMAC_
 	FREE_CONST_PTR(global_data->vrrp_ipset_vmac_nd);
 #endif
+	global_data->using_ipsets = PARAMETER_UNSET;
 
 	if (vector_size(strvec) < 2) {
 		global_data->using_ipsets = false;
@@ -1214,6 +1215,8 @@ vrrp_ipsets_handler(const vector_t *strvec)
 		global_data->vrrp_ipset_vmac_nd = STRDUP(set_name);
 	}
 #endif
+
+	global_data->using_ipsets = true;
 
 	return;
 
