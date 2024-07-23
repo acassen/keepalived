@@ -149,22 +149,18 @@ static const struct child_term children_term[] = {
 const char *version_string = VERSION_STRING;		/* keepalived version */
 const char *conf_file;					/* Configuration file */
 bool reload;						/* Set during a reload */
-const char *main_pidfile;				/* overrule default pidfile */
-static bool free_main_pidfile;
+struct pidfile main_pidfile = { .fd = -1 };		/* overrule default pidfile */
 #ifdef _WITH_LVS_
 pid_t checkers_child;					/* Healthcheckers child process ID */
-const char *checkers_pidfile;				/* overrule default pidfile */
-static bool free_checkers_pidfile;
+struct pidfile checkers_pidfile = { .fd = -1 };		/* overrule default pidfile */
 #endif
 #ifdef _WITH_VRRP_
 pid_t vrrp_child;					/* VRRP child process ID */
-const char *vrrp_pidfile;				/* overrule default pidfile */
-static bool free_vrrp_pidfile;
+struct pidfile vrrp_pidfile = { .fd = -1 };		/* overrule default pidfile */
 #endif
 #ifdef _WITH_BFD_
 pid_t bfd_child;					/* BFD child process ID */
-const char *bfd_pidfile;				/* overrule default pidfile */
-static bool free_bfd_pidfile;
+struct pidfile bfd_pidfile = { .fd = -1 };		/* overrule default pidfile */
 #endif
 unsigned long daemon_mode;				/* VRRP/CHECK/BFD subsystem selection */
 #ifdef _WITH_SNMP_
@@ -319,29 +315,11 @@ free_parent_mallocs_startup(bool am_child)
 		free_notify_script(&global_data->startup_script);
 		free_notify_script(&global_data->shutdown_script);
 	}
-
-	if (free_main_pidfile) {
-		FREE_CONST_PTR(main_pidfile);
-		free_main_pidfile = false;
-	}
 }
 
 void
 free_parent_mallocs_exit(void)
 {
-#ifdef _WITH_VRRP_
-	if (free_vrrp_pidfile)
-		FREE_CONST_PTR(vrrp_pidfile);
-#endif
-#ifdef _WITH_LVS_
-	if (free_checkers_pidfile)
-		FREE_CONST_PTR(checkers_pidfile);
-#endif
-#ifdef _WITH_BFD_
-	if (free_bfd_pidfile)
-		FREE_CONST_PTR(bfd_pidfile);
-#endif
-
 	FREE_CONST_PTR(config_id);
 
 #ifdef _REPRODUCIBLE_BUILD_
@@ -514,20 +492,20 @@ stop_keepalived(void)
 
 #ifdef _WITH_VRRP_
 	if (__test_bit(DAEMON_VRRP, &daemon_mode))
-		pidfile_rm(vrrp_pidfile);
+		pidfile_close(&vrrp_pidfile, true);
 #endif
 
 #ifdef _WITH_LVS_
 	if (__test_bit(DAEMON_CHECKERS, &daemon_mode))
-		pidfile_rm(checkers_pidfile);
+		pidfile_close(&checkers_pidfile, true);
 #endif
 
 #ifdef _WITH_BFD_
 	if (__test_bit(DAEMON_BFD, &daemon_mode))
-		pidfile_rm(bfd_pidfile);
+		pidfile_close(&bfd_pidfile, true);
 #endif
 
-	pidfile_rm(main_pidfile);
+	pidfile_rm(&main_pidfile);
 #endif
 }
 
@@ -560,7 +538,8 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 		start_check_child();
 		have_child = true;
 		num_reloading++;
-	}
+	} else
+		pidfile_rm(&checkers_pidfile);
 #endif
 #ifdef _WITH_VRRP_
 	/* start vrrp child */
@@ -568,7 +547,8 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 		start_vrrp_child();
 		have_child = true;
 		num_reloading++;
-	}
+	} else
+		pidfile_rm(&vrrp_pidfile);
 #endif
 #ifdef _WITH_BFD_
 	/* start bfd child */
@@ -576,7 +556,8 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 		start_bfd_child();
 		have_child = true;
 		num_reloading++;
-	}
+	} else
+		pidfile_rm(&bfd_pidfile);
 #endif
 
 #ifndef _ONE_PROCESS_DEBUG_
@@ -2255,11 +2236,11 @@ parse_cmdline(int argc, char **argv)
 			break;
 #endif
 		case 'p':
-			main_pidfile = optarg;
+			main_pidfile.path = optarg;
 			break;
 #ifdef _WITH_LVS_
 		case 'c':
-			checkers_pidfile = optarg;
+			checkers_pidfile.path = optarg;
 			break;
 		case 'a':
 			__set_bit(LOG_ADDRESS_CHANGES, &debug);
@@ -2267,12 +2248,12 @@ parse_cmdline(int argc, char **argv)
 #endif
 #ifdef _WITH_VRRP_
 		case 'r':
-			vrrp_pidfile = optarg;
+			vrrp_pidfile.path = optarg;
 			break;
 #endif
 #ifdef _WITH_BFD_
 		case 'b':
-			bfd_pidfile = optarg;
+			bfd_pidfile.path = optarg;
 			break;
 #endif
 #ifdef _WITH_SNMP_
@@ -2733,53 +2714,53 @@ keepalived_main(int argc, char **argv)
 
 	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
 		if (global_data->instance_name) {
-			if (!main_pidfile && (main_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-				free_main_pidfile = true;
+			if (!main_pidfile.path && (main_pidfile.path = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, global_data->instance_name, PID_EXTENSION)))
+				main_pidfile.free_path = true;
 #ifdef _WITH_LVS_
-			if (!checkers_pidfile && (checkers_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR CHECKERS_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-				free_checkers_pidfile = true;
+			if (!checkers_pidfile.path && (checkers_pidfile.path = make_pidfile_name(KEEPALIVED_PID_DIR CHECKERS_PID_FILE, global_data->instance_name, PID_EXTENSION)))
+				checkers_pidfile.free_path = true;
 #endif
 #ifdef _WITH_VRRP_
-			if (!vrrp_pidfile && (vrrp_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-				free_vrrp_pidfile = true;
+			if (!vrrp_pidfile.path && (vrrp_pidfile.path = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, global_data->instance_name, PID_EXTENSION)))
+				vrrp_pidfile.free_path = true;
 #endif
 #ifdef _WITH_BFD_
-			if (!bfd_pidfile && (bfd_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR BFD_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-				free_bfd_pidfile = true;
+			if (!bfd_pidfile.path && (bfd_pidfile.path = make_pidfile_name(KEEPALIVED_PID_DIR BFD_PID_FILE, global_data->instance_name, PID_EXTENSION)))
+				bfd_pidfile.free_path = true;
 #endif
 		}
 
 		if (use_pid_dir) {
-			if (!main_pidfile)
-				main_pidfile = KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
+			if (!main_pidfile.path)
+				main_pidfile.path = KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
 #ifdef _WITH_LVS_
-			if (!checkers_pidfile)
-				checkers_pidfile = KEEPALIVED_PID_DIR CHECKERS_PID_FILE PID_EXTENSION;
+			if (!checkers_pidfile.path)
+				checkers_pidfile.path = KEEPALIVED_PID_DIR CHECKERS_PID_FILE PID_EXTENSION;
 #endif
 #ifdef _WITH_VRRP_
-			if (!vrrp_pidfile)
-				vrrp_pidfile = KEEPALIVED_PID_DIR VRRP_PID_FILE PID_EXTENSION;
+			if (!vrrp_pidfile.path)
+				vrrp_pidfile.path = KEEPALIVED_PID_DIR VRRP_PID_FILE PID_EXTENSION;
 #endif
 #ifdef _WITH_BFD_
-			if (!bfd_pidfile)
-				bfd_pidfile = KEEPALIVED_PID_DIR BFD_PID_FILE PID_EXTENSION;
+			if (!bfd_pidfile.path)
+				bfd_pidfile.path = KEEPALIVED_PID_DIR BFD_PID_FILE PID_EXTENSION;
 #endif
 		}
 		else
 		{
-			if (!main_pidfile)
-				main_pidfile = RUNSTATEDIR "/" KEEPALIVED_PID_FILE PID_EXTENSION;
+			if (!main_pidfile.path)
+				main_pidfile.path = RUNSTATEDIR "/" KEEPALIVED_PID_FILE PID_EXTENSION;
 #ifdef _WITH_LVS_
-			if (!checkers_pidfile)
-				checkers_pidfile = RUNSTATEDIR "/" CHECKERS_PID_FILE PID_EXTENSION;
+			if (!checkers_pidfile.path)
+				checkers_pidfile.path = RUNSTATEDIR "/" CHECKERS_PID_FILE PID_EXTENSION;
 #endif
 #ifdef _WITH_VRRP_
-			if (!vrrp_pidfile)
-				vrrp_pidfile = RUNSTATEDIR "/" VRRP_PID_FILE PID_EXTENSION;
+			if (!vrrp_pidfile.path)
+				vrrp_pidfile.path = RUNSTATEDIR "/" VRRP_PID_FILE PID_EXTENSION;
 #endif
 #ifdef _WITH_BFD_
-			if (!bfd_pidfile)
-				bfd_pidfile = RUNSTATEDIR "/" BFD_PID_FILE PID_EXTENSION;
+			if (!bfd_pidfile.path)
+				bfd_pidfile.path = RUNSTATEDIR "/" BFD_PID_FILE PID_EXTENSION;
 #endif
 		}
 
@@ -2849,7 +2830,7 @@ keepalived_main(int argc, char **argv)
 	}
 
 	/* write the father's pidfile */
-	if (!pidfile_write(main_pidfile, getpid()))
+	if (!pidfile_write(&main_pidfile))
 		goto end;
 
 	if (!global_data->max_auto_priority)

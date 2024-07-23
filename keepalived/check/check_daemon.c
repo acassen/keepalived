@@ -177,7 +177,7 @@ checker_terminate_phase2(void)
 	ipvs_stop();
 
 	/* Stop daemon */
-	pidfile_rm(checkers_pidfile);
+	pidfile_rm(&checkers_pidfile);
 
 	/* Clean data */
 	if (global_data)
@@ -710,6 +710,8 @@ start_check_child(void)
 	deregister_thread_addresses();
 #endif
 
+	close_other_pidfiles();
+
 #ifdef _WITH_BFD_
 	/* Close the write end of the BFD checker event notification pipe and the track_process fd */
 	close(bfd_checker_event_pipe[1]);
@@ -758,7 +760,7 @@ start_check_child(void)
 	separate_config_file();
 
 	/* Child process part, write pidfile */
-	if (!pidfile_write(checkers_pidfile, getpid())) {
+	if (!pidfile_write(&checkers_pidfile)) {
 		log_message(LOG_INFO, "Healthcheck child process: cannot write pidfile");
 		exit(KEEPALIVED_EXIT_FATAL);
 	}

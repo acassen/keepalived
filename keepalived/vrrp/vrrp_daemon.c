@@ -351,7 +351,7 @@ vrrp_terminate_phase2(int exit_status)
 	close_std_fd();
 
 	/* Stop daemon */
-	pidfile_rm(vrrp_pidfile);
+	pidfile_rm(&vrrp_pidfile);
 
 	exit(exit_status);
 }
@@ -1074,6 +1074,8 @@ start_vrrp_child(void)
 	deregister_thread_addresses();
 #endif
 
+	close_other_pidfiles();
+
 #ifdef _WITH_BFD_
 	/* Close the write end of the BFD vrrp event notification pipe */
 	close(bfd_vrrp_event_pipe[1]);
@@ -1115,7 +1117,7 @@ start_vrrp_child(void)
 	separate_config_file();
 
 	/* Child process part, write pidfile */
-	if (!pidfile_write(vrrp_pidfile, getpid())) {
+	if (!pidfile_write(&vrrp_pidfile)) {
 		/* Fatal error */
 		log_message(LOG_INFO, "VRRP child process: cannot write pidfile");
 		exit(0);
