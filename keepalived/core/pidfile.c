@@ -27,8 +27,9 @@
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <stdbool.h>
 
 #include "logger.h"
@@ -103,74 +104,135 @@ make_pidfile_name(const char* start, const char* instance, const char* extn)
 	return name;
 }
 
-/* Create the running daemon pidfile */
-bool
-pidfile_write(const char *pid_file, int pid)
+void
+pidfile_close(pidfile_t *pidf, bool free_path)
 {
-	FILE *pidfile = NULL;
-	int pidfd;
+	if (pidf->fd == -1)
+		return;
 
-	/* We want to create the file with permissions rx-r--r-- */
-	if (umask_val & (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))
-		umask(umask_val & ~(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH));
+	close(pidf->fd);
+	pidf->fd = -1;
 
-	pidfd = open(pid_file, O_NOFOLLOW | O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-
-	/* Restore the default umask */
-	if (umask_val & (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))
-		umask(umask_val);
-
-	if (pidfd != -1)
-		pidfile = fdopen(pidfd, "w");
-
-	if (!pidfile) {
-		log_message(LOG_INFO, "pidfile_write : Cannot open %s pidfile",
-		       pid_file);
-		return false;
+	if (free_path && pidf->free_path) {
+		FREE_CONST_PTR(pidf->path);
+		pidf->path = NULL;
+		pidf->free_path = false;
 	}
-
-	fprintf(pidfile, "%d\n", pid);
-	fclose(pidfile);
-
-	return true;
 }
 
 /* Remove the running daemon pidfile */
 void
-pidfile_rm(const char *pid_file)
+pidfile_rm(pidfile_t *pidf)
 {
-	unlink(pid_file);
+	unlink(pidf->path);
+	if (pidf->fd != -1)
+		pidfile_close(pidf, true);
+}
+
+void
+close_other_pidfiles(void)
+{
+	if (prog_type != PROG_TYPE_PARENT)
+		pidfile_close(&main_pidfile, true);
+
+#ifdef _WITH_VRRP_
+	if (prog_type != PROG_TYPE_VRRP)
+		pidfile_close(&vrrp_pidfile, true);
+#endif
+
+#ifdef _WITH_LVS_
+	if (prog_type != PROG_TYPE_CHECKER)
+		pidfile_close(&checkers_pidfile, true);
+#endif
+
+#ifdef _WITH_BFD_
+	if (prog_type != PROG_TYPE_BFD)
+		pidfile_close(&bfd_pidfile, true);
+#endif
+}
+
+/* Create the running daemon pidfile */
+bool
+pidfile_write(const pidfile_t *pidf)
+{
+	if (pidf->fd == -1)
+		return false;
+
+	dprintf(pidf->fd, "%d\n", getpid());
+
+	return true;
 }
 
 /* return the daemon running state */
 static bool
-process_running(const char *pid_file)
+create_pidfile(pidfile_t *pidf)
 {
-	FILE *pidfile = fopen(pid_file, "r");
-	pid_t pid = 0;
+	struct stat st, fd_st;
+	int error;
 	int ret;
+	struct flock fl = { .l_type = F_WRLCK, .l_whence = SEEK_SET, .l_start = 0, .l_len = 0 };
 
-	/* No pidfile */
-	if (!pidfile)
+	for (;;) {
+		/* We want to create the file with permissions rw-r--r-- */
+		if (umask_val & (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))
+			umask(umask_val & ~(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH));
+
+		while ((pidf->fd = open(pidf->path, O_NOFOLLOW | O_CREAT | O_WRONLY | O_NONBLOCK, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1 && errno == EINTR);
+		error = errno;
+
+		/* Restore the default umask */
+		if (umask_val & (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))
+			umask(umask_val);
+
+		if (pidf->fd == -1) {
+			errno = error;
+			return true;
+		}
+
+		fl.l_pid = 0;
+		while ((ret = fcntl(pidf->fd, F_OFD_SETLK, &fl)) && errno == EINTR);
+		if (ret) {
+			if (errno == EAGAIN)
+				log_message(LOG_INFO, "Another process has pid file %s locked", pidf->path);
+			else
+				log_message(LOG_INFO, "Locking pid file %s error %d - %m", pidf->path, errno);
+
+			break;
+		}
+
+		/* Make sure the file has not been removed/moved */
+		if (stat(pidf->path, &st)) {
+			close(pidf->fd);
+			pidf->fd = -1;
+			continue;
+		}
+
+		if (fstat(pidf->fd, &fd_st)) {
+			/* This should not happen since we have the file open */
+			break;
+		}
+
+		if (st.st_dev != fd_st.st_dev ||
+		    st.st_ino != fd_st.st_ino) {
+			/* A new file with the same name has been created */
+			close(pidf->fd);
+			pidf->fd = -1;
+			continue;
+		}
+
+		while ((ret = ftruncate(pidf->fd, 0)) && errno == EINTR);
+		if (ret) {
+			/* This should not happen */
+			break;
+		}
+
+		/* pid file is now openned, locked and 0 length */
 		return false;
-
-	ret = fscanf(pidfile, "%d", &pid);
-	fclose(pidfile);
-	if (ret != 1) {
-		log_message(LOG_INFO, "Error reading pid file %s", pid_file);
-		pid = 0;
-		pidfile_rm(pid_file);
 	}
 
-	/* What should we return - we don't know if it is running or not. */
-	if (!pid)
-		return true;
-
-	/* If no process is attached to pidfile, remove it */
-	if (kill(pid, 0)) {
-		log_message(LOG_INFO, "Remove a zombie pid file %s", pid_file);
-		pidfile_rm(pid_file);
-		return false;
+	if (pidf->fd != -1) {
+		close(pidf->fd);
+		pidf->fd = -1;
 	}
 
 	return true;
@@ -180,18 +242,18 @@ process_running(const char *pid_file)
 bool
 keepalived_running(unsigned long mode)
 {
-	if (process_running(main_pidfile))
+	if (create_pidfile(&main_pidfile))
 		return true;
 #ifdef _WITH_VRRP_
-	if (__test_bit(DAEMON_VRRP, &mode) && process_running(vrrp_pidfile))
+	if (__test_bit(DAEMON_VRRP, &mode) && create_pidfile(&vrrp_pidfile))
 		return true;
 #endif
 #ifdef _WITH_LVS_
-	if (__test_bit(DAEMON_CHECKERS, &mode) && process_running(checkers_pidfile))
+	if (__test_bit(DAEMON_CHECKERS, &mode) && create_pidfile(&checkers_pidfile))
 		return true;
 #endif
 #ifdef _WITH_BFD_
-	if (__test_bit(DAEMON_BFD, &mode) && process_running(bfd_pidfile))
+	if (__test_bit(DAEMON_BFD, &mode) && create_pidfile(&bfd_pidfile))
 		return true;
 #endif
 	return false;

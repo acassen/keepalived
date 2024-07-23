@@ -82,7 +82,7 @@ stop_bfd(int status)
 		return;
 
 	/* Stop daemon */
-	pidfile_rm(bfd_pidfile);
+	pidfile_rm(&bfd_pidfile);
 
 	/* Clean data */
 	free_global_data(global_data);
@@ -407,6 +407,8 @@ start_bfd_child(void)
 
 	prog_type = PROG_TYPE_BFD;
 
+	close_other_pidfiles();
+
 	/* Close the read end of the event notification pipes, and the track_process fd */
 #ifdef _WITH_VRRP_
 	close(bfd_vrrp_event_pipe[0]);
@@ -456,7 +458,7 @@ start_bfd_child(void)
 	separate_config_file();
 
 	/* Child process part, write pidfile */
-	if (!pidfile_write(bfd_pidfile, getpid())) {
+	if (!pidfile_write(&bfd_pidfile)) {
 		/* Fatal error */
 		log_message(LOG_INFO,
 			    "BFD child process: cannot write pidfile");
