@@ -216,9 +216,8 @@ add_del_igmp_rules(struct ipt_handle *h, int cmd, uint8_t family)
 
 	if (h->h6 || (h->h6 = ip6tables_open("filter"))) {
 		ip6tables_add_rules(h->h6, global_data->vrrp_iptables_outchain, APPEND_RULE, IPSET_DIM_TWO, 0, XTC_LABEL_DROP, NULL, NULL, global_data->vrrp_ipset_mld, IPPROTO_ICMPV6, ICMPV6_MLD2_REPORT, cmd, false);
-#ifdef _HAVE_VRRP_VMAC_
+		ip6tables_add_rules(h->h6, global_data->vrrp_iptables_outchain, APPEND_RULE, IPSET_DIM_TWO, 0, XTC_LABEL_DROP, NULL, NULL, global_data->vrrp_ipset_mld, IPPROTO_ICMPV6, MLD_LISTENER_REPORT, cmd, false);
 		ip6tables_add_rules(h->h6, global_data->vrrp_iptables_outchain, APPEND_RULE, IPSET_DIM_TWO, IPSET_DIM_ONE_SRC, XTC_LABEL_DROP, NULL, NULL, global_data->vrrp_ipset_vmac_nd, IPPROTO_ICMPV6, ND_NEIGHBOR_ADVERT, cmd, false);
-#endif
 		h->updated_v6 = true;
 	}
 }
@@ -585,6 +584,12 @@ handle_iptable_rule_for_igmp(const char *ifname, int cmd, int family, struct ipt
 			XTC_LABEL_DROP, NULL, NULL, NULL, ifname,
 			family == AF_INET ? IPPROTO_IGMP : IPPROTO_ICMPV6, family == AF_INET ? 0 : ICMPV6_MLD2_REPORT,
 			cmd, 0, false);
+
+	if (family == AF_INET6)
+		iptables_entry(h, family, global_data->vrrp_iptables_outchain, 0,
+				XTC_LABEL_DROP, NULL, NULL, NULL, ifname,
+				IPPROTO_ICMPV6, MLD_LISTENER_REPORT,
+				cmd, 0, false);
 }
 
 static void
