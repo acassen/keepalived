@@ -953,6 +953,7 @@ format_iproute(const ip_route_t *route, char *buf, size_t buf_len)
 
 		if (route->set &&
 		    !route->dont_track &&
+		    route->configured_ifindex &&
 		    (!route->oif || route->oif->ifindex != route->configured_ifindex)) {
 			if ((ifp = if_get_by_ifindex(route->configured_ifindex))) {
 				if ((op += (size_t)snprintf(op, (size_t)(buf_end - op), " [dev %s]", ifp->ifname)) >= buf_end - 1)

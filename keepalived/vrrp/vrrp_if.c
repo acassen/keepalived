@@ -89,6 +89,9 @@ if_get_by_ifindex(ifindex_t ifindex)
 {
 	interface_t *ifp;
 
+	if (!ifindex)
+		return NULL;
+
 	list_for_each_entry(ifp, &if_queue, e_list) {
 		if (ifp->ifindex == ifindex)
 			return ifp;
@@ -528,6 +531,23 @@ dump_if(FILE *fp, const interface_t *ifp)
 
 	conf_write(fp, " Name = %s", ifp->ifname);
 	conf_write(fp, "   index = %u%s", ifp->ifindex, ifp->ifindex ? "" : " (deleted)");
+
+	if (!ifp->ifindex) {
+		/* This duplicates code below, but it is simpler, and clearer,
+		 * than having lost of "if (ifp->ifindex)" tests */
+#ifdef _HAVE_VRRP_VMAC_
+		if (ifp->is_ours)
+			conf_write(fp, "   I/f created by keepalived");
+#endif
+
+		if (!list_empty(&ifp->tracking_vrrp)) {
+			conf_write(fp, "   Tracking VRRP instances :");
+			if_tracking_vrrp_dump_list(fp, &ifp->tracking_vrrp);
+		}
+
+		return;
+	}
+
 	conf_write(fp, "   IPv4 address = %s",
 			ifp->sin_addr.s_addr ? inet_ntop2(ifp->sin_addr.s_addr) : "(none)");
 	if (!list_empty(&ifp->sin_addr_l)) {
