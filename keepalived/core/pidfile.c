@@ -151,18 +151,6 @@ close_other_pidfiles(void)
 #endif
 }
 
-/* Create the running daemon pidfile */
-bool
-pidfile_write(const pidfile_t *pidf)
-{
-	if (pidf->fd == -1)
-		return false;
-
-	dprintf(pidf->fd, "%d\n", getpid());
-
-	return true;
-}
-
 /* return the daemon running state */
 static bool
 create_pidfile(pidfile_t *pidf)
@@ -226,7 +214,7 @@ create_pidfile(pidfile_t *pidf)
 			break;
 		}
 
-		/* pid file is now openned, locked and 0 length */
+		/* pid file is now opened, locked and 0 length */
 		return false;
 	}
 
@@ -257,4 +245,55 @@ keepalived_running(unsigned long mode)
 		return true;
 #endif
 	return false;
+}
+
+/* Create the running daemon pidfile */
+bool
+pidfile_write(pidfile_t *pidf)
+{
+	int ret;
+
+	if (pidf->fd == -1)
+		return false;
+
+	if (children_started) {
+		struct stat statb, fstatb;
+
+		/* There could be more error handling, but that will just
+		 * complicate the code for minimal benefit. */
+		if (stat(pidf->path, &statb)) {
+			/* pidfile no longer exists */
+			close(pidf->fd);
+			create_pidfile(pidf);
+		} else {
+			if (fstat(pidf->fd, &fstatb) ||
+			    statb.st_dev != fstatb.st_dev ||
+			    statb.st_ino != fstatb.st_ino) {
+				/* The pidfile has been deleted and recreated. Open the new one. */
+				close(pidf->fd);
+				while ((pidf->fd = open(pidf->path, O_NOFOLLOW | O_WRONLY | O_NONBLOCK)) == -1 && errno == EINTR);
+
+				if (pidf->fd == -1)
+					return false;
+			}
+
+			/* Since we have already written to the pid file,
+			 * we need to reset the file offset and truncate the file. */
+			off_t offs = lseek(pidf->fd, 0, SEEK_CUR);
+			if (offs) {
+				lseek(pidf->fd, 0, SEEK_SET);
+				if (ftruncate(pidf->fd, 0))
+					log_message(LOG_INFO, "ftruncate error %d - %m", errno);
+			}
+		}
+	}
+
+	ret = dprintf(pidf->fd, "%d\n", getpid());
+
+	if (ret < 0)
+		log_message(LOG_INFO, "pidfile_write returned %d, errno %d - %m", ret, errno);
+	else
+		log_message(LOG_INFO, "pidfile_write returned %d", ret);
+
+	return true;
 }

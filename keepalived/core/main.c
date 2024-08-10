@@ -169,6 +169,7 @@ const char *snmp_socket;				/* Socket to use for SNMP agent */
 #endif
 static const char *syslog_ident;			/* syslog ident if not default */
 bool use_pid_dir;					/* Put pid files in /run/keepalived or @localstatedir@/run/keepalived */
+bool children_started;					/* Set once children have been run first time */
 
 unsigned os_major;					/* Kernel version */
 unsigned os_minor;
@@ -559,6 +560,8 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 	} else
 		pidfile_rm(&bfd_pidfile);
 #endif
+
+	children_started = true;
 
 #ifndef _ONE_PROCESS_DEBUG_
 	/* Do we have a reload file to monitor */
