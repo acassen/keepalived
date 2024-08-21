@@ -253,6 +253,10 @@ pidfile_write(pidfile_t *pidf)
 {
 	int ret;
 
+	/* If keepalived originally started with no configuration for this process,
+	 * the process won't have originally been started, and the parent process
+	 * will not have created and opened a pid file. This means that pidf->fd
+	 * could be -1 after a reload. */
 	if (!children_started && pidf->fd == -1)
 		return false;
 
@@ -261,34 +265,32 @@ pidfile_write(pidfile_t *pidf)
 
 		/* There could be more error handling, but that will just
 		 * complicate the code for minimal benefit. */
-		if (pidf->fd == -1) {
-			/* This process wasn't originally started (due to no configuration)
-			 * but configuration has been added */
-			create_pidfile(pidf);
-		} else if (stat(pidf->path, &statb)) {
+		if (stat(pidf->path, &statb)) {
 			/* pidfile no longer exists */
-			close(pidf->fd);
+			if (pidf->fd != -1)
+				close(pidf->fd);
 			create_pidfile(pidf);
 		} else {
-			if (fstat(pidf->fd, &fstatb) ||
+			if (pidf->fd == -1 ||
+			    fstat(pidf->fd, &fstatb) ||
 			    statb.st_dev != fstatb.st_dev ||
 			    statb.st_ino != fstatb.st_ino) {
-				/* The pidfile has been deleted and recreated. Open the new one. */
-				close(pidf->fd);
+				if (pidf->fd != -1) {
+					/* The pidfile has been deleted and recreated. Open the new one. */
+					close(pidf->fd);
+				}
+
 				while ((pidf->fd = open(pidf->path, O_NOFOLLOW | O_WRONLY | O_NONBLOCK)) == -1 && errno == EINTR);
 
 				if (pidf->fd == -1)
 					return false;
 			}
 
-			/* Since we have already written to the pid file,
+			/* Since we may have already written to the pid file,
 			 * we need to reset the file offset and truncate the file. */
-			off_t offs = lseek(pidf->fd, 0, SEEK_CUR);
-			if (offs) {
-				lseek(pidf->fd, 0, SEEK_SET);
-				if (ftruncate(pidf->fd, 0))
-					log_message(LOG_INFO, "ftruncate error %d - %m", errno);
-			}
+			lseek(pidf->fd, 0, SEEK_SET);
+			if (ftruncate(pidf->fd, 0))
+				log_message(LOG_INFO, "ftruncate error %d - %m", errno);
 		}
 	}
 
