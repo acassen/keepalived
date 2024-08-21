@@ -46,20 +46,20 @@ static void udp_connect_thread(thread_ref_t);
 static void
 free_udp_check(checker_t *checker)
 {
-	udp_check_t *udp_check = CHECKER_ARG(checker);
+	udp_check_t *udp_check = checker->check_type.udp_check;
 
 	FREE_PTR(udp_check->payload);
 	FREE_PTR(udp_check->reply_data);
 	FREE_PTR(udp_check->reply_mask);
 	FREE(checker->co);
-	FREE(checker->data);
+	FREE(checker->check_type.udp_check);
 	FREE(checker);
 }
 
 static void
 dump_udp_check(FILE *fp, const checker_t *checker)
 {
-	udp_check_t *udp_check = CHECKER_ARG(checker);
+	udp_check_t *udp_check = checker->check_type.udp_check;
 
 	conf_write(fp, "   Keepalive method = UDP_CHECK");
 
@@ -89,19 +89,20 @@ static const checker_funcs_t udp_checker_funcs = { CHECKER_UDP, free_udp_check, 
 static void
 udp_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	udp_check_t *udp_check = MALLOC(sizeof (udp_check_t));
+	checker_details_t checker_details;
 
-	udp_check->min_reply_len = 0;
-	udp_check->max_reply_len = UINT8_MAX;
+	PMALLOC(checker_details.udp_check);
+	checker_details.udp_check->min_reply_len = 0;
+	checker_details.udp_check->max_reply_len = UINT8_MAX;
 
 	/* queue new checker */
-	queue_checker(&udp_checker_funcs, udp_connect_thread, udp_check, CHECKER_NEW_CO(), true);
+	queue_checker(current_rs, &udp_checker_funcs, udp_connect_thread, checker_details, CHECKER_NEW_CO(), true);
 }
 
 static void
 payload_handler(const vector_t *strvec)
 {
-	udp_check_t *udp_check = current_checker->data;
+	udp_check_t *udp_check = current_checker->check_type.udp_check;
 	char *hex_str;
 
 	if (vector_size(strvec) == 1) {
@@ -121,7 +122,7 @@ payload_handler(const vector_t *strvec)
 static void
 require_reply_handler(const vector_t *strvec)
 {
-	udp_check_t *udp_check = current_checker->data;
+	udp_check_t *udp_check = current_checker->check_type.udp_check;
 	char *hex_str;
 
 	udp_check->require_reply = true;
@@ -141,7 +142,7 @@ require_reply_handler(const vector_t *strvec)
 static void
 min_length_handler(const vector_t *strvec)
 {
-	udp_check_t *udp_check = current_checker->data;
+	udp_check_t *udp_check = current_checker->check_type.udp_check;
 	unsigned len;
 
 	if (!read_unsigned_strvec(strvec, 1, &len, 0, UINT16_MAX, false)) {
@@ -155,7 +156,7 @@ min_length_handler(const vector_t *strvec)
 static void
 max_length_handler(const vector_t *strvec)
 {
-	udp_check_t *udp_check = current_checker->data;
+	udp_check_t *udp_check = current_checker->check_type.udp_check;
 	unsigned len;
 
 	if (!read_unsigned_strvec(strvec, 1, &len, 0, UINT16_MAX, false)) {
@@ -169,7 +170,7 @@ max_length_handler(const vector_t *strvec)
 static void
 udp_check_end_handler(void)
 {
-	udp_check_t *udp_check = current_checker->data;
+	udp_check_t *udp_check = current_checker->check_type.udp_check;
 
 	if (!check_conn_opts(current_checker->co)) {
 		dequeue_new_checker();
@@ -280,7 +281,7 @@ static void
 udp_check_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
-	udp_check_t *udp_check = CHECKER_ARG(checker);
+	udp_check_t *udp_check = checker->check_type.udp_check;
 	int status;
 	uint8_t *recv_buf;
 	size_t len = udp_check->max_reply_len + 1;
@@ -321,7 +322,7 @@ static void
 udp_connect_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
-	udp_check_t *udp_check = CHECKER_ARG(checker);
+	udp_check_t *udp_check = checker->check_type.udp_check;
 	conn_opts_t *co = checker->co;
 	int fd;
 	int status;

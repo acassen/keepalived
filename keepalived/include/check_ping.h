@@ -23,7 +23,7 @@
 #ifndef _CHECK_PING_H
 #define _CHECK_PING_H
 
-#include "check_api.h"
+#include <stdbool.h>
 
 typedef struct _ping_check {
 	uint16_t	seq_no;

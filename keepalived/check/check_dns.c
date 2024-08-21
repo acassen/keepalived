@@ -179,7 +179,7 @@ dns_recv_thread(thread_ref_t thread)
 	int flags, rcode;
 
 	checker_t *checker = THREAD_ARG(thread);
-	dns_check_t *dns_check = CHECKER_ARG(checker);
+	dns_check_t *dns_check = checker->check_type.dns_check;
 
 	if (thread->type == THREAD_READ_TIMEOUT) {
 		dns_final(thread, true, "read timeout from socket");
@@ -257,7 +257,7 @@ dns_make_query(thread_ref_t thread)
 	const char *s, *e;
 	size_t n;
 	checker_t *checker = THREAD_ARG(thread);
-	dns_check_t *dns_check = CHECKER_ARG(checker);
+	dns_check_t *dns_check = checker->check_type.dns_check;
 	dns_header_t *header = PTR_CAST(dns_header_t, dns_check->sbuf);
 
 	DNS_SET_RD(flags, 1);	/* Recursion Desired */
@@ -296,7 +296,7 @@ static void
 dns_send(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
-	dns_check_t *dns_check = CHECKER_ARG(checker);
+	dns_check_t *dns_check = checker->check_type.dns_check;
 	unsigned long timeout;
 	ssize_t ret;
 
@@ -430,18 +430,18 @@ dns_connect_thread(thread_ref_t thread)
 static void
 free_dns_check(checker_t *checker)
 {
-	dns_check_t *dns_check = checker->data;
+	dns_check_t *dns_check = checker->check_type.dns_check;
 
 	FREE_CONST(dns_check->name);
 	FREE(checker->co);
-	FREE(checker->data);
+	FREE(checker->check_type.dns_check);
 	FREE(checker);
 }
 
 static void
 dump_dns_check(FILE *fp, const checker_t *checker)
 {
-	const dns_check_t *dns_check = checker->data;
+	const dns_check_t *dns_check = checker->check_type.dns_check;
 
 	conf_write(fp, "   Keepalive method = DNS_CHECK");
 	conf_write(fp, "   Type = %s", dns_type_name(dns_check->type));
@@ -451,8 +451,8 @@ dump_dns_check(FILE *fp, const checker_t *checker)
 static bool
 compare_dns_check(const checker_t *old_c, checker_t *new_c)
 {
-	const dns_check_t *old = old_c->data;
-	const dns_check_t *new = new_c->data;
+	const dns_check_t *old = old_c->check_type.dns_check;
+	const dns_check_t *new = new_c->check_type.dns_check;
 
 	if (!compare_conn_opts(old_c->co, new_c->co))
 		return false;
@@ -469,12 +469,12 @@ static const checker_funcs_t dns_checker_funcs = { CHECKER_DNS, free_dns_check, 
 static void
 dns_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	dns_check_t *dns_check;
+	checker_details_t checker_details;
 
-	PMALLOC(dns_check);
-	dns_check->type = DNS_DEFAULT_TYPE;
-	queue_checker(&dns_checker_funcs, dns_connect_thread,
-				dns_check, CHECKER_NEW_CO(), true);
+	PMALLOC(checker_details.dns_check);
+	checker_details.dns_check->type = DNS_DEFAULT_TYPE;
+	queue_checker(current_rs, &dns_checker_funcs, dns_connect_thread,
+				checker_details, CHECKER_NEW_CO(), true);
 
 	/* Set the non-standard retry time */
 	current_checker->default_retry = DNS_DEFAULT_RETRY;
@@ -484,7 +484,7 @@ dns_check_handler(__attribute__((unused)) const vector_t *strvec)
 static void
 dns_type_handler(const vector_t *strvec)
 {
-	dns_check_t *dns_check = current_checker->data;
+	dns_check_t *dns_check = current_checker->check_type.dns_check;
 	uint16_t dns_type;
 
 	dns_type = dns_type_lookup(strvec_slot(strvec, 1));
@@ -498,7 +498,7 @@ dns_type_handler(const vector_t *strvec)
 static void
 dns_name_handler(const vector_t *strvec)
 {
-	dns_check_t *dns_check = current_checker->data;
+	dns_check_t *dns_check = current_checker->check_type.dns_check;
 	const char *name;
 	bool name_invalid = false;
 	const char *p;
@@ -532,7 +532,7 @@ dns_name_handler(const vector_t *strvec)
 static void
 dns_check_end(void)
 {
-	dns_check_t *dns_check = current_checker->data;
+	dns_check_t *dns_check = current_checker->check_type.dns_check;
 
 	if (!check_conn_opts(current_checker->co)) {
 		dequeue_new_checker();

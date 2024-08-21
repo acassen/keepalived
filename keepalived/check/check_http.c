@@ -319,7 +319,7 @@ free_http_request(request_t *req)
 void
 free_http_check(checker_t *checker)
 {
-	http_checker_t *http_get_chk = checker->data;
+	http_checker_t *http_get_chk = checker->check_type.http_check;
 
 	free_url_list(&http_get_chk->url);
 	free_http_request(http_get_chk->req);
@@ -332,7 +332,7 @@ free_http_check(checker_t *checker)
 static void
 dump_http_check(FILE *fp, const checker_t *checker)
 {
-	const http_checker_t *http_get_chk = checker->data;
+	const http_checker_t *http_get_chk = checker->check_type.http_check;
 
 	conf_write(fp, "   Keepalive method = %s_GET, http protocol %s",
 			http_get_chk->proto == PROTO_HTTP ? "HTTP" : "SSL",
@@ -381,8 +381,8 @@ url_list_size(const list_head_t *l)
 static bool __attribute__((pure))
 compare_http_check(const checker_t *old_c, checker_t *new_c)
 {
-	const http_checker_t *old = old_c->data;
-	const http_checker_t *new = new_c->data;
+	const http_checker_t *old = old_c->check_type.http_check;
+	const http_checker_t *new = new_c->check_type.http_check;
 	url_t *u1, *u2 = NULL;
 	unsigned i;
 
@@ -443,8 +443,8 @@ migrate_http_check(checker_t *new_c, const checker_t *old_c)
 	if (new_c->is_up)
 		return;
 
-	old_http_c = CHECKER_ARG(old_c);
-	new_http_c = CHECKER_ARG(new_c);
+	old_http_c = old_c->check_type.http_check;
+	new_http_c = new_c->check_type.http_check;
 
 	/* For the real servers to be the same, the checkers must match,
 	 * which means that the urls match */
@@ -465,12 +465,12 @@ static const checker_funcs_t http_checker_funcs = { CHECKER_HTTP, free_http_chec
 static void
 http_get_handler(const vector_t *strvec)
 {
-	http_checker_t *http_get_chk;
 	const char *str = strvec_slot(strvec, 0);
+	checker_details_t check_details;
 
 	/* queue new checker */
-	http_get_chk = alloc_http_get(str);
-	queue_checker(&http_checker_funcs, http_connect_thread, http_get_chk, CHECKER_NEW_CO(), true);
+	check_details.http_check = alloc_http_get(str);
+	queue_checker(current_rs, &http_checker_funcs, http_connect_thread, check_details, CHECKER_NEW_CO(), true);
 	current_checker->default_delay_before_retry = 3 * TIMER_HZ;
 }
 
@@ -492,7 +492,7 @@ http_get_retry_handler(const vector_t *strvec)
 static void
 virtualhost_handler(const vector_t *strvec)
 {
-	http_checker_t *http_get_chk = current_checker->data;
+	http_checker_t *http_get_chk = current_checker->check_type.http_check;
 
 	if (vector_size(strvec) < 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "HTTP_GET virtualhost name missing");
@@ -505,7 +505,7 @@ virtualhost_handler(const vector_t *strvec)
 static void
 http_get_check_end(void)
 {
-	http_checker_t *http_get_chk = current_checker->data;
+	http_checker_t *http_get_chk = current_checker->check_type.http_check;
 
 	if (list_empty(&http_get_chk->url)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "HTTP/SSL_GET checker has no urls specified - ignoring");
@@ -635,7 +635,7 @@ url_tls_compliant_handler(const vector_t *strvec)
 static void
 http_protocol_handler(const vector_t *strvec)
 {
-	http_checker_t *http_get_chk = current_checker->data;
+	http_checker_t *http_get_chk = current_checker->check_type.http_check;
 
 	if (vector_size(strvec) < 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Missing http_protocol version");
@@ -837,7 +837,7 @@ prepare_regex(url_t *url)
 static void
 enable_sni_handler(const vector_t *strvec)
 {
-	http_checker_t *http_get_chk = current_checker->data;
+	http_checker_t *http_get_chk = current_checker->check_type.http_check;
 	int res = true;
 
 	if (vector_size(strvec) >= 2) {
@@ -854,7 +854,7 @@ enable_sni_handler(const vector_t *strvec)
 static void
 fast_recovery_handler(const vector_t *strvec)
 {
-	http_checker_t *http_get_chk = current_checker->data;
+	http_checker_t *http_get_chk = current_checker->check_type.http_check;
 	int res = true;
 
 	if (vector_size(strvec) >= 2) {
@@ -870,7 +870,7 @@ fast_recovery_handler(const vector_t *strvec)
 static void
 tls_compliant_handler(const vector_t *strvec)
 {
-	http_checker_t *http_get_chk = current_checker->data;
+	http_checker_t *http_get_chk = current_checker->check_type.http_check;
 	int res = true;
 
 	if (vector_size(strvec) >= 2) {
@@ -887,7 +887,7 @@ static void
 url_check(void)
 {
 	unsigned i;
-	http_checker_t *http_get_chk = current_checker->data;
+	http_checker_t *http_get_chk = current_checker->check_type.http_check;
 
 
 	if (!current_url->path) {
@@ -1029,7 +1029,7 @@ static void
 epilog(thread_ref_t thread, register_checker_t method)
 {
 	checker_t *checker = THREAD_ARG(thread);
-	http_checker_t *http_get_check = CHECKER_ARG(checker);
+	http_checker_t *http_get_check = checker->check_type.http_check;
 	request_t *req = http_get_check->req;
 	unsigned long delay = 0;
 	bool checker_was_up;
@@ -1144,7 +1144,7 @@ timeout_epilog(thread_ref_t thread, const char *debug_msg)
 
 	/* check if server is currently alive */
 	if (checker->is_up || !checker->has_run) {
-		if (((http_checker_t *)checker->data)->genhash_flags & GENHASH) {
+		if (((http_checker_t *)checker->check_type.http_check)->genhash_flags & GENHASH) {
 			printf("%s\n", debug_msg);
 			thread_add_terminate_event(thread->master);
 			return;
@@ -1350,7 +1350,7 @@ http_handle_response(thread_ref_t thread, unsigned char digest[MD5_DIGEST_LENGTH
 		     bool empty_buffer)
 {
 	checker_t *checker = THREAD_ARG(thread);
-	http_checker_t *http_get_check = CHECKER_ARG(checker);
+	http_checker_t *http_get_check = checker->check_type.http_check;
 	request_t *req = http_get_check->req;
 	url_t *url = fetch_next_url(http_get_check);
 	const char *msg = "HTTP status code";
@@ -1469,7 +1469,7 @@ http_process_response(thread_ref_t thread, request_t *req, size_t r, url_t *url)
 {
 	size_t old_req_len = req->len;
 	checker_t *checker = THREAD_ARG(thread);
-	http_checker_t *http_get_check = CHECKER_ARG(checker);
+	http_checker_t *http_get_check = checker->check_type.http_check;
 
 	req->len += r;
 	req->buffer[req->len] = '\0';	/* Terminate the received data since it is used as a string */
@@ -1524,7 +1524,7 @@ static void
 http_read_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
-	http_checker_t *http_get_check = CHECKER_ARG(checker);
+	http_checker_t *http_get_check = checker->check_type.http_check;
 	request_t *req = http_get_check->req;
 	url_t *url = fetch_next_url(http_get_check);
 	unsigned timeout = checker->co->connection_to;
@@ -1592,7 +1592,7 @@ static void
 http_response_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
-	http_checker_t *http_get_check = CHECKER_ARG(checker);
+	http_checker_t *http_get_check = checker->check_type.http_check;
 	request_t *req = http_get_check->req;
 	url_t *url = fetch_next_url(http_get_check);
 	unsigned timeout = checker->co->connection_to;
@@ -1634,7 +1634,7 @@ static void
 http_request(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
-	http_checker_t *http_get_check = CHECKER_ARG(checker);
+	http_checker_t *http_get_check = checker->check_type.http_check;
 	request_t *req = http_get_check->req;
 	sockaddr_t *addr = &checker->co->dst;
 	unsigned timeout = checker->co->connection_to;
@@ -1709,7 +1709,7 @@ static void
 http_check_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
-	http_checker_t *http_get_check = CHECKER_ARG(checker);
+	http_checker_t *http_get_check = checker->check_type.http_check;
 	int ret = 1;
 	int status;
 	unsigned long timeout = 0;
@@ -1794,7 +1794,7 @@ void
 http_connect_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
-	http_checker_t *http_get_check = CHECKER_ARG(checker);
+	http_checker_t *http_get_check = checker->check_type.http_check;
 	conn_opts_t *co = checker->co;
 	url_t *fetched_url;
 	enum connect_result status;

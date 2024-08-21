@@ -86,7 +86,7 @@ genhash_usage(const char *prog, bool am_genhash)
 static int
 check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 {
-	http_checker_t *http_get_check = checker->data;
+	http_checker_t *http_get_check = checker->check_type.http_check;
 	conn_opts_t *co = checker->co;
 	const char *start;
 	char *endptr;
@@ -131,7 +131,7 @@ check_genhash_parse_cmdline(int argc, char **argv, checker_t *checker)
 			bad_option = true;
 			break;
 		case 'v':
-			((http_checker_t *)checker->data)->genhash_flags |= GENHASH_VERBOSE;
+			((http_checker_t *)checker->check_type.http_check)->genhash_flags |= GENHASH_VERBOSE;
 			break;
 		case 'S':
 			http_get_check->proto = PROTO_SSL;
@@ -290,7 +290,7 @@ check_genhash(bool am_genhash, int argc, char **argv)
 	INIT_LIST_HEAD(&http_get_check->url);
 	http_get_check->genhash_flags = GENHASH;
 	http_get_check->proto = PROTO_HTTP;
-	checker->data = http_get_check;
+	checker->check_type.http_check = http_get_check;
 	checker->enabled = true;
 
 	/* Parse command line */

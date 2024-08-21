@@ -123,14 +123,14 @@ static void
 free_ping_check(checker_t *checker)
 {
 	FREE(checker->co);
-	FREE_PTR(checker->data);
+	FREE_PTR(checker->check_type.ping_check);
 	FREE(checker);
 }
 
 static void
 dump_ping_check(FILE *fp, const checker_t *checker)
 {
-	ping_check_t *ping_checker = CHECKER_ARG(checker);
+	ping_check_t *ping_checker = checker->check_type.ping_check;
 
 	conf_write(fp, "   Keepalive method = PING_CHECK");
 	conf_write(fp, "     ICMP seq no = %u", ping_checker->seq_no);
@@ -147,10 +147,12 @@ static const checker_funcs_t ping_checker_funcs = { CHECKER_PING, free_ping_chec
 static void
 ping_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	ping_check_t *ping_check = sizeof(ping_check_t) ? MALLOC(sizeof (ping_check_t)) : NULL;
+	checker_details_t checker_details;
+
+	checker_details.ping_check = sizeof(*checker_details.ping_check) ? MALLOC(sizeof (*checker_details.ping_check)) : NULL;
 
 	/* queue new checker */
-	queue_checker(&ping_checker_funcs, icmp_connect_thread, ping_check, CHECKER_NEW_CO(), true);
+	queue_checker(current_rs, &ping_checker_funcs, icmp_connect_thread, checker_details, CHECKER_NEW_CO(), true);
 
 	if (!checked_ping_group_range)
 		set_ping_group_range(true);
@@ -181,7 +183,7 @@ install_ping_check_keyword(void)
 static enum connect_result
 ping_it(int fd, checker_t *checker, conn_opts_t* co)
 {
-	ping_check_t *ping_checker = CHECKER_ARG(checker);
+	ping_check_t *ping_checker = checker->check_type.ping_check;
 
 	struct icmphdr *icmp_hdr;
 	char send_buf[sizeof(*icmp_hdr) + ICMP_BUFSIZE] __attribute__((aligned(__alignof__(struct icmphdr))));
@@ -204,7 +206,7 @@ ping_it(int fd, checker_t *checker, conn_opts_t* co)
 static enum connect_result
 recv_it(int fd, checker_t *checker)
 {
-	ping_check_t *ping_checker = CHECKER_ARG(checker);
+	ping_check_t *ping_checker = checker->check_type.ping_check;
 	ssize_t len;
 	const struct icmphdr *icmp_hdr;
 	char recv_buf[sizeof(*icmp_hdr) + ICMP_BUFSIZE] __attribute__((aligned(__alignof__(struct icmphdr))));
@@ -238,7 +240,7 @@ recv_it(int fd, checker_t *checker)
 static enum connect_result
 ping6_it(int fd, checker_t *checker, conn_opts_t* co)
 {
-	ping_check_t *ping_checker = CHECKER_ARG(checker);
+	ping_check_t *ping_checker = checker->check_type.ping_check;
 	struct icmp6_hdr* icmp6_hdr;
 	char send_buf[sizeof(*icmp6_hdr) + ICMP_BUFSIZE] __attribute__((aligned(__alignof__(struct icmp6_hdr))));
 
@@ -261,7 +263,7 @@ ping6_it(int fd, checker_t *checker, conn_opts_t* co)
 static enum connect_result
 recv6_it(int fd, checker_t *checker)
 {
-	ping_check_t *ping_checker = CHECKER_ARG(checker);
+	ping_check_t *ping_checker = checker->check_type.ping_check;
 	ssize_t len;
 	const struct icmp6_hdr* icmp6_hdr;
 	char recv_buf[sizeof (*icmp6_hdr) + ICMP_BUFSIZE] __attribute__((aligned(__alignof__(struct icmp6_hdr))));
@@ -420,7 +422,7 @@ static void
 icmp_connect_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
-	ping_check_t *ping_checker = CHECKER_ARG(checker);
+	ping_check_t *ping_checker = checker->check_type.ping_check;
 	conn_opts_t *co = checker->co;
 	int fd;
 	int size = SOCK_RECV_BUFF;

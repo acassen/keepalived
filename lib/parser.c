@@ -1512,6 +1512,12 @@ add_lst(char *buf)
 		p += strspn(p + 1, " \t") + 1;
 		num_vars++;
 	}
+
+	if (end_char == '}' && *p != '}') {
+		free_seq_lst(seq_ent);
+		return false;
+	}
+
 	if (*p == '}')
 		p += strspn(p + 1, " \t") + 1;
 	if (*p++ != ',') {
@@ -1537,15 +1543,18 @@ add_lst(char *buf)
 		/* Read one set of values */
 		num_values = 0;
 		while (true) {
+// Need to allow escapes and quotes to have starting/trailing spaces
 			var = p;
-			var_end = p += strcspn(p, " \t,})");
+			var_end = p += strcspn(p, ",})");
+			while (var_end > var && (var_end[-1] == ' ' || var_end[-1] == '\t'))
+				var_end--;
 			PMALLOC(value);
 			INIT_LIST_HEAD(&value->e_list);
 
 			value->val = STRNDUP(var, var_end - var);
 			list_add_tail(&value->e_list, &value_set->values);
 
-			p += strspn(p, " \t");
+//			p += strspn(p, " \t");
 			if (*p == end_char || (*p == ')' && end_char == ','))
 				break;
 			if (*p != ',') {

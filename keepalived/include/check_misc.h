@@ -33,7 +33,7 @@
 #include "keepalived_magic.h"
 
 /* Checker argument structure  */
-typedef struct _misc_checker {
+typedef struct _misc_check {
 	notify_script_t		script;		/* The script details */
 	unsigned long		timeout;
 	bool			dynamic;	/* false: old-style, true: exit code from checker affects weight */

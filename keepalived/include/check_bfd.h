@@ -48,7 +48,7 @@ typedef struct _cref_tracked_bfd {
 } cref_tracked_bfd_t;
 
 /* bfd_checker structure */
-typedef struct _bfd_checker {
+typedef struct _bfd_check {
 	checker_tracked_bfd_t	*bfd;		/* track bfd pointer, cannot be NULL */
 //	int			weight;		// Set in bfd_weight_handler
 
