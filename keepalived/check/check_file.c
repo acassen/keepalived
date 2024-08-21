@@ -3,7 +3,7 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        FILE CHECK. Monitor contents if a file
+ * Part:        FILE CHECK. Monitor contents of a file
  *
  * Authors:     Quentin Armitage, <quentin@armitage.org.uk>
  *
@@ -46,7 +46,7 @@ free_file_check(checker_t *checker)
 static void
 dump_file_check(FILE *fp, const checker_t *checker)
 {
-	tracked_file_t *tfp = checker->data;
+	tracked_file_t *tfp = checker->check_type.file_check;
 
 	conf_write(fp, "   Keepalive method = FILE_CHECK");
 	conf_write(fp, "     Tracked file = %s", tfp->fname);
@@ -63,6 +63,14 @@ track_file_handler(const vector_t *strvec)
 		report_config_error(CONFIG_GENERAL_ERROR, "track_file %s not found", strvec_slot(strvec, 1));
 		return;
 	}
+
+	if (current_tfile->file) {
+		report_config_error(CONFIG_GENERAL_ERROR, "%s track_file already specified as %s - ignoring %s", FMT_RS(current_rs, current_vs), current_tfile->file->fname, strvec_slot(strvec, 1));
+		return;
+	}
+
+	if (vector_size(strvec) > 2)
+		report_config_error(CONFIG_WARNING, "%s track_file %s has extra parameters - ignoring %s ...", FMT_RS(current_rs, current_vs), strvec_slot(strvec, 1), strvec_slot(strvec, 2));
 
 	current_tfile->file = vsf;
 }
@@ -106,6 +114,7 @@ track_file_weight_handler(const vector_t *strvec)
 
 	current_tfile->weight = weight;
 	current_tfile->weight_reverse = reverse;
+log_message(LOG_INFO, "Set track_file weight %d", current_tfile->weight);
 }
 
 static void
@@ -147,6 +156,7 @@ add_rs_to_track_files(void)
 {
 	virtual_server_t *vs;
 	real_server_t *rs;
+	checker_details_t checker_details;
 	tracked_file_monitor_t *tfl;
 
 	list_for_each_entry(vs, &check_data->vs, e_list) {
@@ -154,7 +164,8 @@ add_rs_to_track_files(void)
 			list_for_each_entry(tfl, &rs->track_files, e_list) {
 				/* queue new checker - we don't have a compare function since we don't
 				 * update file checkers that way on a reload. */
-				queue_checker(&file_checker_funcs, NULL, tfl->file, NULL, false);
+				checker_details.file_check = tfl->file;
+				queue_checker(rs, &file_checker_funcs, NULL, checker_details, NULL, false);
 				current_checker->vs = vs;
 				current_checker->rs = rs;
 

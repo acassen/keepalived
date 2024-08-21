@@ -67,7 +67,7 @@ static void smtp_engine_thread(thread_ref_t);
 static void
 free_smtp_check(checker_t *checker)
 {
-	smtp_checker_t *smtp_checker = checker->data;
+	smtp_checker_t *smtp_checker = checker->check_type.smtp_check;
 
 	FREE_PTR(checker->co);
 	FREE_CONST(smtp_checker->helo_name);
@@ -82,7 +82,7 @@ free_smtp_check(checker_t *checker)
 static void
 dump_smtp_check(FILE *fp, const checker_t *checker)
 {
-	const smtp_checker_t *smtp_checker = checker->data;
+	const smtp_checker_t *smtp_checker = checker->check_type.smtp_check;
 
 	conf_write(fp, "   Keepalive method = SMTP_CHECK");
 	conf_write(fp, "   helo = %s", smtp_checker->helo_name);
@@ -91,8 +91,8 @@ dump_smtp_check(FILE *fp, const checker_t *checker)
 static bool
 compare_smtp_check(const checker_t *old_c, checker_t *new_c)
 {
-	const smtp_checker_t *old = old_c->data;
-	const smtp_checker_t *new = new_c->data;
+	const smtp_checker_t *old = old_c->check_type.smtp_check;
+	const smtp_checker_t *new = new_c->check_type.smtp_check;
 
 	if (strcmp(old->helo_name, new->helo_name) != 0)
 		return false;
@@ -111,15 +111,15 @@ static const checker_funcs_t smtp_checker_funcs = { CHECKER_SMTP, free_smtp_chec
 static void
 smtp_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	smtp_checker_t *smtp_checker;
+	checker_details_t checker_details;
 	conn_opts_t *co;
 
-	PMALLOC(smtp_checker);
+	PMALLOC(checker_details.smtp_check);
 	PMALLOC(co);
 	co->connection_to = UINT_MAX;
 
 	/* Have the checker queue code put our checker into the real server's checkers_queue list. */
-	queue_checker(&smtp_checker_funcs, smtp_start_check_thread, smtp_checker, co, true);
+	queue_checker(current_rs, &smtp_checker_funcs, smtp_start_check_thread, checker_details, co, true);
 
 	/* We need to be able to check if anything has been set */
 	co->dst.ss_family = AF_UNSPEC;
@@ -129,10 +129,10 @@ smtp_check_handler(__attribute__((unused)) const vector_t *strvec)
 static void
 smtp_check_end_handler(void)
 {
-	smtp_checker_t *smtp_checker = current_checker->data;
+	smtp_checker_t *smtp_checker = current_checker->check_type.smtp_check;
 	checker_t *checker = current_checker;
 #ifdef WITH_HOST_ENTRIES
-	smtp_checker_t *new_smtp_checker;
+	checker_details_t checker_details;
 	conn_opts_t *co;
 	ref_co_t *rco, *rco_tmp;
 	list_head_t sav_rs_list;
@@ -204,16 +204,16 @@ smtp_check_end_handler(void)
 	/* Create a new checker for each host on the host list */
 	list_for_each_entry_safe(rco, rco_tmp, &host_list, e_list) {
 		co = rco->co;
-		PMALLOC(new_smtp_checker);
-		*new_smtp_checker = *smtp_checker;
+		PMALLOC(checker_details.smtp_check);
+		*checker_details.smtp_check = *smtp_checker;
 
 		if (co->connection_to == UINT_MAX)
 			co->connection_to = conn_to;
 
-		new_smtp_checker->helo_name = STRDUP(smtp_checker->helo_name);
+		checker_details.smtp_check->helo_name = STRDUP(smtp_checker->helo_name);
 
-		queue_checker(&smtp_checker_funcs, smtp_start_check_thread,
-					      new_smtp_checker, NULL, true);
+		queue_checker(current_rs, &smtp_checker_funcs, smtp_start_check_thread,
+					      checker_details, NULL, true);
 
 		/* Copy the checker info, but preserve the list_head entry, th
 		 * co pointer and the pointer to new_smtp_checker. */
@@ -221,7 +221,7 @@ smtp_check_end_handler(void)
 		*current_checker = *checker;
 		current_checker->rs_list = sav_rs_list;
 		current_checker->co = co;
-		current_checker->data = new_smtp_checker;
+		current_checker->check_type.smtp_check = checker_details.smtp_check;
 
 		/* queue the checker */
 		list_add_tail(&current_checker->rs_list, &checker->rs->checkers_list);
@@ -267,7 +267,7 @@ smtp_host_end_handler(void)
 static void
 smtp_helo_name_handler(const vector_t *strvec)
 {
-	smtp_checker_t *smtp_checker = current_checker->data;
+	smtp_checker_t *smtp_checker = current_checker->check_type.smtp_check;
 
 	if (vector_size(strvec) < 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "SMTP_CHECK helo name missing");
@@ -442,7 +442,7 @@ static void
 smtp_get_line_cb(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
-	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
+	smtp_checker_t *smtp_checker = checker->check_type.smtp_check;
 	conn_opts_t *smtp_host = checker->co;
 	ssize_t r;
 	char *nl;
@@ -521,7 +521,7 @@ static void
 smtp_get_line(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
-	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
+	smtp_checker_t *smtp_checker = checker->check_type.smtp_check;
 	conn_opts_t *smtp_host = checker->co;
 
 	/* clear the buffer */
@@ -543,7 +543,7 @@ static void
 smtp_put_line_cb(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
-	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
+	smtp_checker_t *smtp_checker = checker->check_type.smtp_check;
 	conn_opts_t *smtp_host = checker->co;
 	ssize_t w;
 
@@ -590,7 +590,7 @@ static void
 smtp_put_line(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
-	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
+	smtp_checker_t *smtp_checker = checker->check_type.smtp_check;
 
 	smtp_checker->buff_ctr = strlen(smtp_checker->buff);
 
@@ -631,7 +631,7 @@ static void
 smtp_engine_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
-	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
+	smtp_checker_t *smtp_checker = checker->check_type.smtp_check;
 	conn_opts_t *smtp_host = checker->co;
 
 	switch (smtp_checker->state) {
@@ -710,7 +710,7 @@ static void
 smtp_check_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
-	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
+	smtp_checker_t *smtp_checker = checker->check_type.smtp_check;
 	conn_opts_t *smtp_host = checker->co;
 	int status;
 
@@ -780,12 +780,12 @@ smtp_connect_thread(thread_ref_t thread)
 	 * defined in the keepalived.conf will more than likely have
 	 * a checker structure assigned to it. Each checker structure
 	 * has a data element that is meant to hold per checker
-	 * configurations. So thread->arg(checker)->data points to
-	 * a smtp_checker structure. In the smtp_checker structure
-	 * we hold global configuration data for the smtp check.
+	 * configurations. So thread->arg(checker)->check_type.smtp_check
+	 * points to a smtp_checker structure. In the smtp_checker
+	 * structure we hold global configuration data for the smtp check.
 	 *
 	 * So this whole thing looks like this:
-	 * thread->arg(checker)->data(smtp_checker)->host(smtp_host)
+	 * thread->arg(checker)->check_type.smtp_check->host(smtp_host)
 	 *
 	 * To make life simple, we'll break the structures out so
 	 * that "checker" always points to the current checker structure,

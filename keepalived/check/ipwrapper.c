@@ -42,6 +42,32 @@
 #include "check_data.h"
 #endif
 
+void
+dump_vs_rs_checker_state(const char *title)
+{
+	virtual_server_t *vs;
+	real_server_t *rs;
+	checker_t *checker;
+
+	log_message(LOG_INFO, "vs rs dump: %s", title);
+	list_for_each_entry(vs, &check_data->vs, e_list) {
+		log_message(LOG_INFO, "%s", format_vs(vs));
+		if (vs->s_svr)
+			log_message(LOG_INFO, "quorum %u quorum_up %d  s_svr %s set = %d alive = %d", vs->quorum, vs->quorum_state_up, FMT_RS(vs->s_svr, vs), vs->s_svr->set, vs->s_svr->alive);
+
+		list_for_each_entry(rs, &vs->rs, e_list) {
+			log_message(LOG_INFO, "\t%s, set = %d alive = %d, # failed checkers %u, wgt: eff %ld peff %ld i %d, reloaded %d", format_rs(rs, vs), rs->set, rs->alive, rs->num_failed_checkers,
+					rs->effective_weight, rs->peffective_weight, rs->iweight, rs->reloaded);
+			list_for_each_entry(checker, &rs->checkers_list, rs_list) {
+				log_message(LOG_INFO, "\t\t%s enabled %d is_up %d has_run %d cur_weight %d",
+						checker->checker_funcs->type == CHECKER_FILE ? "FILE" :
+						checker->checker_funcs->type == CHECKER_MISC ? "MISC" : "unknown",
+						checker->enabled, checker->is_up, checker->has_run, checker->cur_weight);
+			}
+		}
+	}
+}
+
 static bool __attribute((pure))
 vs_iseq(const virtual_server_t *vs_a, const virtual_server_t *vs_b)
 {
@@ -85,16 +111,24 @@ vsge_iseq(const virtual_server_group_entry_t *vsge_a, const virtual_server_group
 }
 
 /* Returns the sum of all alive RS weight in a virtual server. */
+// *** count is long, but returned as unsigned long !!!!
 static unsigned long __attribute__ ((pure))
 weigh_live_realservers(virtual_server_t *vs)
 {
 	real_server_t *rs;
-	long count = 0;
+	unsigned long count = 0;
 
 	list_for_each_entry(rs, &vs->rs, e_list) {
-		if (ISALIVE(rs))
+		if (ISALIVE(rs)) {
 			count += real_weight(rs->effective_weight);
+			/* The maximum value returned by real_weight is IPVS_WEIGHT_MAX,
+			 * which is INT32_MAX. This means that count cannot overflow
+			 * so long as we never add more than IPVS_WEIGHT_MAX and IPVS_WEIGHT_MAX */
+			if (count >= IPVS_WEIGHT_MAX)
+				return IPVS_WEIGHT_MAX;
+		}
 	}
+
 	return count;
 }
 
@@ -225,8 +259,8 @@ do_rs_notifies(virtual_server_t* vs, real_server_t* rs, bool stopping)
 static void
 update_vs_notifies(virtual_server_t *vs, bool stopping)
 {
-	long threshold = vs->quorum - vs->hysteresis;
-	long weight_sum;
+	unsigned threshold = vs->quorum - vs->hysteresis;
+	unsigned long weight_sum;
 
 	/* Sooner or later VS will lose the quorum (if any). However,
 	 * we don't push in a sorry server then, hence the regression
@@ -515,16 +549,17 @@ set_quorum_states(void)
 static void
 update_quorum_state(virtual_server_t * vs, bool init)
 {
-	long weight_sum = weigh_live_realservers(vs);
-	long threshold;
+	unsigned long weight_sum = weigh_live_realservers(vs);
+	unsigned threshold;
 
 	threshold = vs->quorum + (vs->quorum_state_up ? -1 : 1) * vs->hysteresis;
-
+log_message(LOG_INFO, "update_quorum_state(init=%d) vs quorum %u state %d tot weight %lu threshold %u", init, vs->quorum, vs->quorum_state_up, weight_sum, threshold);
+// THIS IS WHERE DONE WHEN 2 RSs.
 	/* If we have just gained quorum, it's time to consider notify_up. */
 	if (!vs->quorum_state_up &&
 	    weight_sum >= threshold) {
 		vs->quorum_state_up = true;
-		log_message(LOG_INFO, "Gained quorum %u+%u=%ld <= %ld for VS %s"
+		log_message(LOG_INFO, "Gained quorum %u+%u=%u <= %lu for VS %s"
 				    , vs->quorum
 				    , vs->hysteresis
 				    , threshold
@@ -558,7 +593,7 @@ update_quorum_state(virtual_server_t * vs, bool init)
 		 * We are starting up and need to add the sorry server
 		 */
 		vs->quorum_state_up = false;
-		log_message(LOG_INFO, "%s %u-%u=%ld > %ld for VS %s"
+		log_message(LOG_INFO, "%s %u-%u=%u > %lu for VS %s"
 				    , init ? "Starting with quorum down" : "Lost quorum"
 				    , vs->quorum
 				    , vs->hysteresis
@@ -619,7 +654,10 @@ perform_svr_state(bool alive, checker_t *checker)
 
 	/* We may have changed quorum state. If the quorum wasn't up
 	 * but is now up, this is where the rs is added. */
+dump_vs_rs_checker_state("Pre update_quorum_state 3");
+// When have two RSs when first RS processed and checker removed, we don't have quorum. When second RS processed, alive does not change. *******
 	update_quorum_state(vs, false);
+dump_vs_rs_checker_state("Post update_quorum_state 3");
 
 	return true;
 }
@@ -654,9 +692,13 @@ init_service_vs(virtual_server_t * vs)
 		sync_service_vsg(vs);
 	}
 
+#if 1
+dump_vs_rs_checker_state("Pre update_quorum_state 1");
 	/* we may have got/lost quorum due to quorum setting changed */
 	/* also update, in case we need the sorry server in alpha mode */
 	update_quorum_state(vs, true);
+dump_vs_rs_checker_state("Post update_quorum_state 1");
+#endif
 
 	/* If we have a sorry server with inhibit, add it now */
 	if (vs->s_svr && vs->s_svr->inhibit && !vs->s_svr->set) {
@@ -671,6 +713,7 @@ init_service_vs(virtual_server_t * vs)
 			vs->s_svr->num_failed_checkers = 0;
 		}
 	}
+dump_vs_rs_checker_state("After s_svr check");
 
 	return true;
 }
@@ -719,7 +762,11 @@ update_svr_wgt(int64_t weight, virtual_server_t * vs, real_server_t * rs
 		    (vs->quorum_state_up || !vs->s_svr || !ISALIVE(vs->s_svr)))
 			ipvs_cmd(LVS_CMD_EDIT_DEST, vs, rs);
 		if (update_quorum)
+{
+dump_vs_rs_checker_state("Pre update_quorum_state 2");
 			update_quorum_state(vs, false);
+dump_vs_rs_checker_state("Post update_quorum_state 2");
+}
 	}
 }
 
@@ -947,6 +994,7 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 	checker_t dummy_checker;
 	bool a_checker_has_run = false;
 
+dump_vs_rs_checker_state("At migrate_checkers entry");
 	if (!list_empty(&old_rs->checkers_list)) {
 		list_for_each_entry(new_c, &new_rs->checkers_list, rs_list) {
 			if (!new_c->checker_funcs->compare)
@@ -1004,10 +1052,16 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 		}
 	}
 
+return;
+log_message(LOG_INFO, "About to update rs's num failed %u alive %d set %d inhibit %d for %s", new_rs->num_failed_checkers, new_rs->alive, new_rs->set, new_rs->inhibit, FMT_RS(new_rs, vs));
+dump_vs_rs_checker_state("Pre update rs's");
+// THIS IS WHERE DONE WHEN ONLY 1 RS. Why not when there are 2 RS's?
 	/* If there are no failed checkers, the RS needs to be up */
 	if (!new_rs->num_failed_checkers && !new_rs->alive) {
+// What about quorum?
 		dummy_checker.vs = vs;
 		dummy_checker.rs = new_rs;
+log_message(LOG_INFO, "Calling perform_svr_state()");
 		perform_svr_state(true, &dummy_checker);
 	} else if (new_rs->num_failed_checkers && new_rs->set != new_rs->inhibit) {
 		/* ipvs_cmd() checks for alive rather than set */
@@ -1015,6 +1069,7 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 		ipvs_cmd(new_rs->inhibit ? IP_VS_SO_SET_ADDDEST : IP_VS_SO_SET_DELDEST, vs, new_rs);
 		new_rs->alive = false;
 	}
+dump_vs_rs_checker_state("Done update rs's");
 }
 
 /* Clear the diff rs of the old vs */
@@ -1043,22 +1098,26 @@ clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs)
 		 * flag value to not try to set
 		 * already set IPVS rule.
 		 */
+// Alive should be set based on state of checkers
 		new_rs->alive = rs->alive;
 		new_rs->set = rs->set;
 		new_rs->effective_weight = rs->effective_weight;
 		new_rs->peffective_weight = rs->effective_weight;
 		new_rs->reloaded = true;
+log_message(LOG_INFO, "%s: alive %d set %d eff %ld peff %ld", FMT_RS(new_rs, new_vs), new_rs->alive, new_rs->set, new_rs->effective_weight, new_rs->peffective_weight);
 
 		/*
 		 * We must migrate the state of the old checkers.
 		 * If we do not, the new RS is in a state where it’s reported
 		 * as down with no check failed. As a result, the server will never
-		 * be put back up when it’s alive again in check_tcp.c#83 because
+		 * be put back up when it’s alive again in check_tcp.c#83 because,
 		 * of the check that put a rs up only if it was not previously up.
 		 * For alpha mode checkers, if it was up, we don't need another
 		 * success to say it is now up.
 		 */
+log_message(LOG_INFO, "About to migrate checkers %s", FMT_RS(new_rs, new_vs));
 		migrate_checkers(new_vs, rs, new_rs);
+dump_vs_rs_checker_state("Done migrate checkers");
 
 		/* Do we need to update the RS configuration? */
 		if ((new_rs->alive && new_rs->effective_weight != rs->effective_weight) ||
@@ -1168,10 +1227,18 @@ clear_diff_services(void)
 			ipvs_cmd(IP_VS_SO_SET_EDIT, new_vs, NULL);
 
 		vs->omega = true;
+log_message(LOG_INFO, "About to clear_diff_rs %s", FMT_VS(new_vs));
 		clear_diff_rs(vs, new_vs);
+dump_vs_rs_checker_state("Done clear_diff_rs");
+log_message(LOG_INFO, "About to clear_diff_s_svr %s", FMT_VS(new_vs));
 		clear_diff_s_srv(vs, new_vs);
+dump_vs_rs_checker_state("Done clear_diff_s_svr");
+log_message(LOG_INFO, "About to update_alive_counts %s", FMT_VS(new_vs));
 
 		update_alive_counts(vs, new_vs);
+dump_vs_rs_checker_state("Done update_alive_couns");
+//		if (vs->s_svr && vs->s_svr.is_alive == vs->quorum_up) {
+//		}
 	}
 }
 
@@ -1191,6 +1258,7 @@ check_new_rs_state(void)
 					continue;
 				if (!checker->alpha)
 					continue;
+// Check if weighted checker
 				set_checker_state(checker, false);
 				UNSET_ALIVE(checker->rs);
 			}

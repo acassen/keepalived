@@ -253,7 +253,7 @@ pidfile_write(pidfile_t *pidf)
 {
 	int ret;
 
-	if (pidf->fd == -1)
+	if (!children_started && pidf->fd == -1)
 		return false;
 
 	if (children_started) {
@@ -261,7 +261,11 @@ pidfile_write(pidfile_t *pidf)
 
 		/* There could be more error handling, but that will just
 		 * complicate the code for minimal benefit. */
-		if (stat(pidf->path, &statb)) {
+		if (pidf->fd == -1) {
+			/* This process wasn't originally started (due to no configuration)
+			 * but configuration has been added */
+			create_pidfile(pidf);
+		} else if (stat(pidf->path, &statb)) {
 			/* pidfile no longer exists */
 			close(pidf->fd);
 			create_pidfile(pidf);

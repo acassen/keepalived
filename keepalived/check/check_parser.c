@@ -222,6 +222,12 @@ vs_end_handler(void)
 		}
 	}
 
+	if (current_vs->hysteresis >= current_vs->quorum) {
+		/* If hysteresis >= quorum, the vs would never lose its quorum */
+		report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s hysteresis (%u) >= quorum (%u) - reducing hysteresis to %u", FMT_VS(current_vs), current_vs->quorum, current_vs->hysteresis, current_vs->quorum - 1);
+		current_vs->hysteresis = current_vs->quorum - 1;
+	}
+
 	list_add_tail(&current_vs->e_list, &check_data->vs);
 }
 static void

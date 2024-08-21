@@ -120,9 +120,10 @@ dump_connection_opts(FILE *fp, const void *data)
 
 /* Queue a checker into the real server's checkers_queue */
 void
-queue_checker(const checker_funcs_t *funcs
+queue_checker(real_server_t *rs
+	      , const checker_funcs_t *funcs
 	      , thread_func_t launch
-	      , void *data
+	      , checker_details_t checker_details
 	      , conn_opts_t *co
 	      , bool fd_required)
 {
@@ -130,7 +131,7 @@ queue_checker(const checker_funcs_t *funcs
 
 	/* Set default dst = RS, timeout = default */
 	if (co) {
-		co->dst = current_rs->addr;
+		co->dst = rs->addr;
 		co->connection_to = UINT_MAX;
 	}
 
@@ -139,8 +140,8 @@ queue_checker(const checker_funcs_t *funcs
 	checker->checker_funcs = funcs;
 	checker->launch = launch;
 	checker->vs = current_vs;
-	checker->rs = current_rs;
-	checker->data = data;
+	checker->rs = rs;
+	checker->check_type = checker_details;
 	checker->co = co;
 	checker->enabled = true;
 	checker->alpha = -1;
@@ -156,7 +157,7 @@ queue_checker(const checker_funcs_t *funcs
 	if (fd_required)
 		check_data->num_checker_fd_required++;
 
-	list_add_tail(&checker->rs_list, &current_rs->checkers_list);
+	list_add_tail(&checker->rs_list, &rs->checkers_list);
 
 	current_checker = checker;
 }

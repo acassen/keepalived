@@ -1098,7 +1098,7 @@ sync group or real server monitors it.
 A value will be read as a number in text from the file.  If the weight
 configured against the track_file is 0, a non-zero value in the file will
 be treated as a failure status, and a zero value will be treated as
-an OK status, otherwise the value will be  multiplied by the weight configured
+an OK status, otherwise the value will be multiplied by the weight configured
 in the track_file statement.
 
 For VRRP instances, if the result is less than -253 anything monitoring the
@@ -2334,6 +2334,11 @@ The syntax for virtual_server is :
     # Minimum total weight of all live servers in
     # the pool necessary to operate VS with no
     # quality regression. Defaults to 1.
+    # If a sorry server is configured and the quorum
+    # is not met, any remaining alive real servers will
+    # be taken down and the sorry server enabled.
+    # If there is no sorry server, the remaining alive
+    # real servers will not be modified.
     \fBquorum \fR<INTEGER>
 
     # Tolerate this much weight units compared to the
@@ -2984,7 +2989,7 @@ There can be multiple ~SEQ elements on a line, so for example:
 .SH List blocks
 .PP
 List blocks are similar to sequence blocks, except that the values to substitute into
-the variable are listed in the ~LST specification.
+the variable(s) are listed in the ~LST specification.
 
 A line starting \fB~LST(var, val1, val2, val3)\fR will cause the remainder of the
 line to be processed multiple times, with the variable \fB$var\fR set initially to

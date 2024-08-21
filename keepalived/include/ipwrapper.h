@@ -60,4 +60,5 @@ extern void clear_diff_services(void);
 extern void check_new_rs_state(void);
 extern void link_vsg_to_vs(void);
 
+extern void dump_vs_rs_checker_state(const char *);
 #endif
