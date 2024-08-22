@@ -115,7 +115,7 @@ typedef struct _url {
 	list_head_t			e_list;
 } url_t;
 
-typedef struct _http_check {
+typedef struct _http_checker {
 	unsigned			proto;
 	url_t				*url_it;	/* current url checked list entry */
 	url_t				*failed_url;	/* the url that is currently failing, if any */

@@ -68,9 +68,7 @@ static void
 tcp_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	/* queue new checker */
-	checker_details_t check_details = { .misc_check = NULL };
-
-	queue_checker(current_rs, &tcp_checker_funcs, tcp_connect_thread, check_details, CHECKER_NEW_CO(), true);
+	queue_checker(&tcp_checker_funcs, tcp_connect_thread, NULL, CHECKER_NEW_CO(), true);
 }
 
 static void

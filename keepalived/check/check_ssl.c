@@ -204,7 +204,7 @@ int
 ssl_connect(thread_ref_t thread, int new_req)
 {
 	checker_t *checker = THREAD_ARG(thread);
-	http_checker_t *http_get_check = checker->check_type.http_check;
+	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	request_t *req = http_get_check->req;
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 	url_t *url = http_get_check->url_it;
@@ -300,7 +300,7 @@ void
 ssl_read_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
-	http_checker_t *http_get_check = checker->check_type.http_check;
+	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	request_t *req = http_get_check->req;
 	url_t *url = http_get_check->url_it;
 	unsigned long timeout;
