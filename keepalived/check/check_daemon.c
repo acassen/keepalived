@@ -424,40 +424,19 @@ start_check(data_t *prev_global_data)
 	/* Set up the track files */
 	add_rs_to_track_files();
 	init_track_files(&check_data->track_files);
-dump_vs_rs_checker_state("after init_track_files");
 
 	/* Processing differential configuration parsing */
 	set_track_file_weights();
-dump_vs_rs_checker_state("after set_track_file_weights");
-//#define MOVE_CLEAR_DIFF_SVCS
-#ifndef MOVE_CLEAR_DIFF_SVCS
 	if (reload)
-	{
 		clear_diff_services();
-dump_vs_rs_checker_state("after clear_diff_services");
-	}
-#endif
 	set_track_file_checkers_down();
-dump_vs_rs_checker_state("after set_track_file_checkers_down");
 	set_effective_weights();
-dump_vs_rs_checker_state("after set_effective_weights");
 	if (reload)
-{
 		check_new_rs_state();
-dump_vs_rs_checker_state("after check_new_rs_state");
-}
-#ifdef MOVE_CLEAR_DIFF_SVCS
-	if (reload)
-	{
-		clear_diff_services();
-dump_vs_rs_checker_state("after clear_diff_services");
-	}
-#endif
 
 	/* Initialize IPVS topology */
 	if (!init_services())
 		stop_check(KEEPALIVED_EXIT_FATAL);
-dump_vs_rs_checker_state("after init_services");
 
 #ifndef _ONE_PROCESS_DEBUG_
 	/* Notify parent config has been read if appropriate */
@@ -478,7 +457,6 @@ dump_vs_rs_checker_state("after init_services");
 
 	/* Set the process cpu affinity if configured */
 	set_process_cpu_affinity(&global_data->checker_cpu_mask, "checker");
-dump_vs_rs_checker_state("end of start_check");
 }
 
 void
@@ -507,7 +485,6 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 
 	/* set the reloading flag */
 	SET_RELOAD;
-dump_vs_rs_checker_state("Pre reload");
 
 	/* Terminate all script process */
 	script_killall(master, SIGTERM, false);
@@ -783,7 +760,6 @@ start_check_child(void)
 	separate_config_file();
 
 	/* Child process part, write pidfile */
-log_message(LOG_INFO, "pidfile fd %d, name %s", checkers_pidfile.fd, checkers_pidfile.path);
 	if (!pidfile_write(&checkers_pidfile)) {
 		log_message(LOG_INFO, "Healthcheck child process: cannot write pidfile");
 		exit(KEEPALIVED_EXIT_FATAL);

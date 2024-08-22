@@ -55,7 +55,7 @@ static bool script_user_set;
 static void
 free_misc_check(checker_t *checker)
 {
-	misc_checker_t *misck_checker = checker->check_type.misc_check;
+	misc_checker_t *misck_checker = checker->data;
 
 	notify_free_script(&misck_checker->script);
 	FREE(misck_checker);
@@ -65,7 +65,7 @@ free_misc_check(checker_t *checker)
 static void
 dump_misc_check(FILE *fp, const checker_t *checker)
 {
-	const misc_checker_t *misck_checker = checker->check_type.misc_check;
+	const misc_checker_t *misck_checker = checker->data;
 	char time_str[26];
 
 	conf_write(fp, "   Keepalive method = MISC_CHECK");
@@ -83,8 +83,8 @@ dump_misc_check(FILE *fp, const checker_t *checker)
 static bool
 compare_misc_check(const checker_t *old_c, checker_t *new_c)
 {
-	const misc_checker_t *old = old_c->check_type.misc_check;
-	const misc_checker_t *new = new_c->check_type.misc_check;
+	const misc_checker_t *old = old_c->data;
+	const misc_checker_t *new = new_c->data;
 
 	if (new->dynamic != old->dynamic)
 		return false;
@@ -95,13 +95,13 @@ compare_misc_check(const checker_t *old_c, checker_t *new_c)
 static void
 migrate_misc_check(checker_t *new_c, const checker_t *old_c)
 {
-	const misc_checker_t *old = old_c->check_type.misc_check;
-	misc_checker_t *new = new_c->check_type.misc_check;
+	const misc_checker_t *old = old_c->data;
+	misc_checker_t *new = new_c->data;
 
 	new->last_exit_code = old->last_exit_code;
 	new->last_ran = old->last_ran;
 
-	if (!new->dynamic || old->last_exit_code == 0 || old->last_exit_code == 1)
+	if (!new->dynamic || old->last_exit_code == 1)
 		return;
 
 	new_c->cur_weight = new->last_exit_code - (new->last_exit_code ? 2 : 0) - new_c->rs->iweight;
@@ -112,16 +112,15 @@ static const checker_funcs_t misc_checker_funcs = { CHECKER_MISC, free_misc_chec
 static void
 misc_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
-//	misc_checker_t *new_misck_checker;
-	checker_details_t checker_details;
+	misc_checker_t *new_misck_checker;
 
-	PMALLOC(checker_details.misc_check);
-	checker_details.misc_check->state = SCRIPT_STATE_IDLE;
+	PMALLOC(new_misck_checker);
+	new_misck_checker->state = SCRIPT_STATE_IDLE;
 
 	script_user_set = false;
 
 	/* queue new checker */
-	queue_checker(current_rs, &misc_checker_funcs, misc_check_thread, checker_details, NULL, false);
+	queue_checker(&misc_checker_funcs, misc_check_thread, new_misck_checker, NULL, false);
 
 	/* Set non-standard default value */
 	current_checker->default_retry = 0;
@@ -131,7 +130,7 @@ static void
 misc_path_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	const vector_t *strvec_qe;
-	misc_checker_t *new_misck_checker = current_checker->check_type.misc_check;
+	misc_checker_t *new_misck_checker = current_checker->data;
 
 	/* We need to allow quoted and escaped strings for the script and parameters */
 	strvec_qe = alloc_strvec_quoted_escaped(NULL);
@@ -145,7 +144,7 @@ static void
 misc_timeout_handler(const vector_t *strvec)
 {
 	unsigned timeout;
-	misc_checker_t *new_misck_checker = current_checker->check_type.misc_check;
+	misc_checker_t *new_misck_checker = current_checker->data;
 
 	if (!read_unsigned_strvec(strvec, 1, &timeout, 0, UINT_MAX / TIMER_HZ, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid misc_timeout value '%s'", strvec_slot(strvec, 1));
@@ -158,7 +157,7 @@ misc_timeout_handler(const vector_t *strvec)
 static void
 misc_dynamic_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	misc_checker_t *new_misck_checker = current_checker->check_type.misc_check;
+	misc_checker_t *new_misck_checker = current_checker->data;
 
 	new_misck_checker->dynamic = true;
 }
@@ -166,7 +165,7 @@ misc_dynamic_handler(__attribute__((unused)) const vector_t *strvec)
 static void
 misc_user_handler(const vector_t *strvec)
 {
-	misc_checker_t *new_misck_checker = current_checker->check_type.misc_check;
+	misc_checker_t *new_misck_checker = current_checker->data;
 
 	if (vector_size(strvec) < 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "No user specified for misc checker script %s", cmd_str(&new_misck_checker->script));
@@ -184,7 +183,7 @@ misc_user_handler(const vector_t *strvec)
 static void
 misc_end_handler(void)
 {
-	misc_checker_t *new_misck_checker = current_checker->check_type.misc_check;
+	misc_checker_t *new_misck_checker = current_checker->data;
 
 	if (!new_misck_checker->script.args) {
 		report_config_error(CONFIG_GENERAL_ERROR, "No script path has been specified for MISC_CHECKER - skipping");
@@ -236,7 +235,7 @@ check_misc_script_security(magic_t magic)
 				if (checker->launch != misc_check_thread)
 					continue;
 
-				misc_script = checker->check_type.misc_check;
+				misc_script = CHECKER_ARG(checker);
 
 				script_flags |= (flags = check_script_secure(&misc_script->script, magic));
 
@@ -271,7 +270,7 @@ misc_check_thread(thread_ref_t thread)
 	misc_checker_t *misck_checker;
 	int ret;
 
-	misck_checker = checker->check_type.misc_check;
+	misck_checker = CHECKER_ARG(checker);
 
 	/*
 	 * Register a new checker thread & return
@@ -312,7 +311,7 @@ misc_check_child_thread(thread_ref_t thread)
 	bool message_only = false;
 
 	checker = THREAD_ARG(thread);
-	misck_checker = checker->check_type.misc_check;
+	misck_checker = CHECKER_ARG(checker);
 
 	if (thread->type == THREAD_CHILD_TIMEOUT) {
 		pid = THREAD_CHILD_PID(thread);

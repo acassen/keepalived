@@ -29,6 +29,7 @@
 
 /* local includes */
 #include "scheduler.h"
+#include "check_api.h"
 
 #define SMTP_BUFF_MAX		512U
 
@@ -44,7 +45,7 @@ typedef enum {
 #define SMTP_DEFAULT_HELO	"smtpchecker.keepalived.org"
 
 /* Checker argument structure  */
-typedef struct _smtp_check {
+typedef struct _smtp_checker {
 	/* non per host config data goes here */
 	const char			*helo_name;
 

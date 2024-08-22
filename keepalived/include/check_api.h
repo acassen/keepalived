@@ -37,15 +37,6 @@
 #include "layer4.h"
 #include "sockaddr.h"
 
-//#include "check_dns.h"
-//#include "check_http.h"
-//#include "check_misc.h"
-//#include "check_ping.h"
-//#include "check_smtp.h"
-//#include "check_udp.h"
-//#include "track_file.h"
-//#include "check_bfd.h"
-
 typedef enum _checker_type {
 	CHECKER_MISC,
 	CHECKER_TCP,
@@ -71,33 +62,13 @@ typedef struct _checker_funcs {
 	void				(*migrate) (struct _checker *, const struct _checker *);
 } checker_funcs_t;
 
-struct _dns_check;
-struct _http_check;
-struct _misc_check;
-struct _ping_check;
-struct _smtp_check;
-struct _udp_check;
-struct _tracked_file_monitor;
-struct _bfd_check;
-typedef union {
-	struct _dns_check	*dns_check;
-	struct _http_check	*http_check;
-	struct _misc_check	*misc_check;
-	struct _ping_check	*ping_check;
-	struct _smtp_check	*smtp_check;
-	struct _udp_check	*udp_check;
-	struct _tracked_file	*file_check;
-	struct _bfd_check	*bfd_check;
-	void *any;
-} checker_details_t;
-
 /* Checkers structure definition */
 typedef struct _checker {
 	const checker_funcs_t		*checker_funcs;
 	thread_func_t			launch;
 	virtual_server_t		*vs;			/* pointer to the checker thread virtualserver */
 	real_server_t			*rs;			/* pointer to the checker thread realserver */
-	checker_details_t		check_type;		/* Details for the specific checker type */
+	void				*data;			/* Details for the specific checker type */
 	bool				enabled;		/* Activation flag */
 	bool				is_up;			/* Set if checker is up */
 	bool				has_run;		/* Set if the checker has completed at least once */
@@ -144,10 +115,9 @@ extern void free_checker(checker_t *);
 extern void free_checker_list(list_head_t *);
 extern void free_rs_checkers(const real_server_t *);
 extern void dump_connection_opts(FILE *, const void *);
-extern void queue_checker(real_server_t *
-			  ,const checker_funcs_t *
+extern void queue_checker(const checker_funcs_t *
 			  , thread_func_t
-			  , checker_details_t
+			  , void *
 			  , conn_opts_t *
 			  , bool);
 extern void dequeue_new_checker(void);

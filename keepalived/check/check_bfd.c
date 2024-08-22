@@ -54,7 +54,7 @@ static void bfd_check_thread(thread_ref_t);
 static void
 free_bfd_check(checker_t *checker)
 {
-	bfd_checker_t *bfd_checker = checker->check_type.bfd_check;
+	bfd_checker_t *bfd_checker = checker->data;
 
 	FREE(bfd_checker);
 	FREE(checker);
@@ -63,7 +63,7 @@ free_bfd_check(checker_t *checker)
 static void
 dump_bfd_check(FILE *fp, const checker_t *checker)
 {
-	const bfd_checker_t *bfd_checker = checker->check_type.bfd_check;
+	const bfd_checker_t *bfd_checker = checker->data;
 
 	conf_write(fp, "   Keepalive method = BFD_CHECK");
 	conf_write(fp, "   Name = %s", bfd_checker->bfd->bname);
@@ -108,8 +108,8 @@ dump_bfds_rs_list(FILE *fp, const list_head_t *l)
 static bool
 compare_bfd_check(const checker_t *old_c, checker_t *new_c)
 {
-	const bfd_checker_t *old = old_c->check_type.bfd_check;
-	const bfd_checker_t *new = new_c->check_type.bfd_check;
+	const bfd_checker_t *old = old_c->data;
+	const bfd_checker_t *new = new_c->data;
 
 	if (strcmp(old->bfd->bname, new->bfd->bname))
 		return false;
@@ -135,13 +135,13 @@ static const checker_funcs_t bfd_checker_funcs = { CHECKER_BFD, free_bfd_check, 
 static void
 bfd_check_handler(__attribute__((unused)) const vector_t *strvec)
 {
-	checker_details_t checker_details;
+	bfd_checker_t *new_bfd_checker;
 
-	PMALLOC(checker_details.bfd_check);
-	INIT_LIST_HEAD(&checker_details.bfd_check->e_list);
+	PMALLOC(new_bfd_checker);
+	INIT_LIST_HEAD(&new_bfd_checker->e_list);
 
 	/* queue new checker */
-	queue_checker(current_rs, &bfd_checker_funcs, NULL, checker_details, NULL, false);
+	queue_checker(&bfd_checker_funcs, NULL, new_bfd_checker, NULL, false);
 }
 
 static void
@@ -153,7 +153,7 @@ bfd_name_handler(const vector_t *strvec)
 	bool config_error = true;
 	char *name;
 
-	bfdc = current_checker->check_type.bfd_check;
+	bfdc = current_checker->data;
 
 	if (vector_size(strvec) >= 2)
 		name = vector_slot(strvec, 1);
@@ -224,7 +224,7 @@ bfd_end_handler(void)
 	tracking_obj_t *top;
 	cref_tracked_bfd_t *tbfd;
 
-	bfdc = current_checker->check_type.bfd_check;
+	bfdc = current_checker->data;
 
 	if (!bfdc->bfd) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) No name has been specified for BFD_CHECKER - skipping"
