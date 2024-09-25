@@ -1369,12 +1369,18 @@ vrrp_timer_expired_backup_handler(const vector_t *strvec)
 
 	if (vector_size(strvec) >= 2) {
 		if (!read_unsigned_strvec(strvec, 1, &other_priority, 1, VRRP_PRIO_OWNER - 1, false)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) timer_expired _backup highest_other_priority not valid! must be between 1 & %d", current_vrrp->iname, VRRP_PRIO_OWNER - 1);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) timer_expired_backup highest_other_priority not valid! must be between 1 & %d", current_vrrp->iname, VRRP_PRIO_OWNER - 1);
 			return;
 		}
 	}
 
 	current_vrrp->highest_other_priority = (uint8_t)other_priority;
+}
+static void
+vrrp_thread_timer_expired_handler(const vector_t *strvec)
+{
+	report_config_error(CONFIG_GENERAL_ERROR, "(%s) thread_timer_expired - please replace with keyword 'timer_expired_backup'", current_vrrp->iname);
+	vrrp_timer_expired_backup_handler(strvec);
 }
 #ifdef _HAVE_VRRP_VMAC_
 static void
@@ -2215,6 +2221,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("garp_lower_prio_repeat", &vrrp_garp_lower_prio_rep_handler);
 	install_keyword("down_timer_adverts", &vrrp_down_timer_adverts_handler);
 	install_keyword("timer_expired_backup", &vrrp_timer_expired_backup_handler);
+	install_keyword("thread_timer_expired", &vrrp_thread_timer_expired_handler);	// Added to match the release notes
 #ifdef _HAVE_VRRP_VMAC_
 	install_keyword("garp_extra_if", &vrrp_garp_extra_if_handler);
 	install_keyword("vmac_garp_intvl", &vrrp_garp_extra_if_handler);	/* Deprecated after v2.2.2 - incorrect keyword in commit 3dcd13c */
