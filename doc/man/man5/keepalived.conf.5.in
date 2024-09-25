@@ -1868,7 +1868,7 @@ The syntax for vrrp_instance is :
     # whether another instance may have taken over (based on the advert interval and
     # the highest priority of the other instances - default 254 unless specified with
     # this option), and if that time has expired since the last advert has been sent,
-    # the VRRP instance will revert to backup state (remember to include and track_script
+    # the VRRP instance will revert to backup state (remember to include any track_script
     # etc. weights when calculating the highest priority of other instances).
     \fbthread_timer_expired \fR[HIGHEST_PRIORITY_OF_OTHER_INSTANCES]
 
