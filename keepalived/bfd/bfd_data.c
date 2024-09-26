@@ -110,7 +110,7 @@ static void
 conf_write_sands(FILE *fp, const char *text, unsigned long sands)
 {
 	char time_str[26];
-	long secs;
+	time_t secs;
 
 	if (sands == TIMER_NEVER) {
 		conf_write(fp, "   %s = [disabled]", text);
