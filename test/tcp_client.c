@@ -9,6 +9,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <string.h>
+#include <fcntl.h>
 
 static void
 print_usage(FILE *fp, const char *name)
@@ -21,6 +22,7 @@ print_usage(FILE *fp, const char *name)
 	fprintf(fp, "\t-d dly\t\tdelay dly seconds after connect\n");
 	fprintf(fp, "\t-e\t\tsend stdin\n");
 	fprintf(fp, "\t-f\t\tenable tcp_fastopen\n");
+	fprintf(fp, "\t-S\t\tdon't sleep after socket close\n");
 	fprintf(fp, "\t-h\t\tprint this\n");
 }
 
@@ -58,9 +60,10 @@ int main(int argc, char **argv)
 	char *msg = malloc(msglen);
 	uint8_t *buf = malloc(msglen);
 	unsigned delay_after_connect = 0;
+	bool do_sleep = true;
+	int flags;
 
-
-	while ((opt = getopt(argc, argv, ":ha:p:sud:ef")) != -1) {
+	while ((opt = getopt(argc, argv, ":ha:p:sSud:ef")) != -1) {
 		switch (opt) {
 		case 'a':
 			addr_str = optarg;
@@ -93,6 +96,9 @@ int main(int argc, char **argv)
 			exit(0);
 		case 'f':
 			tcp_fastopen = true;
+			break;
+		case 'S':
+			do_sleep = false;
 			break;
 		case ':':
 			fprintf(stderr, "Option '%c' is missing an argument\n", optopt);
@@ -150,11 +156,24 @@ int main(int argc, char **argv)
 	}
 
 	shutdown(sock, SHUT_WR);
+
+	if ((flags = fcntl(sock, F_GETFL, 0)) < 0)
+		printf("fcntl get failed - %m\n");
+	else if (fcntl(sock, F_SETFL, flags | SOCK_NONBLOCK) < 0)
+		printf("fcntl set failed - %m\n");
+
 	len = read(sock, buf, msglen - 1);
-	printf("Final read returned %d\n", len);
+	if (len < 0)
+		printf("Final read returned errno %d - %m\n", errno);
+	else
+		printf("Final read returned %d\n", len);
+
 	shutdown(sock, SHUT_RD);
+
 	close(sock);
-	sleep(1);
+
+	if (do_sleep)
+		sleep(1);
 
 	freeaddrinfo(res);
 }
