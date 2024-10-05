@@ -281,6 +281,7 @@ print_usage(FILE *fp, const char *name)
 	fprintf(fp, "\t-v ver\t\tset HTML version to use (default 1.1)\n");
 	fprintf(fp, "\t-w url resp\tsend HTTP response for url\n");
 	fprintf(fp, "\t-W\t\tsend a pre-build HTTP response for GET /\n");
+	fprintf(fp, "\t-x url\t\tsend a pre-build HTTP response for url /\n");
 	fprintf(fp, "\t-M[server_name]\tbe an email server\n");
 	fprintf(fp, "\t-l val\t\tASCII value to use for EOL char\n");
 	fprintf(fp, "\t-d delay\tdelay in ms before replying\n");
@@ -326,8 +327,10 @@ int main(int argc, char **argv)
 	unsigned immediate_data_len;
 	char *immediate_data = NULL;
 	bool immediate_data_malloc = false;
+	char client_addr_buf[40];
+	unsigned client_port;
 
-	while ((opt = getopt(argc, argv, ":h46a:p:suPeb:c:l:d:rm:v:WM::w:ZDgGi:S"
+	while ((opt = getopt(argc, argv, ":h46a:p:suPeb:c:l:d:rm:v:WM::w:x:ZDgGi:S"
 #ifdef TCP_FASTOPEN
 					"f:"
 #endif
@@ -398,6 +401,14 @@ int main(int argc, char **argv)
 			}
 
 			new_html_cr(optarg, argv[optind++], html_version, close_after_send);
+			break;
+		case 'x':
+			if (optind >= argc + 1) {
+				fprintf(stderr, "-%c '%s' missing response\n", optind, optarg);
+				exit(EXIT_FAILURE);
+			}
+
+			new_html_cr(optarg, html_resp, html_version, close_after_send);
 			break;
 		case 'l':
 			EOL = strtoul(optarg, &endptr, 10);
@@ -538,14 +549,17 @@ int main(int argc, char **argv)
 			if (family == AF_INET) {
 				clilen = sizeof (cliaddr);
 				connfd = accept(listenfd, (struct sockaddr *)&cliaddr, &clilen);
-			}
-			else {
+				client_port = ntohs(cliaddr.sin_port);
+				inet_ntop(AF_INET, &cliaddr.sin_addr, client_addr_buf, sizeof(client_addr_buf));
+			} else {
 				clilen = sizeof (cliaddr6);
 				connfd = accept(listenfd, (struct sockaddr *)&cliaddr6, &clilen);
+				client_port = ntohs(cliaddr6.sin6_port);
+				inet_ntop(AF_INET6, &cliaddr6.sin6_addr, client_addr_buf, sizeof(client_addr_buf));
 			}
 
 			if (!silent && (!(++connection_num % connection_mod) || connection_num == 1))
-				printf("(%d) Received connection %lu\n", getpid(), connection_num);
+				printf("(%d) Received connection %lu from %s:%u\n", getpid(), connection_num, client_addr_buf, client_port);
 			if ((childpid = fork()) == 0) {
 				close(listenfd);
 
@@ -566,17 +580,21 @@ int main(int argc, char **argv)
 			if (family == AF_INET) {
 				clilen = sizeof (cliaddr);
 				n = recvfrom(listenfd, buf, sizeof(buf), 0, (struct sockaddr *)&cliaddr, &clilen);
+				client_port = ntohs(cliaddr.sin_port);
+				inet_ntop(AF_INET, &cliaddr.sin_addr, client_addr_buf, sizeof(client_addr_buf));
 				if (echo_data)
 					sendto(listenfd, buf, n, 0, (struct sockaddr *)&cliaddr, clilen);
 			}
 			else {
 				clilen = sizeof (cliaddr6);
 				n = recvfrom(listenfd, buf, sizeof(buf), 0, (struct sockaddr *)&cliaddr6, &clilen);
+				client_port = ntohs(cliaddr6.sin6_port);
+				inet_ntop(AF_INET, &cliaddr6.sin6_addr, client_addr_buf, sizeof(client_addr_buf));
 				if (echo_data)
 					sendto(listenfd, buf, n, 0, (struct sockaddr *)&cliaddr6, clilen);
 			}
 			if (!silent)
-				printf("(%d) Received %d bytes\n", getpid(),  n);
+				printf("(%d) Received %d bytes from %s:%u\n", getpid(), n, client_addr_buf, client_port);
 		}
 	} else {
 		/* SOCK_RAW => stdin/out */

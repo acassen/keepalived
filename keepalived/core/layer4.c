@@ -84,7 +84,6 @@ socket_bind_connect(int fd, conn_opts_t *co)
 {
 	int opt;
 	socklen_t optlen;
-	struct linger li;
 	socklen_t addrlen;
 	int ret;
 	const sockaddr_t *addr = &co->dst;
@@ -94,14 +93,6 @@ socket_bind_connect(int fd, conn_opts_t *co)
 	if (getsockopt(fd, SOL_SOCKET, SO_TYPE, (void *)&opt, &optlen) < 0) {
 		log_message(LOG_ERR, "Can't get socket type: %s", strerror(errno));
 		return connect_error;
-	}
-	if (opt == SOCK_STREAM) {
-		/* free the tcp port after closing the socket descriptor, but
-		 * allow time for a proper shutdown. */
-		li.l_onoff = 1;
-		li.l_linger = 5;
-		if (setsockopt(fd, SOL_SOCKET, SO_LINGER, PTR_CAST(char, &li), sizeof (struct linger)))
-			log_message(LOG_INFO, "Failed to set SO_LINGER for socket %d - errno %d (%m)", fd, errno);
 	}
 
 #ifdef _WITH_SO_MARK_

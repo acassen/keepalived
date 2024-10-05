@@ -1715,14 +1715,14 @@ The syntax for vrrp_instance is :
     }
 
     # add a tracking script to the interface
-    # (<SCRIPT_NAME> is the name of the vrrp_track_script entry)
+    # (<SCRIPT_NAME> is the name of the vrrp_script entry)
     # The same principle as track_interface can be applied to track_script entries,
     # except that an unspecified weight means that the default weight declared in
     # the script will be used (which itself defaults to 0).
     # reverse causes the direction of the adjustment of the priority to be reversed.
     \fBtrack_script \fR{
         <SCRIPT_NAME>
-        <SCRIPT_NAME> weight <-253..253> [reverse|no_reverse]
+        <SCRIPT_NAME> weight <-253..253> [reverse|noreverse]
     }
 
     # Files whose state we monitor, value is added to effective priority.
