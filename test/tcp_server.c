@@ -194,6 +194,9 @@ new_html_cr(const char *url, const char *resp, const char *html_version, bool cl
 
 	cr = new_cr(cmd, resp, close_after_send, TYPE_HTML);
 	cr->html_version = strdup(html_version);
+
+	if (!close_after_send)
+		fprintf(stderr, "Warning close after send (-Z) should be set\n");
 }
 
 static void
