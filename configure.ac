@@ -97,6 +97,7 @@ AC_PREREQ([2.63])
 AC_INIT([Keepalived], [2.3.1], [keepalived-users@groups.io], [], [http://www.keepalived.org/])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
+AC_LANG([C])
 AM_INIT_AUTOMAKE([-Wall -Werror -Woverride foreign])
 
 AC_CONFIG_SRCDIR([keepalived/core/main.c])
