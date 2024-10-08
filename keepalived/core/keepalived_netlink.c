@@ -1545,8 +1545,12 @@ netlink_request(nl_handle_t *nl,
 		req.nlh.nlmsg_flags |= NLM_F_DUMP;
 #if HAVE_DECL_RTEXT_FILTER_SKIP_STATS
 	/* The following produces a -Wstringop-overflow warning due to writing
-	 * 4 bytes into a region of size 0. This is, however, safe. */
+	 * 4 bytes into a region of size 0. This is, however, safe.
+	 * By GCC 14 the warning is -Warray-bounds=
+	 */
+RELAX_ARRAY_BOUNDS_START
 	addattr32(&req.nlh, sizeof req, IFLA_EXT_MASK, RTEXT_FILTER_SKIP_STATS);
+RELAX_ARRAY_BOUNDS_END
 #endif
 
 	status = sendto(nl->fd, (void *) &req, sizeof (req)
