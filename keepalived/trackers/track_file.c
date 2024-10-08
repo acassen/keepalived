@@ -435,36 +435,49 @@ track_file_end_handler(void)
 		}
 
 		log_message(LOG_INFO, "statfs(%s) returned errno %d (%m)", track_file->fname, errno);
-	} else if (fs_buf.f_flags & ST_RDONLY ||
-		   fs_buf.f_type == BPF_FS_MAGIC ||
-		   fs_buf.f_type == CGROUP_SUPER_MAGIC ||
-		   fs_buf.f_type == CGROUP2_SUPER_MAGIC ||
-		   fs_buf.f_type == DEBUGFS_MAGIC ||
-		   fs_buf.f_type == DEVPTS_SUPER_MAGIC ||
-		   fs_buf.f_type == EFIVARFS_MAGIC ||
-		   fs_buf.f_type == FUSE_SUPER_MAGIC ||
-		   fs_buf.f_type == MQUEUE_MAGIC ||
-		   fs_buf.f_type == NFS_SUPER_MAGIC ||
-		   fs_buf.f_type == PIPEFS_MAGIC ||
-		   fs_buf.f_type == PROC_SUPER_MAGIC ||
-		   fs_buf.f_type == ROMFS_MAGIC ||
-		   fs_buf.f_type == SELINUX_MAGIC ||
-		   fs_buf.f_type == SMB_SUPER_MAGIC ||
-		   fs_buf.f_type == SMB2_MAGIC_NUMBER ||
-		   fs_buf.f_type == SOCKFS_MAGIC ||
-		   fs_buf.f_type == SYSFS_MAGIC ||
-		   fs_buf.f_type == SYSV2_SUPER_MAGIC ||
-		   fs_buf.f_type == SYSV4_SUPER_MAGIC ||
-		   fs_buf.f_type == TRACEFS_MAGIC) {
-		/* The specified file is on a type of filesystem that inotify cannot monitor,
-		 * or the filesystem is read-only. */
-		report_config_error(CONFIG_GENERAL_ERROR,
-			       	"The filesystem of %s is read only or cannot be monitored - ignoring", track_file->file_path);
+	} else {
+		/* This is a workaround to the problem of fs_buf.f_type being unsigned int (32 bits)
+		 * on most 32 bit platforms, but signed long (64 bits) on 64 bit systems.
+		 * Without this workaround, comparison of fs_buf.f_type against, for example,
+		 * BPF_FS_MAGIC causes a signed/unsigned warning on 32 bit systems.
+		 * This also applies with EFIVARS_MAGIC, SELINUX_MAGIC and SMB2_MAGIC_NUMBER,
+		 * i.e. when bit 31 (0x80000000) is set.
+		 *
+		 * See /usr/include/asm-generic/statfs.h for more details.
+		 */
+		long long f_type = fs_buf.f_type;
 
-		FREE_CONST(track_file->fname);
-		FREE(track_file);
+		if (fs_buf.f_flags & ST_RDONLY ||
+		    f_type == BPF_FS_MAGIC ||
+		    f_type == CGROUP_SUPER_MAGIC ||
+		    f_type == CGROUP2_SUPER_MAGIC ||
+		    f_type == DEBUGFS_MAGIC ||
+		    f_type == DEVPTS_SUPER_MAGIC ||
+		    f_type == EFIVARFS_MAGIC ||
+		    f_type == FUSE_SUPER_MAGIC ||
+		    f_type == MQUEUE_MAGIC ||
+		    f_type == NFS_SUPER_MAGIC ||
+		    f_type == PIPEFS_MAGIC ||
+		    f_type == PROC_SUPER_MAGIC ||
+		    f_type == ROMFS_MAGIC ||
+		    f_type == SELINUX_MAGIC ||
+		    f_type == SMB_SUPER_MAGIC ||
+		    f_type == SMB2_MAGIC_NUMBER ||
+		    f_type == SOCKFS_MAGIC ||
+		    f_type == SYSFS_MAGIC ||
+		    f_type == SYSV2_SUPER_MAGIC ||
+		    f_type == SYSV4_SUPER_MAGIC ||
+		    f_type == TRACEFS_MAGIC) {
+			/* The specified file is on a type of filesystem that inotify cannot monitor,
+			 * or the filesystem is read-only. */
+			report_config_error(CONFIG_GENERAL_ERROR,
+					"The filesystem of %s is read only or cannot be monitored - ignoring", track_file->file_path);
 
-		return;
+			FREE_CONST(track_file->fname);
+			FREE(track_file);
+
+			return;
+		}
 	}
 
 	if (track_file_init != TRACK_FILE_NO_INIT) {
