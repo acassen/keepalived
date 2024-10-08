@@ -117,9 +117,6 @@
 #ifndef TRACEFS_MAGIC
 #define	TRACEFS_MAGIC 0x74726163
 #endif
-#ifndef XENFS_SUPER_MAGIC
-#define	XENFS_SUPER_MAGIC 0xabba1974
-#endif
 
 
 /* Used for initialising track files */
