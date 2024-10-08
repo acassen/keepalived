@@ -169,7 +169,7 @@ enum slot_type {
 	ALLOCATED,
 } ;
 
-#define TIME_STR_LEN	9
+#define TIME_STR_LEN	16	/* "00:00:00.000000 " */
 
 #if ULONG_MAX == 0xffffffffffffffffUL
 #define CHECK_VAL	0xa5a55a5aa5a55a5aUL
@@ -213,8 +213,10 @@ static const char *
 format_time(void)
 {
 	static char time_buf[TIME_STR_LEN+1];
+	size_t len;
 
-	strftime(time_buf, sizeof time_buf, "%T ", localtime(&time_now.tv_sec));
+	len = strftime(time_buf, sizeof time_buf, "%T", localtime(&time_now.tv_sec));
+	snprintf(time_buf + len, sizeof(time_buf) - len, ".%6.6" PRI_tv_usec " ", time_now.tv_usec);
 
 	return time_buf;
 }
