@@ -350,7 +350,7 @@ thread_set_timer(thread_master_t *m)
 
 #ifdef _EPOLL_DEBUG_
 	if (do_epoll_debug)
-		log_message(LOG_INFO, "Setting timer_fd %ld.%9.9ld", its.it_value.tv_sec, its.it_value.tv_nsec);
+		log_message(LOG_INFO, "Setting timer_fd %" PRI_ts_sec ".%9.9" PRI_ts_nsec, its.it_value.tv_sec, its.it_value.tv_nsec);
 #endif
 
 	return timer_wait_time;
@@ -830,10 +830,10 @@ timer_delay(timeval_t sands)
 
 	if (timercmp(&sands, &time_now, >=)) {
 		sands = timer_sub_now(sands);
-		snprintf(str, sizeof str, "%ld.%6.6ld", sands.tv_sec, sands.tv_usec);
+		snprintf(str, sizeof str, "%" PRI_tv_sec ".%6.6" PRI_tv_usec, sands.tv_sec, sands.tv_usec);
 	} else {
 		timersub(&time_now, &sands, &sands);
-		snprintf(str, sizeof str, "-%ld.%6.6ld", sands.tv_sec, sands.tv_usec);
+		snprintf(str, sizeof str, "-%" PRI_tv_sec ".%6.6" PRI_tv_usec, sands.tv_sec, sands.tv_usec);
 	}
 
 	return str;

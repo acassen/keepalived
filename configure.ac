@@ -656,6 +656,61 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   ])
 CFLAGS=$SAV_CFLAGS
 
+dnl -- printing time types (32 bit Ubuntu uses long long int for time_t timeval tv_sec/tv_usec and timespec tv_sec - but timespec tv_nsec is long int!)
+dnl -- normally all the fields are long int
+AC_MSG_CHECKING([time print types])
+AH_TEMPLATE([PRI_time_t], [Define for print format for time_t])
+AH_TEMPLATE([PRI_tv_sec], [Define for print format for struct timeval tv_sec])
+AH_TEMPLATE([PRI_tv_usec], [Define for print format for struct timeval tv_usec])
+AH_TEMPLATE([PRI_ts_sec], [Define for print format for struct timespec tv_sec])
+AH_TEMPLATE([PRI_ts_nsec], [Define for print format for struct timespec tv_nsec])
+SAV_CFLAGS=$CFLAGS
+CFLAGS="$CFLAGS -Wformat -Wformat-signedness"
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+  int main(void)
+  {
+  }
+  ]])],
+  [
+    signs="d u"
+    WARN_SIGN="-Werror=format-signedness"
+  ],
+  [
+    signs="d"
+    WARN_SIGN=""
+  ])
+CFLAGS="$CFLAGS -Werror=format $WARN_SIGN"
+for field in t tv.tv_sec tv.tv_usec ts.tv_sec ts.tv_nsec; do
+  for sign in $signs; do
+    for len in "" l ll; do
+      AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+	#include <time.h>
+	#include <sys/time.h>
+	#include <stdio.h>
+
+	int main(void)
+	{
+	  time_t t = 1;
+	  struct timeval tv = { .tv_sec = 2 };
+	  struct timespec ts = { .tv_sec = 3 };
+
+	  printf("%$len$sign", $field);
+	}
+	]])],
+	[
+	  if [[ $field = t ]]; then
+	    name=time_t
+	  else
+	    name=$(<<<$field $SED -e "s/\.tv//")
+	  fi
+	  AC_DEFINE_UNQUOTED([PRI_$name], [ "$len$sign" ])
+	], [])
+    done
+  done
+done
+CFLAGS=$SAV_CFLAGS
+AC_MSG_RESULT([done])
+
 dnl -- Check for diagnostic pragmas in functions - GCC 4.6.0
 AC_MSG_CHECKING([diagnostic pragmas in functions])
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[

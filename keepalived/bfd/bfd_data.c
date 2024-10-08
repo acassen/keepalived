@@ -120,7 +120,7 @@ conf_write_sands(FILE *fp, const char *text, unsigned long sands)
 	secs = sands / TIMER_HZ;
 	if (!ctime_r(&secs, time_str))
 		strcpy(time_str, "invalid time ");
-	conf_write(fp, "   %s = %ld.%6.6lu (%.19s.%6.6lu)", text, secs, sands % TIMER_HZ, time_str, sands % TIMER_HZ);
+	conf_write(fp, "   %s = %" PRI_time_t ".%6.6lu (%.19s.%6.6lu)", text, secs, sands % TIMER_HZ, time_str, sands % TIMER_HZ);
 }
 
 /* Dump BFD instance configuration parameters */
@@ -186,7 +186,7 @@ dump_bfd(FILE *fp, const bfd_t *bfd)
 			conf_write(fp, "   last_seen = [never]");
 		else {
 			ctime_r(&bfd->last_seen.tv_sec, time_str);
-			conf_write(fp, "   last seen = %ld.%6.6ld (%.24s.%6.6ld)", bfd->last_seen.tv_sec, bfd->last_seen.tv_usec, time_str, bfd->last_seen.tv_usec);
+			conf_write(fp, "   last seen = %" PRI_tv_sec ".%6.6" PRI_tv_usec " (%.24s.%6.6" PRI_tv_usec ")", bfd->last_seen.tv_sec, bfd->last_seen.tv_usec, time_str, bfd->last_seen.tv_usec);
 		}
 	}
 }

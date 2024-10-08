@@ -196,7 +196,7 @@ free_url(url_t *url)
 
 #ifdef _WITH_REGEX_TIMERS_
 				if (do_regex_timers)
-					log_message(LOG_INFO, "Total regex time %ld.%9.9ld, num match calls %u, num url checks %u", total_regex_times.tv_sec, total_regex_times.tv_nsec, total_num_matches, total_regex_urls);
+					log_message(LOG_INFO, "Total regex time %" PRI_ts_sec ".%9.9" PRI_ts_nsec ", num match calls %u, num url checks %u", total_regex_times.tv_sec, total_regex_times.tv_nsec, total_num_matches, total_regex_urls);
 #endif
 			}
 		}

@@ -145,9 +145,9 @@ dump_vrrp_fd(void)
 			else {
 				timersub(&vrrp->sands, &time_now, &time_diff);
 				if (time_diff.tv_sec >= 0)
-					log_message(LOG_INFO, "    %s: sands %ld.%6.6ld", vrrp->iname, time_diff.tv_sec, time_diff.tv_usec);
+					log_message(LOG_INFO, "    %s: sands %" PRI_tv_sec ".%6.6" PRI_tv_usec, vrrp->iname, time_diff.tv_sec, time_diff.tv_usec);
 				else
-					log_message(LOG_INFO, "    %s: sands -%ld.%6.6ld", vrrp->iname, -time_diff.tv_sec - (time_diff.tv_usec ? 1 : 0), time_diff.tv_usec ? 1000000 - time_diff.tv_usec : 0);
+					log_message(LOG_INFO, "    %s: sands -%" PRI_tv_sec ".%6.6" PRI_tv_usec, vrrp->iname, -time_diff.tv_sec - (time_diff.tv_usec ? 1 : 0), time_diff.tv_usec ? 1000000 - time_diff.tv_usec : 0);
 			}
 		}
 

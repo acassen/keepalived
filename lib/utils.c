@@ -1018,7 +1018,7 @@ ctime_us_r(const timeval_t *timep, char *buf)
 
 	localtime_r(&timep->tv_sec, &tm);
 	asctime_r(&tm, buf);
-	snprintf(buf + 19, 8, ".%6.6ld", timep->tv_usec);
+	snprintf(buf + 19, 8, ".%6.6" PRI_tv_usec, timep->tv_usec);
 	strftime(buf + 26, 6, " %Y", &tm);
 
 	return buf;
@@ -1389,11 +1389,12 @@ log_stopping(void)
 		getrusage(RUSAGE_CHILDREN, &child_usage);
 
 		if (child_usage.ru_utime.tv_sec || child_usage.ru_utime.tv_usec)
-			log_message(LOG_INFO, "Stopped - used (self/children) %ld.%6.6ld/%ld.%6.6ld user time, %ld.%6.6ld/%ld.%6.6ld system time",
+			log_message(LOG_INFO, "Stopped - used (self/children) %" PRI_tv_sec ".%6.6" PRI_tv_usec "/%" PRI_tv_sec ".%6.6" PRI_tv_usec " user time,"
+				        " %" PRI_tv_sec ".%6.6" PRI_tv_usec "/%" PRI_tv_sec ".%6.6" PRI_tv_usec " system time",
 					usage.ru_utime.tv_sec, usage.ru_utime.tv_usec, child_usage.ru_utime.tv_sec, child_usage.ru_utime.tv_usec,
 					usage.ru_stime.tv_sec, usage.ru_stime.tv_usec, child_usage.ru_stime.tv_sec, child_usage.ru_stime.tv_usec);
 		else
-			log_message(LOG_INFO, "Stopped - used %ld.%6.6ld user time, %ld.%6.6ld system time",
+			log_message(LOG_INFO, "Stopped - used %" PRI_tv_sec ".%6.6" PRI_tv_usec " user time, %" PRI_tv_sec ".%6.6" PRI_tv_usec " system time",
 					usage.ru_utime.tv_sec, usage.ru_utime.tv_usec, usage.ru_stime.tv_sec, usage.ru_stime.tv_usec);
 	} else
 		log_message(LOG_INFO, "Stopped");

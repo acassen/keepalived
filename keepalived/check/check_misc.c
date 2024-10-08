@@ -76,7 +76,7 @@ dump_misc_check(FILE *fp, const checker_t *checker)
 	conf_write(fp, "   dynamic = %s", misck_checker->dynamic ? "YES" : "NO");
 	conf_write(fp, "   uid:gid = %u:%u", misck_checker->script.uid, misck_checker->script.gid);
 	ctime_r(&misck_checker->last_ran.tv_sec, time_str);
-	conf_write(fp, "   Last ran = %ld.%6.6ld (%.24s.%6.6ld)", misck_checker->last_ran.tv_sec, misck_checker->last_ran.tv_usec, time_str, misck_checker->last_ran.tv_usec);
+	conf_write(fp, "   Last ran = %" PRI_tv_sec ".%6.6" PRI_tv_usec " (%.24s.%6.6" PRI_tv_usec ")", misck_checker->last_ran.tv_sec, misck_checker->last_ran.tv_usec, time_str, misck_checker->last_ran.tv_usec);
 	conf_write(fp, "   Last status = %u", misck_checker->last_exit_code);
 }
 
