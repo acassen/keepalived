@@ -425,6 +425,15 @@ ENABLE_LOG_FILE_APPEND=No
 
 # AC_PROG_LIBTOOL
 
+# Ensure we don't override FORTIFY_SOURCE
+ADD_FORTIFY_SOURCE=1
+grep -q -- "-D *_FORTIFY_SOURCE=" <<<$CPPFLAGS
+AS_IF([test $? -eq 0],
+  [
+    FORTIFY_SOURCE=$(<<<$CPPFLAGS $SED -e "s/.*-D *_FORTIFY_SOURCE=//" -e "s/ .*//")
+    ADD_FORTIFY_SOURCE=0
+  ],[FORTIFY_SOURCE=2])
+
 #
 # save the configure arguments
 #
@@ -761,7 +770,8 @@ if test "$enable_conversion_checks" = yes; then
   # Check if we can sensibly enable -Wconversion
   AC_MSG_CHECKING([for usable -Wconversion])
   SAV_CFLAGS="$CFLAGS"
-  CFLAGS="$CFLAGS -Wconversion -O2 -Wp,-D_FORTIFY_SOURCE=2 -Werror"
+  CFLAGS="$CFLAGS -Wconversion -O2 -Werror"
+  AS_IF([test $ADD_FORTIFY_SOURCE -eq 1], [CFLAGS="$CFLAGS -Wp,-D_FORTIFY_SOURCE=$FORTIFY_SOURCE"])
   AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
     #include <sys/types.h>
     #include <sys/select.h>
@@ -995,7 +1005,7 @@ if test "$enable_hardening" != no; then
 
   for FLAG in \
 	  "-Wformat -Werror=format-security" \
-	  "-Wp,-D_FORTIFY_SOURCE=2" \
+	  "-Wp,-D_FORTIFY_SOURCE=$FORTIFY_SOURCE" \
 	  "-fexceptions" \
 	  "-fstack-protector-strong" \
 	  "--param=ssp-buffer-size=4" \
