@@ -5144,10 +5144,30 @@ void
 clear_diff_script(void)
 {
 	vrrp_script_t *vscript, *nvscript;
+	bool different;
+	int i;
 
 	list_for_each_entry(vscript, &old_vrrp_data->vrrp_script, e_list) {
 		nvscript = find_script_by_name(vscript->sname);
 		if (nvscript) {
+			/* Check if the scripts are the same */
+			if (vscript->script.num_args != nvscript->script.num_args ||
+			    vscript->script.uid != nvscript->script.uid ||
+			    vscript->script.gid != nvscript->script.gid ||
+			    !vscript->script.path != !nvscript->script.path ||
+			    (vscript->script.path &&
+			     strcmp(vscript->script.path, nvscript->script.path)))
+				continue;
+			for (i = 0, different = false; i < vscript->script.num_args; i++) {
+				if (strcmp(vscript->script.args[i], nvscript->script.args[i])) {
+					different = true;
+					break;
+				}
+			}
+
+			if (different)
+				continue;
+
 			if (vscript->init_state == SCRIPT_INIT_STATE_INIT) {
 				/* We need to undo the startup assumptions and apply new startup assumptions */
 				nvscript->init_state = SCRIPT_INIT_STATE_INIT;

@@ -121,7 +121,7 @@ report_and_clear_netlink_timers(const char * str)
 	log_message(LOG_INFO, "Netlink timers - %s", str);
 	for (i = 0; i <= MAX_NETLINK_TIMER; i++) {
 		if (netlink_count[i]) {
-			log_message(LOG_INFO, "  netlink cmd %d (%u calls), time %ld.%6.6ld", i, netlink_count[i], netlink_times[i].tv_sec, netlink_times[i].tv_usec);
+			log_message(LOG_INFO, "  netlink cmd %d (%u calls), time %" PRI_tv_sec ".%6.6" PRI_tv_usec, i, netlink_count[i], netlink_times[i].tv_sec, netlink_times[i].tv_usec);
 			netlink_times[i].tv_sec = netlink_times[i].tv_usec = netlink_count[i] = 0;
 		}
 	}
@@ -680,20 +680,21 @@ netlink_close(nl_handle_t *nl)
 int GCC_LTO_NOINLINE
 addattr_l(struct nlmsghdr *n, size_t maxlen, unsigned short type, const void *data, size_t alen)
 {
-	size_t len = RTA_LENGTH(alen);
-	size_t align_len = NLMSG_ALIGN(len);
+	unsigned short len = RTA_LENGTH(alen);
+	uint32_t align_len = RTA_SPACE(alen);
 	struct rtattr *rta;
 
-	if (n->nlmsg_len + align_len > maxlen)
+	if (NLMSG_ALIGN(n->nlmsg_len) + align_len > maxlen)
 		return -1;
 
-	rta = PTR_CAST(struct rtattr, (((char *)n) + n->nlmsg_len));
+	rta = PTR_CAST(struct rtattr, NLMSG_TAIL(n));
 	rta->rta_type = type;
-	rta->rta_len = (unsigned short)len;
+	rta->rta_len = len;
 RELAX_STRINGOP_OVERFLOW
-	memcpy(RTA_DATA(rta), data, alen);
+	if (alen)
+		memcpy(RTA_DATA(rta), data, alen);
 RELAX_STRINGOP_OVERFLOW_END
-	n->nlmsg_len += (uint32_t)align_len;
+	n->nlmsg_len = NLMSG_ALIGN(n->nlmsg_len) + align_len;
 
 	return 0;
 }
@@ -702,19 +703,21 @@ RELAX_STRINGOP_OVERFLOW_END
 int
 addattr_l2(struct nlmsghdr *n, size_t maxlen, unsigned short type, const void *data, size_t alen, const void *data2, size_t alen2)
 {
-	size_t len = RTA_LENGTH(alen + alen2);
-	size_t align_len = NLMSG_ALIGN(len);
+	unsigned short len = RTA_LENGTH(alen);
+	uint32_t align_len = RTA_SPACE(alen + alen2);
 	struct rtattr *rta;
 
-	if (n->nlmsg_len + align_len > maxlen)
+	if (NLMSG_ALIGN(n->nlmsg_len) + align_len > maxlen)
 		return -1;
 
-	rta = PTR_CAST(struct rtattr, (((char *)n) + n->nlmsg_len));
+	rta = PTR_CAST(struct rtattr, NLMSG_TAIL(n));
 	rta->rta_type = type;
-	rta->rta_len = (unsigned short)len;
-	memcpy(RTA_DATA(rta), data, alen);
-	memcpy((char *)RTA_DATA(rta) + alen, data2, alen2);
-	n->nlmsg_len += (uint32_t)align_len;
+	rta->rta_len = len;
+	if (alen)
+		memcpy(RTA_DATA(rta), data, alen);
+	if (alen2)
+		memcpy((char *)RTA_DATA(rta) + alen, data2, alen2);
+	n->nlmsg_len = NLMSG_ALIGN(n->nlmsg_len) + align_len;
 
 	return 0;
 }
@@ -722,15 +725,15 @@ addattr_l2(struct nlmsghdr *n, size_t maxlen, unsigned short type, const void *d
 int
 addraw_l(struct nlmsghdr *n, size_t maxlen, const void *data, size_t len)
 {
-	size_t align_len = NLMSG_ALIGN(len);
+	uint32_t align_len = NLMSG_ALIGN(len);
 
-	if (n->nlmsg_len + align_len > maxlen)
+	if (NLMSG_ALIGN(n->nlmsg_len) + align_len > maxlen)
 		return -1;
 
 	memcpy(NLMSG_TAIL(n), data, len);
 	if (align_len > len)
 		memset(PTR_CAST(char, NLMSG_TAIL(n)) + len, 0, align_len - len);
-	n->nlmsg_len += (uint32_t)align_len;
+	n->nlmsg_len = NLMSG_ALIGN(n->nlmsg_len) + align_len;
 	return 0;
 }
 
@@ -739,17 +742,18 @@ rta_addattr_l(struct rtattr *rta, size_t maxlen, unsigned short type,
 		  const void *data, size_t alen)
 {
 	struct rtattr *subrta;
-	size_t len = RTA_LENGTH(alen);
-	size_t align_len = RTA_ALIGN(len);
+	unsigned short len = RTA_LENGTH(alen);
+	unsigned short align_len = RTA_SPACE(alen);
 
-	if (rta->rta_len + align_len > maxlen)
+	if (RTA_ALIGN(rta->rta_len) + align_len > maxlen)
 		return 0;
 
-	subrta = PTR_CAST(struct rtattr, (char *)rta + rta->rta_len);
+	subrta = PTR_CAST(struct rtattr, (char *)rta + RTA_ALIGN(rta->rta_len));
 	subrta->rta_type = type;
-	subrta->rta_len = (unsigned short)len;
-	memcpy(RTA_DATA(subrta), data, alen);
-	rta->rta_len = (unsigned short)(rta->rta_len + align_len);
+	subrta->rta_len = len;
+	if (alen)
+		memcpy(RTA_DATA(subrta), data, alen);
+	rta->rta_len = RTA_ALIGN(rta->rta_len) + align_len;
 	return align_len;
 }
 
@@ -759,18 +763,20 @@ rta_addattr_l2(struct rtattr *rta, size_t maxlen, unsigned short type,
 		  const void *data2, size_t alen2)
 {
 	struct rtattr *subrta;
-	size_t len = RTA_LENGTH(alen + alen2);
-	size_t align_len = RTA_ALIGN(len);
+	unsigned short len = RTA_LENGTH(alen + alen2);
+	unsigned short align_len = RTA_ALIGN(len);
 
-	if (rta->rta_len + align_len > maxlen)
+	if (RTA_ALIGN(rta->rta_len) + align_len > maxlen)
 		return 0;
 
-	subrta = PTR_CAST(struct rtattr, (((char*)rta) + rta->rta_len));
+	subrta = PTR_CAST(struct rtattr, (char*)rta + RTA_ALIGN(rta->rta_len));
 	subrta->rta_type = type;
-	subrta->rta_len = (unsigned short)len;
-	memcpy(RTA_DATA(subrta), data, alen);
-	memcpy((char *)RTA_DATA(subrta) + alen, data2, alen2);
-	rta->rta_len = (unsigned short)(rta->rta_len + align_len);
+	subrta->rta_len = len;
+	if (alen)
+		memcpy(RTA_DATA(subrta), data, alen);
+	if (alen2)
+		memcpy((char *)RTA_DATA(subrta) + alen, data2, alen2);
+	rta->rta_len = RTA_ALIGN(rta->rta_len) + align_len;
 	return align_len;
 }
 
@@ -1545,8 +1551,12 @@ netlink_request(nl_handle_t *nl,
 		req.nlh.nlmsg_flags |= NLM_F_DUMP;
 #if HAVE_DECL_RTEXT_FILTER_SKIP_STATS
 	/* The following produces a -Wstringop-overflow warning due to writing
-	 * 4 bytes into a region of size 0. This is, however, safe. */
+	 * 4 bytes into a region of size 0. This is, however, safe.
+	 * By GCC 14 the warning is -Warray-bounds=
+	 */
+RELAX_ARRAY_BOUNDS_START
 	addattr32(&req.nlh, sizeof req, IFLA_EXT_MASK, RTEXT_FILTER_SKIP_STATS);
+RELAX_ARRAY_BOUNDS_END
 #endif
 
 	status = sendto(nl->fd, (void *) &req, sizeof (req)

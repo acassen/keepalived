@@ -1326,9 +1326,15 @@ The syntax for bfd instance is :
     # Default tracking weight
     # Normally, positive weights are added to the vrrp instance priority when
     # the bfd instance is up, negative weights reduce the priority when it is down.
-    # However, if reverse is specified, the priority is decreased when up and
-    # increased when down. 'weight 0 reverse' will cause the vrrp instance to be down
-    # when the bfd instance is up, and vice versa.
+    # However, if reverse is specified, a positive weight decreases the priority the
+    # script is up, and a negative weight increases the priority when the script is
+    # 'weight 0 reverse' will cause the vrrp instance to be down when the bfd
+    # instance is up, and vice versa.
+    # Weight  Reverse  Script up   Script down
+    #  +ve      No	prio +		-
+    #  -ve	No	   -	     prio -
+    #  +ve      Yes	prio -		-
+    #  -ve	Yes	   -	     prio +
     \fBweight\fR <-253:253> [reverse]
 
     # Normally bfd event notifications are sent to both the VRRP and checker processes.
@@ -1373,11 +1379,11 @@ The syntax for the vrrp script is:
     # path of the script to execute
     \fBscript \fR<STRING>|<QUOTED-STRING>
 
-    # seconds between script invocations, (default: 1 second)
-    \fBinterval \fR<INTEGER>
+    # seconds between script invocations, (default: 1 second, resolution milliseconds)
+    \fBinterval \fR<DECIMAL>
 
-    # seconds after which script is considered to have failed
-    \fBtimeout \fR<INTEGER>
+    # seconds after which script is considered to have failed (default = interval, resolution milliseconds)
+    \fBtimeout \fR<DECIMAL>
 
     # adjust priority by this weight, (default: 0)
     # For description of reverse, see track_script.

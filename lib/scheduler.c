@@ -350,7 +350,7 @@ thread_set_timer(thread_master_t *m)
 
 #ifdef _EPOLL_DEBUG_
 	if (do_epoll_debug)
-		log_message(LOG_INFO, "Setting timer_fd %ld.%9.9ld", its.it_value.tv_sec, its.it_value.tv_nsec);
+		log_message(LOG_INFO, "Setting timer_fd %" PRI_ts_sec ".%9.9" PRI_ts_nsec, its.it_value.tv_sec, its.it_value.tv_nsec);
 #endif
 
 	return timer_wait_time;
@@ -830,10 +830,10 @@ timer_delay(timeval_t sands)
 
 	if (timercmp(&sands, &time_now, >=)) {
 		sands = timer_sub_now(sands);
-		snprintf(str, sizeof str, "%ld.%6.6ld", sands.tv_sec, sands.tv_usec);
+		snprintf(str, sizeof str, "%" PRI_tv_sec ".%6.6" PRI_tv_usec, sands.tv_sec, sands.tv_usec);
 	} else {
 		timersub(&time_now, &sands, &sands);
-		snprintf(str, sizeof str, "-%ld.%6.6ld", sands.tv_sec, sands.tv_usec);
+		snprintf(str, sizeof str, "-%" PRI_tv_sec ".%6.6" PRI_tv_usec, sands.tv_sec, sands.tv_usec);
 	}
 
 	return str;
@@ -944,7 +944,7 @@ thread_add_unuse(thread_master_t *m, thread_t *thread)
 
 /* Move list element to unuse queue */
 static void
-thread_destroy_list(thread_master_t *m, list_head_t *l)
+thread_destroy_list(thread_master_t *m, list_head_t *l, bool keep_children)
 {
 	thread_t *thread, *thread_tmp;
 
@@ -969,7 +969,8 @@ thread_destroy_list(thread_master_t *m, list_head_t *l)
 			/* Do we need to free arg? */
 			if (thread->u.f.flags & THREAD_DESTROY_FREE_ARG)
 				FREE(thread->arg);
-		}
+		} else if (thread->type == THREAD_CHILD_TIMEOUT && keep_children)
+			rb_erase(&thread->rb_data, &m->child_pid);
 
 		list_del_init(&thread->e_list);
 		thread_add_unuse(m, thread);
@@ -982,6 +983,11 @@ thread_destroy_rb(thread_master_t *m, rb_root_cached_t *root)
 	thread_t *thread;
 	thread_t *thread_sav;
 
+	/* We use rbtree_postorder_for_each_entry_safe() so that we
+	 * can simply invalidate the thread structures as they are
+	 * removed, and not have to call rb_erase() for each entry,
+	 * possibly causing a tree rebalance each time.
+	 */
 	rbtree_postorder_for_each_entry_safe(thread, thread_sav, &root->rb_root, n) {
 		/* The following are relevant for the read and write rb lists */
 		if (thread->type == THREAD_READ ||
@@ -1018,11 +1024,15 @@ thread_cleanup_master(thread_master_t * m, bool keep_children)
 	thread_destroy_rb(m, &m->timer);
 	if (!keep_children)
 		thread_destroy_rb(m, &m->child);
-	thread_destroy_list(m, &m->event);
+	thread_destroy_list(m, &m->event, false);
 #ifdef USE_SIGNAL_THREADS
-	thread_destroy_list(m, &m->signal);
+	thread_destroy_list(m, &m->signal, false);
 #endif
-	thread_destroy_list(m, &m->ready);
+	thread_destroy_list(m, &m->ready, keep_children);
+
+	/* This is an optimisation to avoid having to call
+	 * rb_erase() for each thread that is removed from
+	 * the master->child_pid RB tree. */
 	if (!keep_children)
 		m->child_pid = RB_ROOT;
 
@@ -1411,7 +1421,32 @@ thread_add_timer_shutdown(thread_master_t *m, thread_func_t func, void *arg, uns
 	return thread.cp;
 }
 
-/* Add a child thread. */
+/* Add a child thread.
+ *
+ * NOTE:
+ * A child thread is added with thread type THREAD_CHILD, and the thread is on the
+ *   master->child and master->child_pid RB trees.
+ * After a child terminates, the thread type is changed to THREAD_CHILD_TERMINATED
+ *   and it is removed from both RB trees, and added to the READY list.
+ * If a child times out, the thread type is changed to THREAD_CHILD_TIMEOUT, it
+ *   is removed from the master->child RB tree, and added to the READY list.
+ *   It is LEFT ON the master->child_pid RB tree, in case it subsequently terminates,
+ *   when the thread type is changed from THREAD_CHILD_TIMEOUT to THREAD_CHILD_TERMINATED.
+ *   When the thread type is changed, the thread must be removed from the
+ *     master->child_pid RB tree.
+ * Further, if a thread of type THREAD_CHILD or THREAD_CHILD_TIMEOUT is removed from
+ *   a queue, e.g. in thread_cancel() or thread_destroy_list(), it MUST be removed
+ *   from the master->child_pid RB tree.
+ *
+ * If thread_destroy_list() is called and some child threads are being kept (i.e. at a
+ *   reload), then any child threads on the ready list that are still on the child_pid
+ *   RB tree (i.e. thread type THREAD_CHILD_TIMEOUT), the threads must be explicitly
+ *   removed from the child_pid RB tree.
+ *
+ * Failure to remove the thread from the master->child_pid RB tree can cause segfaults
+ *   to occur, and these are difficult to track down since the error occurred some
+ *   time before the segfault.
+ */
 thread_ref_t
 thread_add_child(thread_master_t * m, thread_func_t func, void * arg, pid_t pid, unsigned long timer)
 {
@@ -1453,6 +1488,7 @@ thread_children_reschedule(thread_master_t *m, thread_func_t func, unsigned long
 	rb_for_each_entry_cached(thread, &m->child, n) {
 		thread->func = func;
 		thread->sands = timer_add_long(time_now, timer);
+		thread->arg = NULL;		// The object being referenced will have been freed
 	}
 }
 
@@ -1588,14 +1624,16 @@ thread_cancel(thread_ref_t thread_cp)
 			thread_event_del(thread, THREAD_FL_EPOLL_WRITE_BIT);
 		list_del_init(&thread->e_list);
 		break;
+	case THREAD_CHILD_TIMEOUT:
+		rb_erase(&thread->rb_data, &master->child_pid);
+		/* FALLTHROUGH */
+	case THREAD_CHILD_TERMINATED:
 	case THREAD_EVENT:
 	case THREAD_READY:
 	case THREAD_READY_TIMER:
 #ifdef USE_SIGNAL_THREADS
 	case THREAD_SIGNAL:
 #endif
-	case THREAD_CHILD_TIMEOUT:
-	case THREAD_CHILD_TERMINATED:
 		list_del_init(&thread->e_list);
 		break;
 	case THREAD_TIMER_SHUTDOWN:
@@ -2079,7 +2117,7 @@ process_threads(thread_master_t *m)
 		thread_type = thread->type;
 
 		if (thread->type == THREAD_CHILD_TIMEOUT) {
-			/* We remove the thread from the child_pid queue here so that
+			/* We remove the thread from the child_pid RB tree here so that
 			 * if the termination arrives before we processed the timeout
 			 * we can still handle the termination. */
 			rb_erase(&thread->rb_data, &master->child_pid);
@@ -2172,6 +2210,7 @@ process_child_termination(pid_t pid, int status)
 		 * and it is still on the thread->ready queue. Since we have now got
 		 * the termination, just handle the termination instead. */
 		thread->type = THREAD_CHILD_TERMINATED;
+		rb_erase(&thread->rb_data, &master->child_pid);
 	}
 	else
 		thread_move_ready(m, &m->child, thread, THREAD_CHILD_TERMINATED);

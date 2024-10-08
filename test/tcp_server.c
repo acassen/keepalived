@@ -103,14 +103,14 @@ find_resp(int in_fd, int out_fd, const char *cmd)
 		if (!e)
 			e = s + strlen(s);
 		len = e - s;
-printf("(%d) Looking at %p, len 0x%x (%d)\n", getpid(), s, len, len);
+// printf("(%d) Looking at %p, len 0x%x (%d)\n", getpid(), s, len, len);
 
 		if (debug)
 			printf("(%d) Looking at '%.*s'\n", getpid(), (int)len, s);
 
 		resp = s;
 		for (p = cmd_resp_list; p; p = p->next) {
-printf("(%d) Comparing '%s' len %zu\n", getpid(), p->cmd, strlen(p->cmd));
+// printf("(%d) Comparing '%s' len %zu\n", getpid(), p->cmd, strlen(p->cmd));
 			if (len == strlen(p->cmd) &&
 			    !strncmp(p->cmd, s, len)) {
 				if (debug)
@@ -194,6 +194,9 @@ new_html_cr(const char *url, const char *resp, const char *html_version, bool cl
 
 	cr = new_cr(cmd, resp, close_after_send, TYPE_HTML);
 	cr->html_version = strdup(html_version);
+
+	if (!close_after_send)
+		fprintf(stderr, "Warning close after send (-Z) should be set\n");
 }
 
 static void
@@ -284,6 +287,7 @@ print_usage(FILE *fp, const char *name)
 	fprintf(fp, "\t-x url\t\tsend a pre-build HTTP response for url /\n");
 	fprintf(fp, "\t-M[server_name]\tbe an email server\n");
 	fprintf(fp, "\t-l val\t\tASCII value to use for EOL char\n");
+	fprintf(fp, "\t-L val\t\tSO_LINGER timeout (default none)\n");
 	fprintf(fp, "\t-d delay\tdelay in ms before replying\n");
 	fprintf(fp, "\t-r\t\tuse random delay\n");
 	fprintf(fp, "\t-m mod\t\tOnly report every mod'th connection\n");
@@ -329,8 +333,9 @@ int main(int argc, char **argv)
 	bool immediate_data_malloc = false;
 	char client_addr_buf[40];
 	unsigned client_port;
+	unsigned linger_timeout = 0;
 
-	while ((opt = getopt(argc, argv, ":h46a:p:suPeb:c:l:d:rm:v:WM::w:x:ZDgGi:S"
+	while ((opt = getopt(argc, argv, ":h46a:p:suPeb:c:l:L:d:rm:v:WM::w:x:ZDgGi:S"
 #ifdef TCP_FASTOPEN
 					"f:"
 #endif
@@ -413,6 +418,9 @@ int main(int argc, char **argv)
 		case 'l':
 			EOL = strtoul(optarg, &endptr, 10);
 			break;
+		case 'L':
+			linger_timeout = strtoul(optarg, &endptr, 10);
+			break;
 		case 'd':
 			rep_delay.tv_nsec = strtoul(optarg, &endptr, 10);
 			rep_delay.tv_sec = rep_delay.tv_nsec / 1000;
@@ -494,13 +502,16 @@ int main(int argc, char **argv)
 			exit(1);
 		}
 
-		struct linger li = { .l_onoff = 1, .l_linger = 1 };
-		if (setsockopt(listenfd, SOL_SOCKET, SO_LINGER, (char *)&li, sizeof (struct linger))) {
-			printf("(%d) Set SO_LINGER failed, errno %d (%m)\n", getpid(),  errno);
-			exit(1);
+		if (linger_timeout) {
+			struct linger li = { .l_onoff = 1, .l_linger = linger_timeout };
+			if (setsockopt(listenfd, SOL_SOCKET, SO_LINGER, (char *)&li, sizeof (struct linger))) {
+				printf("(%d) Set SO_LINGER failed, errno %d (%m)\n", getpid(),  errno);
+				exit(1);
+			}
 		}
 
-		if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &li.l_onoff, sizeof (li.l_onoff))) {
+		int reuse = 1;
+		if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof (reuse))) {
 			printf("(%d) Set SO_REUSEADDR failed, errno %d (%m)\n", getpid(),  errno);
 			exit(1);
 		}

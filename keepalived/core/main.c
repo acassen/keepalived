@@ -2271,7 +2271,7 @@ parse_cmdline(int argc, char **argv)
 			set_core_dump_pattern = true;
 			if (optarg && optarg[0])
 				core_dump_pattern = optarg;
-			__fallthrough;
+			/* FALLTHROUGH */
 		case 'm':
 			create_core_dump = true;
 			break;
@@ -2885,7 +2885,8 @@ end:
 			getrusage(RUSAGE_SELF, &usage);
 			getrusage(RUSAGE_CHILDREN, &child_usage);
 
-			log_message(LOG_INFO, "CPU usage (self/children) user: %ld.%6.6ld/%ld.%6.6ld system: %ld.%6.6ld/%ld.%6.6ld",
+			log_message(LOG_INFO, "CPU usage (self/children) user: %" PRI_tv_sec ".%6.6" PRI_tv_usec "/%" PRI_tv_sec ".%6.6" PRI_tv_usec
+					" system: %" PRI_tv_sec ".%6.6" PRI_tv_usec "/%" PRI_tv_sec ".%6.6" PRI_tv_usec,
 					usage.ru_utime.tv_sec, usage.ru_utime.tv_usec, child_usage.ru_utime.tv_sec, child_usage.ru_utime.tv_usec,
 					usage.ru_stime.tv_sec, usage.ru_stime.tv_usec, child_usage.ru_stime.tv_sec, child_usage.ru_stime.tv_usec);
 		}

@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "202404050001Z"
+     LAST-UPDATED "202410040001Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "202410040001Z"
+     DESCRIPTION "add VrrpSciptIntervalUsec and VrrpScriptTimeoutUsec for higher resolution timers"
      REVISION "202404050001Z"
      DESCRIPTION "add missing 64 bit counters for 64 bit stats"
      REVISION "202403180001Z"
@@ -2592,7 +2594,9 @@ VrrpScriptEntry ::= SEQUENCE {
     vrrpScriptRise Unsigned32,
     vrrpScriptFall Unsigned32,
     vrrpScriptWgtRev Integer32,
-    vrrpScriptPath DisplayString
+    vrrpScriptPath DisplayString,
+    vrrpScriptIntervalUsec Unsigned32,
+    vrrpScriptTimeoutUsec Unsigned32
 }
 
 vrrpScriptIndex OBJECT-TYPE
@@ -2680,6 +2684,24 @@ vrrpScriptPath OBJECT-TYPE
     DESCRIPTION
         "Path to file to be executed when running the script."
     ::= { vrrpScriptEntry 10 }
+
+vrrpScriptIntervalUsec OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "micro-seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Interval in micro-seconds between two runs of the script."
+    ::= { vrrpScriptEntry 11 }
+
+vrrpScriptTimeoutUsec OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "micro-seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Timeout in micro-seconds for a run of the script."
+    ::= { vrrpScriptEntry 12 }
 
 -- VRRP files
 -- see vrrp_track.h
@@ -5225,7 +5247,9 @@ vrrpScriptGroup OBJECT-GROUP
     vrrpScriptRise,
     vrrpScriptFall,
     vrrpScriptWgtRev,
-    vrrpScriptPath
+    vrrpScriptPath,
+    vrrpScriptIntervalUsec,
+    vrrpScriptTimeoutUsec
     }
     STATUS current
     DESCRIPTION

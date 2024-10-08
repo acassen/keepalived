@@ -32,10 +32,10 @@
 /* The maximum pid is 2^22 - see definition of PID_MAX_LIMIT in kernel source include/linux/threads.h */
 #define PID_MAX_DIGITS		7
 
-extern long min_auto_priority_delay;
+extern unsigned min_auto_priority_delay;
 extern pid_t main_pid;
 
-extern void set_process_priorities(int, int, long, int, int, int);
+extern void set_process_priorities(int, int, unsigned, int, int, int);
 extern void reset_process_priorities(void);
 extern void increment_process_priority(void);
 extern unsigned get_cur_priority(void) __attribute__((pure));

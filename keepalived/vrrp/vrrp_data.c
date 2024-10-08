@@ -299,8 +299,14 @@ dump_vscript(FILE *fp, const vrrp_script_t *vscript)
 	conf_write(fp, "   Command = %s", cmd_str(&vscript->script));
 	if (vscript->script.path)
 		conf_write(fp, "   Path = %s", vscript->script.path);
-	conf_write(fp, "   Interval = %lu sec", vscript->interval / TIMER_HZ);
-	conf_write(fp, "   Timeout = %lu sec", vscript->timeout / TIMER_HZ);
+	if (vscript->interval % TIMER_HZ)
+		conf_write(fp, "   Interval = %lu.%3.3lu sec", vscript->interval / TIMER_HZ, (vscript->interval % TIMER_HZ) / 1000);
+	else
+		conf_write(fp, "   Interval = %lu sec", vscript->interval / TIMER_HZ);
+	if (vscript->timeout % TIMER_HZ)
+		conf_write(fp, "   Timeout = %lu.%3.3lu sec", vscript->timeout / TIMER_HZ, (vscript->timeout % TIMER_HZ) / 1000);
+	else
+		conf_write(fp, "   Timeout = %lu sec", vscript->timeout / TIMER_HZ);
 	conf_write(fp, "   Weight = %d%s", vscript->weight, vscript->weight_reverse ? " reverse" : "");
 	conf_write(fp, "   Rise = %d", vscript->rise);
 	conf_write(fp, "   Fall = %d", vscript->fall);
@@ -634,13 +640,13 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 			conf_write(fp, "   Duplicate VRID");
 #endif
 		conf_write(fp, "   Number of track scripts init = %u", vrrp->num_script_init);
-		conf_write(fp, "   Last transition = %ld.%6.6ld (%s)", vrrp->last_transition.tv_sec, vrrp->last_transition.tv_usec, ctime_us_r(&vrrp->last_transition, time_str));
+		conf_write(fp, "   Last transition = %" PRI_tv_sec ".%6.6" PRI_tv_usec " (%s)", vrrp->last_transition.tv_sec, vrrp->last_transition.tv_usec, ctime_us_r(&vrrp->last_transition, time_str));
 		if (!ctime_r(&vrrp->sands.tv_sec, time_str))
 			strcpy(time_str, "invalid time ");
 		if (vrrp->sands.tv_sec == TIMER_DISABLED)
 			conf_write(fp, "   Read timeout = DISABLED");
 		else
-			conf_write(fp, "   Read timeout = %ld.%6.6ld (%s)", vrrp->sands.tv_sec, vrrp->sands.tv_usec, ctime_us_r(&vrrp->sands, time_str));
+			conf_write(fp, "   Read timeout = %" PRI_tv_sec ".%6.6" PRI_tv_usec " (%s)", vrrp->sands.tv_sec, vrrp->sands.tv_usec, ctime_us_r(&vrrp->sands, time_str));
 		conf_write(fp, "   Master down timer = %u usecs", vrrp->ms_down_timer);
 	}
 #ifdef _HAVE_VRRP_VMAC_
@@ -719,7 +725,7 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 	conf_write(fp, "   Gratuitous ARP delay = %u",
 		       vrrp->garp_delay/TIMER_HZ);
 	conf_write(fp, "   Gratuitous ARP repeat = %u", vrrp->garp_rep);
-	conf_write(fp, "   Gratuitous ARP refresh = %ld",
+	conf_write(fp, "   Gratuitous ARP refresh = %" PRI_tv_sec,
 		       vrrp->garp_refresh.tv_sec);
 	conf_write(fp, "   Gratuitous ARP refresh repeat = %u", vrrp->garp_refresh_rep);
 	conf_write(fp, "   Gratuitous ARP lower priority delay = %u", vrrp->garp_lower_prio_delay / TIMER_HZ);
@@ -727,9 +733,9 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 	conf_write(fp, "   Down timer adverts = %u", vrrp->down_timer_adverts);
 #ifdef _HAVE_VRRP_VMAC_
 	if (vrrp->vmac_garp_intvl.tv_sec) {
-		conf_write(fp, "   Gratuitous ARP for each secondary %s = %ld", __test_bit(VRRP_FLAG_VMAC_GARP_ALL_IF, &vrrp->flags) ? "i/f" : "VMAC", vrrp->vmac_garp_intvl.tv_sec);
+		conf_write(fp, "   Gratuitous ARP for each secondary %s = %" PRI_time_t, __test_bit(VRRP_FLAG_VMAC_GARP_ALL_IF, &vrrp->flags) ? "i/f" : "VMAC", vrrp->vmac_garp_intvl.tv_sec);
 		ctime_r(&vrrp->vmac_garp_timer.tv_sec, time_str);
-		conf_write(fp, "   Next gratuitous ARP for such secondary = %ld.%6.6ld (%.24s.%6.6ld)", vrrp->vmac_garp_timer.tv_sec, vrrp->vmac_garp_timer.tv_usec, time_str, vrrp->vmac_garp_timer.tv_usec);
+		conf_write(fp, "   Next gratuitous ARP for such secondary = %" PRI_tv_sec ".%6.6" PRI_tv_usec " (%.24s.%6.6" PRI_tv_usec ")", vrrp->vmac_garp_timer.tv_sec, vrrp->vmac_garp_timer.tv_usec, time_str, vrrp->vmac_garp_timer.tv_usec);
 	}
 #endif
 	conf_write(fp, "   Send advert after receive lower priority advert = %s", vrrp->lower_prio_no_advert ? "false" : "true");
@@ -746,7 +752,7 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 		(vrrp->version == VRRP_VERSION_2) ? (vrrp->adver_int / TIMER_HZ) :
 		(vrrp->adver_int / (TIMER_HZ / 1000)),
 		(vrrp->version == VRRP_VERSION_2) ? "sec" : "milli-sec");
-	conf_write(fp, "   Last advert sent = %ld.%6.6ld", vrrp->last_advert_sent.tv_sec, vrrp->last_advert_sent.tv_usec);
+	conf_write(fp, "   Last advert sent = %" PRI_tv_sec ".%6.6" PRI_tv_usec, vrrp->last_advert_sent.tv_sec, vrrp->last_advert_sent.tv_usec);
 #ifdef _WITH_FIREWALL_
 	conf_write(fp, "   Accept = %s", vrrp->accept ? "enabled" : "disabled");
 #endif

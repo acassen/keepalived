@@ -251,8 +251,6 @@ keepalived_running(unsigned long mode)
 bool
 pidfile_write(pidfile_t *pidf)
 {
-	int ret;
-
 	/* If keepalived originally started with no configuration for this process,
 	 * the process won't have originally been started, and the parent process
 	 * will not have created and opened a pid file. This means that pidf->fd
@@ -294,12 +292,7 @@ pidfile_write(pidfile_t *pidf)
 		}
 	}
 
-	ret = dprintf(pidf->fd, "%d\n", getpid());
-
-	if (ret < 0)
-		log_message(LOG_INFO, "pidfile_write returned %d, errno %d - %m", ret, errno);
-	else
-		log_message(LOG_INFO, "pidfile_write returned %d", ret);
+	dprintf(pidf->fd, "%d\n", getpid());
 
 	return true;
 }

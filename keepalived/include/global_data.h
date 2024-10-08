@@ -150,7 +150,7 @@ typedef struct _data {
 	lvs_flush_t			lvs_flush_on_stop;	/* flush any LVS config at shutdown */
 #endif
 	int				max_auto_priority;
-	long				min_auto_priority_delay;
+	unsigned			min_auto_priority_delay;
 #ifdef _WITH_VRRP_
 	struct sockaddr_in6		vrrp_mcast_group6 __attribute__((aligned(__alignof__(sockaddr_t))));
 	struct sockaddr_in		vrrp_mcast_group4 __attribute__((aligned(__alignof__(sockaddr_t))));

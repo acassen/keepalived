@@ -419,17 +419,17 @@ dump_garp_delay(FILE *fp, const garp_delay_t *gd)
 	conf_write(fp, "------< GARP delay group %d >------", gd->aggregation_group);
 
 	if (gd->have_garp_interval) {
-		conf_write(fp, " GARP interval = %g", gd->garp_interval.tv_sec + ((double)gd->garp_interval.tv_usec) / 1000000);
+		conf_write(fp, " GARP interval = %" PRI_tv_sec "%6.6" PRI_tv_usec, gd->garp_interval.tv_sec, gd->garp_interval.tv_usec);
 		if (!ctime_r(&gd->garp_next_time.tv_sec, time_str))
 			strcpy(time_str, "invalid time ");
-		conf_write(fp, " GARP next time %ld.%6.6ld (%.19s.%6.6ld)", gd->garp_next_time.tv_sec, gd->garp_next_time.tv_usec, time_str, gd->garp_next_time.tv_usec);
+		conf_write(fp, " GARP next time %" PRI_tv_sec ".%6.6" PRI_tv_usec " (%.19s.%6.6" PRI_tv_usec ")", gd->garp_next_time.tv_sec, gd->garp_next_time.tv_usec, time_str, gd->garp_next_time.tv_usec);
 	}
 
 	if (gd->have_gna_interval) {
-		conf_write(fp, " GNA interval = %g", gd->gna_interval.tv_sec + ((double)gd->gna_interval.tv_usec) / 1000000);
+		conf_write(fp, " GNA interval = %" PRI_tv_sec ".%6.6" PRI_tv_usec, gd->gna_interval.tv_sec, gd->gna_interval.tv_usec);
 		if (!ctime_r(&gd->gna_next_time.tv_sec, time_str))
 			strcpy(time_str, "invalid time ");
-		conf_write(fp, " GNA next time %ld.%6.6ld (%.19s.%6.6ld)", gd->gna_next_time.tv_sec, gd->gna_next_time.tv_usec, time_str, gd->gna_next_time.tv_usec);
+		conf_write(fp, " GNA next time %" PRI_tv_sec ".%6.6" PRI_tv_usec " (%.19s.%6.6" PRI_tv_usec ")", gd->gna_next_time.tv_sec, gd->gna_next_time.tv_usec, time_str, gd->gna_next_time.tv_usec);
 	}
 	else if (!gd->have_garp_interval)
 		conf_write(fp, " No configuration");
@@ -689,12 +689,12 @@ dump_if(FILE *fp, const interface_t *ifp)
 
 	if (ifp->garp_delay) {
 		if (ifp->garp_delay->have_garp_interval)
-			conf_write(fp, "   Gratuitous ARP interval %ldms",
+			conf_write(fp, "   Gratuitous ARP interval %" PRI_tv_sec "ms",
 				    ifp->garp_delay->garp_interval.tv_sec * 1000 +
 				     ifp->garp_delay->garp_interval.tv_usec / (TIMER_HZ / 1000));
 
 		if (ifp->garp_delay->have_gna_interval)
-			conf_write(fp, "   Gratuitous NA interval %ldms",
+			conf_write(fp, "   Gratuitous NA interval %" PRI_time_t "ms",
 				    ifp->garp_delay->gna_interval.tv_sec * 1000 +
 				     ifp->garp_delay->gna_interval.tv_usec / (TIMER_HZ / 1000));
 		if (ifp->garp_delay->aggregation_group)
@@ -712,7 +712,7 @@ dump_if(FILE *fp, const interface_t *ifp)
 	conf_write(fp, "   Reset promote_secondaries counter %" PRIu32, ifp->reset_promote_secondaries);
 	if (timerisset(&ifp->last_gna_router_check)) {
 		ctime_r(&ifp->last_gna_router_check.tv_sec, time_str);
-		conf_write(fp, "   %sIPv6 forwarding. Last checked %ld.%6.6ld (%.24s.%6.6ld)", ifp->gna_router ? "" : "Not ", ifp->last_gna_router_check.tv_sec, ifp->last_gna_router_check.tv_usec, time_str, ifp->last_gna_router_check.tv_usec);
+		conf_write(fp, "   %sIPv6 forwarding. Last checked %" PRI_tv_sec ".%6.6" PRI_tv_usec " (%.24s.%6.6" PRI_tv_usec ")", ifp->gna_router ? "" : "Not ", ifp->last_gna_router_check.tv_sec, ifp->last_gna_router_check.tv_usec, time_str, ifp->last_gna_router_check.tv_usec);
 
 	}
 

@@ -1095,18 +1095,18 @@ vrrp_dispatcher_read(sock_t *sock)
 				expected_cmsg = true;
 				if (cmsg->cmsg_type == SO_TIMESTAMPNS) {
 					strftime(time_buf, sizeof time_buf, "%T", localtime(&ts->tv_sec));
-					log_message(LOG_INFO, "TIMESTAMPNS (socket %d - VRID %u) %s.%9.9ld"
+					log_message(LOG_INFO, "TIMESTAMPNS (socket %d - VRID %u) %s.%9.9" PRI_ts_nsec
 							    , sock->fd_in, hd->vrid, time_buf, ts->tv_nsec);
 				}
 #if 0
 				if (cmsg->cmsg_type == SO_TIMESTAMP) {
 					struct timeval *tv = (void *)CMSG_DATA(cmsg);
-					log_message(LOG_INFO, "TIMESTAMP message (%d - %u)  %ld.%9.9ld"
+					log_message(LOG_INFO, "TIMESTAMP message (%d - %u)  %" PRI_tv_sec ".%6.6" PRI_tv_usec
 							    , sock->fd_in, hd->vrid, tv->tv_sec, tv->tv_usec);
 				}
 				else if (cmsg->cmsg_type == SO_TIMESTAMPING) {
 					struct timespec *ts = (void *)CMSG_DATA(cmsg);
-					log_message(LOG_INFO, "TIMESTAMPING message (%d - %u)  %ld.%9.9ld, raw %ld.%9.9ld"
+					log_message(LOG_INFO, "TIMESTAMPING message (%d - %u)  %" PRI_ts_sec ".%9.9" PRI_ts_nsec ", raw %" PRI_ts_sec ".%9.9" PRI_ts_nsec
 							    , sock->fd_in, hd->vrid, ts->tv_sec, ts->tv_nsec, (ts+2)->tv_sec, (ts+2)->tv_nsec);
 				}
 #endif
@@ -1484,7 +1484,7 @@ dump_threads(void)
 	set_time_now();
 	ctime_r(&time_now.tv_sec, time_buf);
 
-	fprintf(fp, "\n%.19s.%6.6ld: Thread dump\n", time_buf, time_now.tv_usec);
+	fprintf(fp, "\n%.19s.%6.6" PRI_tv_usec ": Thread dump\n", time_buf, time_now.tv_usec);
 
 	dump_thread_data(master, fp);
 
@@ -1493,7 +1493,7 @@ dump_threads(void)
 	fprintf(fp, "\n");
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		ctime_r(&vrrp->sands.tv_sec, time_buf);
-		fprintf(fp, "VRRP instance %s, sands %.19s.%6.6ld, status %s\n", vrrp->iname, time_buf, vrrp->sands.tv_usec,
+		fprintf(fp, "VRRP instance %s, sands %.19s.%6.6" PRI_tv_usec ", status %s\n", vrrp->iname, time_buf, vrrp->sands.tv_usec,
 				vrrp->state == VRRP_STATE_INIT ? "INIT" :
 				vrrp->state == VRRP_STATE_BACK ? "BACKUP" :
 				vrrp->state == VRRP_STATE_MAST ? "MASTER" :
