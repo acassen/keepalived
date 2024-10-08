@@ -1548,19 +1548,19 @@ vrrp_vscript_interval_handler(const vector_t *strvec)
 {
 	unsigned interval;
 
-	/* The min value should be 1, but allow 0 to maintain backward compatibility
+	/* The min value should be 0.001, but allow 0 to maintain backward compatibility
 	 * with pre v2.0.7 */
-	if (!read_unsigned_strvec(strvec, 1, &interval, 0, UINT_MAX / TIMER_HZ, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vrrp script interval '%s' must be between 1 and %u - ignoring", current_vscr->sname, strvec_slot(strvec, 1), UINT_MAX / TIMER_HZ);
+	if (!read_decimal_unsigned_strvec(strvec, 1, &interval, 0, (UINT_MAX / TIMER_HZ) * 1000, 3, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vrrp script interval '%s' must be between 0.001 and %u - ignoring", current_vscr->sname, strvec_slot(strvec, 1), UINT_MAX / TIMER_HZ);
 		return;
 	}
 
 	if (interval == 0) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vrrp script interval must be greater than 0, setting to 1", current_vscr->sname);
-		interval = 1;
+		interval = 1000;
 	}
 
-	current_vscr->interval = interval * TIMER_HZ;
+	current_vscr->interval = interval * (TIMER_HZ / 1000);
 }
 static void
 vrrp_vscript_timeout_handler(const vector_t *strvec)
@@ -1569,17 +1569,17 @@ vrrp_vscript_timeout_handler(const vector_t *strvec)
 
 	/* The min value should be 1, but allow 0 to maintain backward compatibility
 	 * with pre v2.0.7 */
-	if (!read_unsigned_strvec(strvec, 1, &timeout, 0, UINT_MAX / TIMER_HZ, true)) {
+	if (!read_decimal_unsigned_strvec(strvec, 1, &timeout, 0, (UINT_MAX / TIMER_HZ) * 1000, 3, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vrrp script timeout '%s' invalid - ignoring", current_vscr->sname, strvec_slot(strvec, 1));
 		return;
 	}
 
 	if (timeout == 0) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vrrp script timeout must be greater than 0, setting to 1", current_vscr->sname);
-		timeout = 1;
+		timeout = 1000;
 	}
 
-	current_vscr->timeout = timeout * TIMER_HZ;
+	current_vscr->timeout = timeout * (TIMER_HZ / 1000);
 }
 static void
 vrrp_vscript_weight_handler(const vector_t *strvec)

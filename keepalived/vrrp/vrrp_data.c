@@ -299,8 +299,14 @@ dump_vscript(FILE *fp, const vrrp_script_t *vscript)
 	conf_write(fp, "   Command = %s", cmd_str(&vscript->script));
 	if (vscript->script.path)
 		conf_write(fp, "   Path = %s", vscript->script.path);
-	conf_write(fp, "   Interval = %lu sec", vscript->interval / TIMER_HZ);
-	conf_write(fp, "   Timeout = %lu sec", vscript->timeout / TIMER_HZ);
+	if (vscript->interval % TIMER_HZ)
+		conf_write(fp, "   Interval = %lu.%3.3lu sec", vscript->interval / TIMER_HZ, (vscript->interval % TIMER_HZ) / 1000);
+	else
+		conf_write(fp, "   Interval = %lu sec", vscript->interval / TIMER_HZ);
+	if (vscript->timeout % TIMER_HZ)
+		conf_write(fp, "   Timeout = %lu.%3.3lu sec", vscript->timeout / TIMER_HZ, (vscript->timeout % TIMER_HZ) / 1000);
+	else
+		conf_write(fp, "   Timeout = %lu sec", vscript->timeout / TIMER_HZ);
 	conf_write(fp, "   Weight = %d%s", vscript->weight, vscript->weight_reverse ? " reverse" : "");
 	conf_write(fp, "   Rise = %d", vscript->rise);
 	conf_write(fp, "   Fall = %d", vscript->fall);

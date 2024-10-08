@@ -144,6 +144,8 @@ enum snmp_vrrp_magic {
 	VRRP_SNMP_SCRIPT_RISE,
 	VRRP_SNMP_SCRIPT_FALL,
 	VRRP_SNMP_SCRIPT_PATH,
+	VRRP_SNMP_SCRIPT_INTERVAL_USEC,
+	VRRP_SNMP_SCRIPT_TIMEOUT_USEC,
 	VRRP_SNMP_FILE_NAME,
 	VRRP_SNMP_FILE_PATH,
 	VRRP_SNMP_FILE_RESULT,
@@ -599,6 +601,12 @@ vrrp_snmp_script(struct variable *vp, oid *name, size_t *length,
 		ret.cp = scr->script.path ? scr->script.path : scr->script.args[0];
 		*var_len = strlen(ret.cp);
 		return ret.p;
+	case VRRP_SNMP_SCRIPT_INTERVAL_USEC:
+		long_ret.u = scr->interval;
+		return PTR_CAST(u_char, &long_ret);
+	case VRRP_SNMP_SCRIPT_TIMEOUT_USEC:
+		long_ret.u = scr->timeout;
+		return PTR_CAST(u_char, &long_ret);
 	default:
 		break;
 	}
@@ -2909,6 +2917,8 @@ static struct variable3 vrrp_vars[] = {
 	{VRRP_SNMP_SCRIPT_FALL, ASN_UNSIGNED, RONLY, vrrp_snmp_script, 3, {9, 1, 8}},
 	{VRRP_SNMP_SCRIPT_WEIGHT_REVERSE, ASN_INTEGER, RONLY, vrrp_snmp_script, 3, {9, 1, 9}},
 	{VRRP_SNMP_SCRIPT_PATH, ASN_OCTET_STR, RONLY, vrrp_snmp_script, 3, {9, 1, 10}},
+	{VRRP_SNMP_SCRIPT_INTERVAL_USEC, ASN_UNSIGNED, RONLY, vrrp_snmp_script, 3, {9, 1, 11}},
+	{VRRP_SNMP_SCRIPT_TIMEOUT_USEC, ASN_UNSIGNED, RONLY, vrrp_snmp_script, 3, {9, 1, 12}},
 
 	/* vrrpRouteNextHopTable */
 	{VRRP_SNMP_ROUTE_NEXT_HOP_ADDRESS_TYPE, ASN_INTEGER, RONLY,
