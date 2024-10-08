@@ -17,7 +17,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2019-2019 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2019-2024 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #ifndef _WARNINGS_H
@@ -137,6 +137,16 @@ _Pragma("GCC diagnostic ignored \"-Winline\"")
 #else
 #define RELAX_INLINE_START
 #define RELAX_INLINE_END
+#endif
+
+#if defined _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_ && defined _HAVE_WARNING_ARRAY_BOUNDS_
+#define RELAX_ARRAY_BOUNDS_START \
+_Pragma("GCC diagnostic push") \
+_Pragma("GCC diagnostic ignored \"-Warray-bounds\"")
+#define RELAX_ARRAY_BOUNDS_END RELAX_END
+#else
+#define RELAX_ARRAY_BOUNDS_START
+#define RELAX_ARRAY_BOUNDS_END
 #endif
 
 #endif
