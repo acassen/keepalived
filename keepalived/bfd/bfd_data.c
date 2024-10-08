@@ -54,14 +54,14 @@ alloc_bfd(const char *name)
 			    " name too long (maximum length is %zu"
 			    " characters) - ignoring", name,
 			    sizeof(bfd->iname) - 1);
-		return false;
+		return NULL;
 	}
 
 	if (find_bfd_by_name(name)) {
 		report_config_error(CONFIG_GENERAL_ERROR,
 			    "Configuration error: BFD instance %s"
 			    " already configured - ignoring", name);
-		return false;
+		return NULL;
 	}
 
 	PMALLOC(bfd);
