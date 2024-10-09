@@ -34,6 +34,7 @@
 #include <sys/resource.h>
 #include <limits.h>
 #include <sys/prctl.h>
+#include <sys/wait.h>
 
 #include "notify.h"
 #include "signals.h"
@@ -160,6 +161,12 @@ cmd_str(const notify_script_t *script)
 int
 system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned long timer, const notify_script_t* script)
 {
+    return system_call_script_0(m, func, arg, timer, script, false);
+}
+
+int
+system_call_script_0(thread_master_t *m, thread_func_t func, void * arg, unsigned long timer, const notify_script_t* script, bool sync_exec)
+{
 	pid_t pid;
 	const char *str;
 	int retval;
@@ -180,6 +187,15 @@ system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned 
 	}
 
 	if (pid) {
+        int wait_ret;
+        pid_t wait_pid;
+        if (sync_exec) {
+            wait_pid = waitpid(pid, &wait_ret, 0);
+            if (wait_pid != pid || !WIFEXITED(wait_ret)) {
+                log_message(LOG_INFO, "Failed wait script process completed");
+                return -1;
+            }
+        }
 		/* parent process */
 		if (func) {
 			thread_add_child(m, func, arg, pid, timer);
