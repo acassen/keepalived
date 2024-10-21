@@ -263,32 +263,30 @@ ndisc_send_unsolicited_na_immediate(interface_t *ifp, ip_address_t *ipaddress)
 }
 
 static void
-queue_ndisc(vrrp_t *vrrp, interface_t *ifp, ip_address_t *ipaddress)
+queue_ndisc(interface_t *ifp, ip_address_t *ipaddress)
 {
-	timeval_t next_time = timer_add_now(ifp->garp_delay->gna_interval);
+	ipaddress->garp_gna_pending = 1;
 
-	vrrp->garp_gna_pending = true;
-	ipaddress->garp_gna_pending = true;
+	if (list_empty(&ifp->garp_delay->gna_list))
+                thread_add_timer(master, vrrp_gna_thread, ifp, timer_long(timer_sub_now(ifp->garp_delay->gna_next_time)));
 
-	/* Do we need to schedule/reschedule the garp thread? */
-	if (!garp_thread || timercmp(&next_time, &garp_next_time, <)) {
-		if (garp_thread)
-			thread_cancel(garp_thread);
-
-		garp_next_time = next_time;
-
-		garp_thread = thread_add_timer(master, vrrp_arp_thread, NULL, timer_long(ifp->garp_delay->gna_interval));
-	}
+        list_add_tail(&ipaddress->garp_gna_list, &ifp->garp_delay->gna_list);
 }
 
 void
-ndisc_send_unsolicited_na(vrrp_t *vrrp, ip_address_t *ipaddress)
+ndisc_send_unsolicited_na(ip_address_t *ipaddress, unsigned rep)
 {
 	interface_t *ifp = IF_BASE_IFP(ipaddress->ifp);
 
 	/* If the interface doesn't support NDISC, don't try sending */
 	if (ifp->ifi_flags & IFF_NOARP)
 		return;
+
+	if (ipaddress->garp_gna_pending) {
+                if (ipaddress->garp_gna_pending < rep)
+			ipaddress->garp_gna_pending++;
+                return;
+        }
 
 	set_time_now();
 
@@ -297,7 +295,7 @@ ndisc_send_unsolicited_na(vrrp_t *vrrp, ip_address_t *ipaddress)
 	    ifp->garp_delay->have_gna_interval &&
 	    ifp->garp_delay->gna_next_time.tv_sec &&
 	    timercmp(&time_now, &ifp->garp_delay->gna_next_time, <))
-		queue_ndisc(vrrp, ifp, ipaddress);
+		queue_ndisc(ifp, ipaddress);
 	else
 		ndisc_send_unsolicited_na_immediate(ifp, ipaddress);
 }

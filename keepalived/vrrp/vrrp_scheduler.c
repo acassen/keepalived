@@ -77,8 +77,6 @@
 #endif
 
 /* global vars */
-timeval_t garp_next_time;
-thread_ref_t garp_thread;
 bool vrrp_initialised;
 timeval_t vrrp_delayed_start_time;
 
@@ -663,6 +661,31 @@ vrrp_lower_prio_gratuitous_arp_thread(thread_ref_t thread)
 	/* Simply broadcast the gratuitous ARP */
 	vrrp_send_link_update(vrrp, vrrp->garp_lower_prio_rep);
 }
+
+/* Gratuitous ARP refresh thread (i.e. periodic send of GARP messages) */
+void
+vrrp_gratuitous_arp_refresh_thread(thread_ref_t thread)
+{
+	vrrp_t *vrrp = THREAD_ARG(thread);
+
+	vrrp_send_link_update(vrrp, vrrp->garp_refresh_rep);
+	thread_add_timer(master, vrrp_gratuitous_arp_refresh_thread,
+			 vrrp, timer_long(vrrp->garp_refresh));
+}
+
+#ifdef _HAVE_VRRP_VMAC_
+/* Gratuitous ARP VMAC update thread (i.e. one GARP per VMAC interface
+ * on which VIPs are configured. */
+void
+vrrp_gratuitous_arp_vmac_update_thread(thread_ref_t thread)
+{
+	vrrp_t *vrrp = THREAD_ARG(thread);
+
+	vrrp_send_vmac_update(vrrp);
+	thread_add_timer(master, vrrp_gratuitous_arp_vmac_update_thread,
+			 vrrp, timer_long(vrrp->vmac_garp_intvl));
+}
+#endif
 
 void
 try_up_instance(vrrp_t *vrrp, bool leaving_init)
@@ -1381,86 +1404,54 @@ vrrp_script_child_thread(thread_ref_t thread)
 	vscript->init_state = SCRIPT_INIT_STATE_DONE;
 }
 
-/* Delayed ARP/NA thread */
-static int
-vrrp_arpna_send(vrrp_t *vrrp, list_head_t *l, timeval_t *n)
-{
-	ip_address_t *ip_addr;
-	interface_t *ifp;
-
-	list_for_each_entry(ip_addr, l, e_list) {
-		if (!ip_addr->garp_gna_pending)
-			continue;
-
-		if (!ip_addr->set) {
-			ip_addr->garp_gna_pending = false;
-			continue;
-		}
-
-		ifp = IF_BASE_IFP(ip_addr->ifp);
-
-		/* This should never happen */
-		if (!ifp->garp_delay) {
-			ip_addr->garp_gna_pending = false;
-			continue;
-		}
-
-		/* IPv4 handling */
-		if (!IP_IS6(ip_addr)) {
-			if (timercmp(&time_now, &ifp->garp_delay->garp_next_time, >=)) {
-				send_gratuitous_arp_immediate(ifp, ip_addr);
-				ip_addr->garp_gna_pending = false;
-			} else {
-				vrrp->garp_gna_pending = true;
-				if (timercmp(&ifp->garp_delay->garp_next_time, n, <))
-					*n = ifp->garp_delay->garp_next_time;
-			}
-		} else {
-			/* IPv6 handling */
-			if (timercmp(&time_now, &ifp->garp_delay->gna_next_time, >=)) {
-				ndisc_send_unsolicited_na_immediate(ifp, ip_addr);
-				ip_addr->garp_gna_pending = false;
-			} else {
-				vrrp->garp_gna_pending = true;
-				if (timercmp(&ifp->garp_delay->gna_next_time, n, <))
-					*n = ifp->garp_delay->gna_next_time;
-			}
-		}
-	}
-
-	return 0;
-}
-
+/* Thread to send gratuitous ARPs when the sending is rate limited */
 void
 vrrp_arp_thread(thread_ref_t thread)
 {
-	vrrp_t *vrrp;
-	timeval_t next_time = {
-		.tv_sec = INT_MAX	/* We're never going to delay this long - I hope! */
-	};
+	ip_address_t *ip_addr;
+	interface_t *ifp = THREAD_ARG(thread);
 
-	set_time_now();
+	while (!list_empty(&ifp->garp_delay->garp_list)) {
+		set_time_now();
+		if (timercmp(&time_now, &ifp->garp_delay->garp_next_time, <))
+			break;
 
-	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
-		if (!vrrp->garp_gna_pending)
-			continue;
+		ip_addr = list_first_entry(&ifp->garp_delay->garp_list, ip_address_t, garp_gna_list);
 
-		vrrp->garp_gna_pending = false;
+		send_gratuitous_arp_immediate(ifp, ip_addr);
 
-		if (vrrp->state != VRRP_STATE_MAST || !vrrp->vipset)
-			continue;
-
-		vrrp_arpna_send(vrrp, &vrrp->vip, &next_time);
-		vrrp_arpna_send(vrrp, &vrrp->evip, &next_time);
+		list_del_init(&ip_addr->garp_gna_list);
+		if (--ip_addr->garp_gna_pending)
+			list_add_tail(&ip_addr->garp_gna_list, &ifp->garp_delay->garp_list);
 	}
 
-	if (next_time.tv_sec != INT_MAX) {
-		/* Register next timer tracker */
-		garp_next_time = next_time;
-		garp_thread = thread_add_timer(thread->master, vrrp_arp_thread, NULL,
-					       timer_long(timer_sub_now(next_time)));
-	} else
-		garp_thread = NULL;
+	if (!list_empty(&ifp->garp_delay->garp_list))
+		thread_add_timer(master, vrrp_arp_thread, ifp, timer_long(timer_sub_now(ifp->garp_delay->garp_next_time)));
+}
+
+/* Thread to send gratuitous NDs when the sending is rate limited */
+void
+vrrp_gna_thread(thread_ref_t thread)
+{
+	ip_address_t *ip_addr;
+	interface_t *ifp = THREAD_ARG(thread);
+
+	while (!list_empty(&ifp->garp_delay->gna_list)) {
+		set_time_now();
+		if (timercmp(&time_now, &ifp->garp_delay->gna_next_time, <))
+			break;
+
+		ip_addr = list_first_entry(&ifp->garp_delay->gna_list, ip_address_t, garp_gna_list);
+
+		ndisc_send_unsolicited_na_immediate(ifp, ip_addr);
+
+		list_del_init(&ip_addr->garp_gna_list);
+		if (--ip_addr->garp_gna_pending)
+			list_add_tail(&ip_addr->garp_gna_list, &ifp->garp_delay->gna_list);
+	}
+
+	if (!list_empty(&ifp->garp_delay->gna_list))
+		thread_add_timer(master, vrrp_gna_thread, ifp, timer_long(timer_sub_now(ifp->garp_delay->gna_next_time)));
 }
 
 #ifdef _WITH_DUMP_THREADS_
@@ -1507,9 +1498,12 @@ void
 register_vrrp_scheduler_addresses(void)
 {
 	register_thread_address("vrrp_arp_thread", vrrp_arp_thread);
+	register_thread_address("vrrp_gna_thread", vrrp_gna_thread);
 	register_thread_address("vrrp_dispatcher_init", vrrp_dispatcher_init);
 	register_thread_address("vrrp_gratuitous_arp_thread", vrrp_gratuitous_arp_thread);
 	register_thread_address("vrrp_lower_prio_gratuitous_arp_thread", vrrp_lower_prio_gratuitous_arp_thread);
+	register_thread_address("vrrp_gratuitous_arp_refresh_thread", vrrp_gratuitous_arp_refresh_thread);
+	register_thread_address("vrrp_gratuitous_arp_vmac_update_thread", vrrp_gratuitous_arp_vmac_update_thread);
 	register_thread_address("vrrp_script_child_thread", vrrp_script_child_thread);
 	register_thread_address("vrrp_script_thread", vrrp_script_thread);
 	register_thread_address("vrrp_read_dispatcher_thread", vrrp_read_dispatcher_thread);

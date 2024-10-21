@@ -1577,7 +1577,7 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 
 /* Gratuitous ARP on each VIP */
 static void
-vrrp_send_update(vrrp_t * vrrp, ip_address_t * ipaddress, bool log_msg)
+vrrp_send_update(vrrp_t * vrrp, ip_address_t * ipaddress, bool log_msg, unsigned rep)
 {
 	const char *msg;
 	char addr_str[INET6_ADDRSTRLEN];
@@ -1596,9 +1596,9 @@ vrrp_send_update(vrrp_t * vrrp, ip_address_t * ipaddress, bool log_msg)
 	}
 
 	if (!IP_IS6(ipaddress))
-		send_gratuitous_arp(vrrp, ipaddress);
+		send_gratuitous_arp(ipaddress, rep);
 	else
-		ndisc_send_unsolicited_na(vrrp, ipaddress);
+		ndisc_send_unsolicited_na(ipaddress, rep);
 }
 
 void
@@ -1611,18 +1611,21 @@ vrrp_send_link_update(vrrp_t * vrrp, unsigned rep)
 	if (!VRRP_VIP_ISSET(vrrp))
 		return;
 
-	/* send gratuitous arp for each virtual ip */
+	/* send gratuitous arp for each virtual ip.
+	 * Looping rep times through all VIPs of the vrrp instance doesn't
+	 * seem very efficient, but I haven't thought of a better way when
+	 * the GARP/NA may either be sent or queued. */
 	for (j = 0; j < rep; j++) {
 		list_for_each_entry(ip_addr, &vrrp->vip, e_list)
-			vrrp_send_update(vrrp, ip_addr, !j);
+			vrrp_send_update(vrrp, ip_addr, !j, rep);
 
 		list_for_each_entry(ip_addr, &vrrp->evip, e_list)
-			vrrp_send_update(vrrp, ip_addr, !j);
+			vrrp_send_update(vrrp, ip_addr, !j, rep);
 	}
 }
 
 #ifdef _HAVE_VRRP_VMAC_
-static void
+void
 vrrp_send_vmac_update(vrrp_t *vrrp)
 {
 	struct ifs {
@@ -1661,9 +1664,9 @@ vrrp_send_vmac_update(vrrp_t *vrrp)
 			if (already_done)
 				continue;
 
-			vrrp_send_update(vrrp, ip_addr, true);
+			vrrp_send_update(vrrp, ip_addr, true, 1);
 
-			/* Save if ifindex to avoid sending on that interface again */
+			/* Save interface ifindex to avoid sending on that interface again */
 			PMALLOC(if_entry);
 			INIT_LIST_HEAD(&if_entry->e_list);
 			if_entry->ifindex = ip_addr->ifp->ifindex;
@@ -1671,7 +1674,7 @@ vrrp_send_vmac_update(vrrp_t *vrrp)
 		}
 	}
 
-	/* Free the list of ifindices we have sent on */
+	/* Free the list of interface indices we have sent on */
 	list_for_each_entry_safe(if_entry, next_if_entry, &if_list, e_list)
 		FREE(if_entry);
 }
@@ -1683,13 +1686,14 @@ vrrp_remove_delayed_arp(vrrp_t *vrrp)
 	ip_address_t *ip_addr;
 
 	list_for_each_entry(ip_addr, &vrrp->vip, e_list) {
-		ip_addr->garp_gna_pending = false;
+		ip_addr->garp_gna_pending = 0;
+		list_del_init(&ip_addr->garp_gna_list);
 	}
 
 	list_for_each_entry(ip_addr, &vrrp->evip, e_list) {
-		ip_addr->garp_gna_pending = false;
+		ip_addr->garp_gna_pending = 0;
+		list_del_init(&ip_addr->garp_gna_list);
 	}
-	vrrp->garp_gna_pending = false;
 }
 
 /* becoming master */
@@ -1728,13 +1732,18 @@ vrrp_state_become_master(vrrp_t * vrrp)
 
 	vrrp_send_link_update(vrrp, vrrp->garp_rep);
 
-	/* set GARP/NA refresh timer */
+	if (vrrp->garp_delay)
+		thread_add_timer(master, vrrp_gratuitous_arp_thread,
+				 vrrp, vrrp->garp_delay);
+
 	if (timerisset(&vrrp->garp_refresh))
-		vrrp->garp_refresh_timer = timer_add_now(vrrp->garp_refresh);
+		thread_add_timer(master, vrrp_gratuitous_arp_refresh_thread,
+				 vrrp, vrrp->garp_delay + timer_long(vrrp->garp_refresh));
 
 #ifdef _HAVE_VRRP_VMAC_
 	if (timerisset(&vrrp->vmac_garp_intvl))
-		vrrp->vmac_garp_timer = timer_add_now(vrrp->vmac_garp_intvl);
+		thread_add_timer(master, vrrp_gratuitous_arp_vmac_update_thread,
+				 vrrp, vrrp->garp_delay + timer_long(vrrp->vmac_garp_intvl));
 #endif
 
 	/* Check if notify is needed */
@@ -2056,27 +2065,6 @@ vrrp_state_master_tx(vrrp_t * vrrp)
 		log_message(LOG_INFO, "(%s) Entering MASTER STATE"
 				    , vrrp->iname);
 		vrrp_state_become_master(vrrp);
-		/*
-		 * If we catch the master transition
-		 * register a gratuitous arp thread delayed to garp_delay secs.
-		 */
-		if (vrrp->garp_delay)
-			thread_add_timer(master, vrrp_gratuitous_arp_thread,
-					 vrrp, vrrp->garp_delay);
-	} else {
-		if (timerisset(&vrrp->garp_refresh) &&
-		    timercmp(&time_now, &vrrp->garp_refresh_timer, >)) {
-			vrrp_send_link_update(vrrp, vrrp->garp_refresh_rep);
-			vrrp->garp_refresh_timer = timer_add_now(vrrp->garp_refresh);
-		}
-
-#ifdef _HAVE_VRRP_VMAC_
-		if (timerisset(&vrrp->vmac_garp_intvl) &&
-		    timercmp(&time_now, &vrrp->vmac_garp_timer, >)) {
-			vrrp_send_vmac_update(vrrp);
-			vrrp->vmac_garp_timer = timer_add_now(vrrp->vmac_garp_intvl);
-		}
-#endif
 	}
 }
 
@@ -2201,9 +2189,15 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 						 vrrp, vrrp->garp_lower_prio_delay);
 		}
 
-		/* If we are a member of a sync group, send GARP messages
-		 * for any other member of the group that has
-		 * garp_lower_prio_rep set */
+		/* If we are a member of a sync group, send GARP messages for any other member
+		 * of the group that has garp_lower_prio_rep set.
+		 * The reason for this is we must have been in some sort of split brain situation,
+		 * or this keepalived process was not scheduled to run for a while, and a lower
+		 * priority instance has become master, causing it to send adverts and GARP
+		 * messages. When we send this advert, all the sync group members on the lower
+		 * priority instance will transition to backup state, and we will not see
+		 * adverts from those members of the sync group. However, the other VRRP
+		 * instances need to refresh ARP caches. */
 		if (vrrp->sync) {
 			list_for_each_entry(isync, &vrrp->sync->vrrp_instances, s_list) {
 				if (isync == vrrp)
@@ -5013,6 +5007,7 @@ clear_diff_vrrp(void)
 {
 	vrrp_t *vrrp;
 	vrrp_t *new_vrrp;
+	bool have_new_addr;
 
 	list_for_each_entry(vrrp, &old_vrrp_data->vrrp, e_list) {
 		/*
@@ -5052,12 +5047,15 @@ clear_diff_vrrp(void)
 		 * reloaded.
 		 */
 		new_vrrp = vrrp_exist(vrrp, &vrrp_data->vrrp);
-		if (new_vrrp) {
-			/*
-			 * If this vrrp instance exist in new
-			 * data, then perform a VIP|EVIP diff.
-			 */
+		if (!new_vrrp)
+			continue;
+
+		/*
+		 * If this vrrp instance exist in new
+		 * data, then perform a VIP|EVIP diff.
+		 */
 // !!!! Isn't this only necessary if MASTER ???? TODO
+		if (vrrp->state == VRRP_STATE_MAST) {
 			/* virtual rules diff */
 			clear_diff_vrrp_vrules(vrrp, new_vrrp);
 
@@ -5065,42 +5063,56 @@ clear_diff_vrrp(void)
 			clear_diff_vrrp_vroutes(vrrp, new_vrrp);
 
 			clear_diff_vrrp_vip(vrrp, new_vrrp);
+		}
 
 #ifdef _HAVE_VRRP_VMAC_
-			/*
-			 * Remove VMAC/IPVLAN if it existed in old vrrp instance,
-			 * but not the new one.
-			 */
-			if (vrrp->ifp &&
-			    vrrp->ifp->is_ours &&
-			    ((__test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
-			      !__test_bit(VRRP_VMAC_BIT, &new_vrrp->flags))
+		/*
+		 * Remove VMAC/IPVLAN if it existed in old vrrp instance,
+		 * but not the new one.
+		 */
+		if (vrrp->ifp &&
+		    vrrp->ifp->is_ours &&
+		    ((__test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
+		      !__test_bit(VRRP_VMAC_BIT, &new_vrrp->flags))
 #ifdef _HAVE_VRRP_IPVLAN_
-			     || (__test_bit(VRRP_IPVLAN_BIT, &vrrp->flags) &&
-				 !__test_bit(VRRP_IPVLAN_BIT, &new_vrrp->flags))
+		     || (__test_bit(VRRP_IPVLAN_BIT, &vrrp->flags) &&
+			 !__test_bit(VRRP_IPVLAN_BIT, &new_vrrp->flags))
 #endif
-										     )) {
-				netlink_link_del_vmac(vrrp);
-			}
-#endif
-
-			/* reset the state */
-			if (restore_vrrp_state(vrrp, new_vrrp)) {
-				/* There were addresses added, so set GARP/GNA for them.
-				 * This is a bit over the top since it will send GARPs/GNAs for
-				 * all the addresses, but at least we will do so for the new addresses. */
-				vrrp_send_link_update(new_vrrp, new_vrrp->garp_rep);
-
-				/* Add thread for second block of GARPs */
-				if (vrrp->garp_delay)
-					thread_add_timer(master, vrrp_gratuitous_arp_thread,
-							 vrrp, vrrp->garp_delay);
-
-				/* set refresh timer */
-				if (timerisset(&new_vrrp->garp_refresh))
-					new_vrrp->garp_refresh_timer = timer_add_now(new_vrrp->garp_refresh);
-			}
+									     )) {
+			netlink_link_del_vmac(vrrp);
 		}
+// What about VMACs for addresses?
+#endif
+
+		/* reset the state */
+		have_new_addr = restore_vrrp_state(vrrp, new_vrrp);
+
+		if (new_vrrp->state != VRRP_STATE_MAST)
+			continue;
+
+		if (have_new_addr || timerisset(&new_vrrp->garp_refresh)) {
+			/* There were addresses added, or we do periodic GARP/GNA
+			 * refreshes, so send GARP/GNAs for them.
+			 * This is a bit over the top if only for added addresses,
+			 * since it will send GARPs/GNAs for * all the addresses,
+			 * but at least we will do so for the new addresses. */
+			vrrp_send_link_update(new_vrrp, new_vrrp->garp_rep);
+
+			/* Add thread for second block of GARPs */
+			if (have_new_addr && new_vrrp->garp_delay)
+				thread_add_timer(master, vrrp_gratuitous_arp_thread,
+						 new_vrrp, new_vrrp->garp_delay);
+		}
+
+		if (timerisset(&new_vrrp->garp_refresh))
+			thread_add_timer(master, vrrp_gratuitous_arp_refresh_thread,
+					 new_vrrp, (have_new_addr ? new_vrrp->garp_delay : 0) + timer_long(new_vrrp->garp_refresh));
+
+#ifdef _HAVE_VRRP_VMAC_
+		if (timerisset(&new_vrrp->vmac_garp_intvl))
+			thread_add_timer(master, vrrp_gratuitous_arp_vmac_update_thread,
+					 new_vrrp, (have_new_addr ? new_vrrp->garp_delay : 0) + timer_long(new_vrrp->vmac_garp_intvl));
+#endif
 	}
 
 #ifdef _HAVE_VRRP_VMAC_

@@ -77,7 +77,8 @@ typedef struct _ip_address {
 #ifdef _WITH_NFTABLES_
 	bool			nftable_rule_set;	/* TRUE if in nftables set */
 #endif
-	bool			garp_gna_pending;	/* Is a gratuitous ARP/NA message still to be sent */
+	unsigned		garp_gna_pending;	/* Number of GARPs/GNAs still to be sent */
+	list_head_t		garp_gna_list;
 	uint32_t		preferred_lft;		/* IPv6 preferred_lft (0 means address deprecated) */
 
 	/* linked list member */

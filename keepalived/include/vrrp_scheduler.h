@@ -36,8 +36,6 @@
 #include "vrrp.h"
 
 /* global vars */
-extern timeval_t garp_next_time;
-extern thread_ref_t garp_thread;
 extern bool vrrp_initialised;
 extern timeval_t vrrp_delayed_start_time;
 
@@ -68,7 +66,12 @@ extern void cancel_vrrp_threads(void);
 extern void vrrp_dispatcher_release(vrrp_data_t *);
 extern void vrrp_gratuitous_arp_thread(thread_ref_t);
 extern void vrrp_lower_prio_gratuitous_arp_thread(thread_ref_t);
+extern void vrrp_gratuitous_arp_refresh_thread(thread_ref_t);
+#ifdef _HAVE_VRRP_VMAC_
+extern void vrrp_gratuitous_arp_vmac_update_thread(thread_ref_t);
+#endif
 extern void vrrp_arp_thread(thread_ref_t);
+extern void vrrp_gna_thread(thread_ref_t);
 extern void try_up_instance(vrrp_t *, bool);
 #ifdef _WITH_DUMP_THREADS_
 extern void dump_threads(void);

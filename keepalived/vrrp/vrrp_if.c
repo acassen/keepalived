@@ -456,6 +456,8 @@ alloc_garp_delay(void)
 
 	PMALLOC(gd);
 	INIT_LIST_HEAD(&gd->e_list);
+	INIT_LIST_HEAD(&gd->garp_list);
+	INIT_LIST_HEAD(&gd->gna_list);
 
 	list_add_tail(&gd->e_list, &garp_delay);
 	return gd;
