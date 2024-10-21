@@ -482,13 +482,13 @@ set_default_garp_delay(void)
 	ip_address_t *vip;
 
 	if (global_data->vrrp_garp_interval) {
-		default_delay.garp_interval.tv_sec = global_data->vrrp_garp_interval / 1000000;
-		default_delay.garp_interval.tv_usec = global_data->vrrp_garp_interval % 1000000;
+		default_delay.garp_interval.tv_sec = global_data->vrrp_garp_interval / TIMER_HZ;
+		default_delay.garp_interval.tv_usec = global_data->vrrp_garp_interval % TIMER_HZ;
 		default_delay.have_garp_interval = true;
 	}
 	if (global_data->vrrp_gna_interval) {
-		default_delay.gna_interval.tv_sec = global_data->vrrp_gna_interval / 1000000;
-		default_delay.gna_interval.tv_usec = global_data->vrrp_gna_interval % 1000000;
+		default_delay.gna_interval.tv_sec = global_data->vrrp_gna_interval / TIMER_HZ;
+		default_delay.gna_interval.tv_usec = global_data->vrrp_gna_interval % TIMER_HZ;
 		default_delay.have_gna_interval = true;
 	}
 
