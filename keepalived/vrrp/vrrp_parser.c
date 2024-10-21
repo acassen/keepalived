@@ -83,6 +83,7 @@ static vrrp_script_t *current_vscr;
 #ifdef _WITH_TRACK_PROCESS_
 static vrrp_tracked_process_t *current_tp;
 #endif
+static unsigned cur_aggregation_group;
 
 
 /* track groups for static items */
@@ -1971,7 +1972,6 @@ garp_group_interfaces_handler(const vector_t *strvec)
 {
 	interface_t *ifp;
 	const vector_t *interface_vec = read_value_block(strvec);
-	garp_delay_t *gd;
 	size_t i;
 
 	/* Handle the interfaces block being empty */
@@ -1980,12 +1980,8 @@ garp_group_interfaces_handler(const vector_t *strvec)
 		return;
 	}
 
-	/* First set the next aggregation group number */
-	current_ggd->aggregation_group = 1;
-	list_for_each_entry(gd, &garp_delay, e_list) {
-		if (gd->aggregation_group && gd != current_ggd)
-			current_ggd->aggregation_group++;
-	}
+	/* First set the configuration aggregation group number */
+	cur_aggregation_group++;
 
 	for (i = 0; i < vector_size(interface_vec); i++) {
 		ifp = if_get_by_ifname(vector_slot(interface_vec, i), IF_CREATE_IF_DYNAMIC);
@@ -2020,7 +2016,7 @@ garp_group_end_handler(void)
 	list_head_t *ifq;
 
 	if (!current_ggd->have_garp_interval && !current_ggd->have_gna_interval) {
-		report_config_error(CONFIG_GENERAL_ERROR, "garp group %d does not have any delay set - removing", current_ggd->aggregation_group);
+		report_config_error(CONFIG_GENERAL_ERROR, "garp group %u does not have any delay set - removing", cur_aggregation_group);
 
 		/* Remove the garp_delay from any interfaces that are using it */
 		ifq = get_interface_queue();
@@ -2281,6 +2277,8 @@ vrrp_init_keywords(void)
 	init_bfd_keywords(true);
 #endif
 	add_track_file_keywords(true);
+
+	cur_aggregation_group = 0;
 
 	return keywords;
 }

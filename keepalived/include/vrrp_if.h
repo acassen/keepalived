@@ -78,7 +78,6 @@ typedef struct _garp_delay {
 	bool			have_gna_interval;	/* True if delay */
 	timeval_t		garp_next_time;		/* Time when next gratuitous ARP message can be sent */
 	timeval_t		gna_next_time;		/* Time when next gratuitous NA message can be sent */
-	int			aggregation_group;	/* Index of multi-interface group */
 
 	/* linked list of ip_address_t that have GARP/NAs pending */
 	list_head_t		garp_list;

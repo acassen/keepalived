@@ -416,7 +416,7 @@ dump_garp_delay(FILE *fp, const garp_delay_t *gd)
 	char time_str[26];
 	interface_t *ifp;
 
-	conf_write(fp, "------< GARP delay group %d >------", gd->aggregation_group);
+	conf_write(fp, "------< GARP delay group >------");
 
 	if (gd->have_garp_interval) {
 		conf_write(fp, " GARP interval = %" PRI_tv_sec ".%6.6" PRI_tv_usec, gd->garp_interval.tv_sec, gd->garp_interval.tv_usec);
@@ -699,8 +699,6 @@ dump_if(FILE *fp, const interface_t *ifp)
 			conf_write(fp, "   Gratuitous NA interval %" PRI_time_t "ms",
 				    ifp->garp_delay->gna_interval.tv_sec * 1000 +
 				     ifp->garp_delay->gna_interval.tv_usec / (TIMER_HZ / 1000));
-		if (ifp->garp_delay->aggregation_group)
-			conf_write(fp, "   Gratuitous ARP aggregation group %d", ifp->garp_delay->aggregation_group);
 	}
 
 #ifdef _HAVE_VRRP_VMAC_
