@@ -1415,17 +1415,16 @@ vrrp_arpna_send(vrrp_t *vrrp, list_head_t *l, timeval_t *n)
 				if (timercmp(&ifp->garp_delay->garp_next_time, n, <))
 					*n = ifp->garp_delay->garp_next_time;
 			}
-			continue;
-		}
-
-		/* IPv6 handling */
-		if (timercmp(&time_now, &ifp->garp_delay->gna_next_time, >=)) {
-			ndisc_send_unsolicited_na_immediate(ifp, ip_addr);
-			ip_addr->garp_gna_pending = false;
 		} else {
-			vrrp->gna_pending = true;
-			if (timercmp(&ifp->garp_delay->gna_next_time, n, <))
-				*n = ifp->garp_delay->gna_next_time;
+			/* IPv6 handling */
+			if (timercmp(&time_now, &ifp->garp_delay->gna_next_time, >=)) {
+				ndisc_send_unsolicited_na_immediate(ifp, ip_addr);
+				ip_addr->garp_gna_pending = false;
+			} else {
+				vrrp->gna_pending = true;
+				if (timercmp(&ifp->garp_delay->gna_next_time, n, <))
+					*n = ifp->garp_delay->gna_next_time;
+			}
 		}
 	}
 
