@@ -5092,6 +5092,11 @@ clear_diff_vrrp(void)
 				 * all the addresses, but at least we will do so for the new addresses. */
 				vrrp_send_link_update(new_vrrp, new_vrrp->garp_rep);
 
+				/* Add thread for second block of GARPs */
+				if (vrrp->garp_delay)
+					thread_add_timer(master, vrrp_gratuitous_arp_thread,
+							 vrrp, vrrp->garp_delay);
+
 				/* set refresh timer */
 				if (timerisset(&new_vrrp->garp_refresh))
 					new_vrrp->garp_refresh_timer = timer_add_now(new_vrrp->garp_refresh);
