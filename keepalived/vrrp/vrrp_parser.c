@@ -1539,7 +1539,7 @@ vrrp_vscript_script_handler(__attribute__((unused)) const vector_t *strvec)
 	const vector_t *strvec_qe;
 
 	/* We need to allow quoted and escaped strings for the script and parameters */
-	strvec_qe = alloc_strvec_quoted_escaped(NULL);
+	strvec_qe = alloc_strvec_quoted(NULL);
 
 	set_script_params_array(strvec_qe, &current_vscr->script, 0);
 	free_strvec(strvec_qe);

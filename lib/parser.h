@@ -145,6 +145,7 @@ extern void install_sublevel_end(vpp_t);
 extern void install_level_end_handler(void (*handler) (void));
 extern void install_keyword(const char *, void (*handler) (const vector_t *));
 extern const vector_t *alloc_strvec_quoted_escaped(const char *);
+extern const vector_t *alloc_strvec_quoted(const char *);
 extern vector_t *alloc_strvec_r(const char *);
 extern bool check_conf_file(const char*);
 extern const vector_t *read_value_block(const vector_t *);

@@ -1024,8 +1024,8 @@ get_random(const def_t *def)
 	return rand_str;
 }
 
-const vector_t *
-alloc_strvec_quoted_escaped(const char *src)
+static const vector_t *
+alloc_strvec_quoted_escaped_common(const char *src, bool escapes)
 {
 	vector_t *strvec;
 	char cur_quote = 0;
@@ -1084,61 +1084,66 @@ alloc_strvec_quoted_escaped(const char *src)
 					goto err_exit;
 				}
 
-				if (*ofs == 'x' && isxdigit(ofs[1])) {
-					op_char = 0;
-					ofs++;
-					for (i = 0; i <= 1 && isxdigit(*ofs); i++) {
-						op_char <<= 4;
-						op_char |= isdigit(*ofs) ? *ofs - '0' : (10 + *ofs - (isupper(*ofs)  ? 'A' : 'a'));
+				if (escapes) {
+					if (*ofs == 'x' && isxdigit(ofs[1])) {
+						op_char = 0;
+						ofs++;
+						for (i = 0; i <= 1 && isxdigit(*ofs); i++) {
+							op_char <<= 4;
+							op_char |= isdigit(*ofs) ? *ofs - '0' : (10 + *ofs - (isupper(*ofs)  ? 'A' : 'a'));
+							ofs++;
+						}
+					}
+					else if (*ofs == 'c' && ofs[1]) {
+						op_char = *++ofs & 0x1f;	/* Convert to control character */
 						ofs++;
 					}
-				}
-				else if (*ofs == 'c' && ofs[1]) {
-					op_char = *++ofs & 0x1f;	/* Convert to control character */
-					ofs++;
-				}
-				else if (*ofs >= '0' && *ofs <= '7') {
-					op_char = *ofs++ - '0';
-					if (*ofs >= '0' && *ofs <= '7') {
-						op_char <<= 3;
-						op_char += *ofs++ - '0';
+					else if (*ofs >= '0' && *ofs <= '7') {
+						op_char = *ofs++ - '0';
+						if (*ofs >= '0' && *ofs <= '7') {
+							op_char <<= 3;
+							op_char += *ofs++ - '0';
+						}
+						if (*ofs >= '0' && *ofs <= '7') {
+							op_char <<= 3;
+							op_char += *ofs++ - '0';
+						}
 					}
-					if (*ofs >= '0' && *ofs <= '7') {
-						op_char <<= 3;
-						op_char += *ofs++ - '0';
+					else {
+						switch (*ofs) {
+						case 'a':
+							op_char = '\a';
+							break;
+						case 'b':
+							op_char = '\b';
+							break;
+						case 'E':
+							op_char = 0x1b;
+							break;
+						case 'f':
+							op_char = '\f';
+							break;
+						case 'n':
+							op_char = '\n';
+							break;
+						case 'r':
+							op_char = '\r';
+							break;
+						case 't':
+							op_char = '\t';
+							break;
+						case 'v':
+							op_char = '\v';
+							break;
+						default: /* \"'  */
+							op_char = *ofs;
+							break;
+						}
+						ofs++;
 					}
-				}
-				else {
-					switch (*ofs) {
-					case 'a':
-						op_char = '\a';
-						break;
-					case 'b':
-						op_char = '\b';
-						break;
-					case 'E':
-						op_char = 0x1b;
-						break;
-					case 'f':
-						op_char = '\f';
-						break;
-					case 'n':
-						op_char = '\n';
-						break;
-					case 'r':
-						op_char = '\r';
-						break;
-					case 't':
-						op_char = '\t';
-						break;
-					case 'v':
-						op_char = '\v';
-						break;
-					default: /* \"'  */
-						op_char = *ofs;
-						break;
-					}
-					ofs++;
+				} else {
+					*ofs_op++ = '\\';
+					op_char = *ofs++;
 				}
 
 				*ofs_op++ = op_char;
@@ -1178,6 +1183,18 @@ err_exit:
 	free_strvec(strvec);
 	FREE(op_buf);
 	return NULL;
+}
+
+const vector_t *
+alloc_strvec_quoted_escaped(const char *src)
+{
+	return alloc_strvec_quoted_escaped_common(src, true);
+}
+
+const vector_t *
+alloc_strvec_quoted(const char *src)
+{
+	return alloc_strvec_quoted_escaped_common(src, false);
 }
 
 vector_t *

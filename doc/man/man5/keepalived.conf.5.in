@@ -136,7 +136,23 @@ won't start or terminate a quoted string.
 .PP
 For specifying scripts with parameters, unquoted spaces will separate the parameters.
 If it is required for a parameter to contain a space, it should be enclosed in single
-quotes (').
+quotes ('). For example
+
+.nf
+.RS
+$SG_NAME=SG1
+$INST=low
+$USER=user
+notify_master "/etc/keepalived/notify_event.sh ' spaces\\\\x20f\\x69le ' '\\"s p a c e \\"' ${SG_NAME}.$INST master" $USER group
+.RE
+
+.fi
+specifies a notify_master script /etc/keepalived/notify_event.sh that will be executed as user:group with parameters
+
+.nf
+.RS
+\' spaces\\x20file \', \'"s p a c e "\', \'SG1.low\' and \'master\'
+.RE
 
 .PP
 .SH CONFIGURATION PARSER
