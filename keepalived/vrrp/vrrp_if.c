@@ -419,7 +419,7 @@ dump_garp_delay(FILE *fp, const garp_delay_t *gd)
 	conf_write(fp, "------< GARP delay group %d >------", gd->aggregation_group);
 
 	if (gd->have_garp_interval) {
-		conf_write(fp, " GARP interval = %" PRI_tv_sec "%6.6" PRI_tv_usec, gd->garp_interval.tv_sec, gd->garp_interval.tv_usec);
+		conf_write(fp, " GARP interval = %" PRI_tv_sec ".%6.6" PRI_tv_usec, gd->garp_interval.tv_sec, gd->garp_interval.tv_usec);
 		if (!ctime_r(&gd->garp_next_time.tv_sec, time_str))
 			strcpy(time_str, "invalid time ");
 		conf_write(fp, " GARP next time %" PRI_tv_sec ".%6.6" PRI_tv_usec " (%.19s.%6.6" PRI_tv_usec ")", gd->garp_next_time.tv_sec, gd->garp_next_time.tv_usec, time_str, gd->garp_next_time.tv_usec);
