@@ -1915,7 +1915,7 @@ garp_group_garp_interval_handler(const vector_t *strvec)
 {
 	unsigned val;
 
-	if (!read_decimal_unsigned_strvec(strvec, 1, &val, 0, INT_MAX, TIMER_HZ_DIGITS, true)) {
+	if (!read_decimal_unsigned_strvec(strvec, 1, &val, 0, UINT_MAX, TIMER_HZ_DIGITS, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "garp_group garp_interval '%s' invalid", strvec_slot(strvec, 1));
 		return;
 	}
@@ -1932,7 +1932,7 @@ garp_group_gna_interval_handler(const vector_t *strvec)
 {
 	unsigned val;
 
-	if (!read_decimal_unsigned_strvec(strvec, 1, &val, 0, INT_MAX, TIMER_HZ_DIGITS, true)) {
+	if (!read_decimal_unsigned_strvec(strvec, 1, &val, 0, UINT_MAX, TIMER_HZ_DIGITS, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "garp_group gna_interval '%s' invalid", strvec_slot(strvec, 1));
 		return;
 	}
