@@ -79,7 +79,7 @@
  * overridden by the global_defs tmp_config_directory option.
  *
  * The temporary file contains all the lines of the original configuration file(s)
- * stripped of leading and training whitespace and comments, with the following
+ * stripped of leading and trailing whitespace and comments, with the following
  * exceptions:
  * 1. include statements are passed as blank lines.
  * 2. When an included file is opened, a line starting "# " followed by the file
@@ -823,7 +823,7 @@ set_random_seed(unsigned int seed)
 }
 
 static void
-keyword_alloc(vector_t *keywords_vec, const char *string, void (*handler) (const vector_t *), bool active)
+keyword_alloc(vector_t *keywords_vec, const char *string, void (*handler) (const vector_t *), bool active, bool allow_mismatched_quotes)
 {
 	keyword_t *keyword;
 
@@ -834,12 +834,13 @@ keyword_alloc(vector_t *keywords_vec, const char *string, void (*handler) (const
 	keyword->handler = handler;
 	keyword->active = active;
 	keyword->ptr = cur_check_ptr;
+	keyword->allow_mismatched_quotes = allow_mismatched_quotes;
 
 	vector_set_slot(keywords_vec, keyword);
 }
 
 static void
-keyword_alloc_sub(vector_t *keywords_vec, const char *string, void (*handler) (const vector_t *))
+keyword_alloc_sub(vector_t *keywords_vec, const char *string, void (*handler) (const vector_t *), bool allow_mismatched_quotes)
 {
 	int i = 0;
 	keyword_t *keyword;
@@ -860,7 +861,7 @@ keyword_alloc_sub(vector_t *keywords_vec, const char *string, void (*handler) (c
 		keyword->sub = vector_alloc();
 
 	/* add new sub keyword */
-	keyword_alloc(keyword->sub, string, handler, true);
+	keyword_alloc(keyword->sub, string, handler, true, allow_mismatched_quotes);
 }
 
 /* Exported helpers */
@@ -889,14 +890,22 @@ install_keyword_root(const char *string, void (*handler) (const vector_t *), boo
 	/* If the root keyword is inactive, the handler will still be called,
 	 * but with a NULL strvec */
 	cur_check_ptr = NULL;
-	keyword_alloc(keywords, string, handler, active);
+	keyword_alloc(keywords, string, handler, active, false);
 	cur_check_ptr = ptr;
 }
 
 void
 install_keyword(const char *string, void (*handler) (const vector_t *))
 {
-	keyword_alloc_sub(keywords, string, handler);
+	keyword_alloc_sub(keywords, string, handler, false);
+}
+
+void
+install_keyword_quoted(const char *string, void (*handler) (const vector_t *))
+{
+	/* This is a special instance when the second parameter can be a
+	 * quoted escaped string. */
+	keyword_alloc_sub(keywords, string, handler, true);
 }
 
 void
@@ -1024,8 +1033,8 @@ get_random(const def_t *def)
 	return rand_str;
 }
 
-const vector_t *
-alloc_strvec_quoted_escaped(const char *src)
+static const vector_t *
+alloc_strvec_quoted_escaped_common(const char *src, bool escapes)
 {
 	vector_t *strvec;
 	char cur_quote = 0;
@@ -1033,6 +1042,7 @@ alloc_strvec_quoted_escaped(const char *src)
 	char *op_buf;
 	const char *ofs, *ofs1;
 	char op_char;
+	unsigned i;
 
 	if (!src) {
 		if (!buf_extern)
@@ -1083,61 +1093,66 @@ alloc_strvec_quoted_escaped(const char *src)
 					goto err_exit;
 				}
 
-				if (*ofs == 'x' && isxdigit(ofs[1])) {
-					op_char = 0;
-					ofs++;
-					while (isxdigit(*ofs)) {
-						op_char <<= 4;
-						op_char |= isdigit(*ofs) ? *ofs - '0' : (10 + *ofs - (isupper(*ofs)  ? 'A' : 'a'));
+				if (escapes) {
+					if (*ofs == 'x' && isxdigit(ofs[1])) {
+						op_char = 0;
+						ofs++;
+						for (i = 0; i <= 1 && isxdigit(*ofs); i++) {
+							op_char <<= 4;
+							op_char |= isdigit(*ofs) ? *ofs - '0' : (10 + *ofs - (isupper(*ofs)  ? 'A' : 'a'));
+							ofs++;
+						}
+					}
+					else if (*ofs == 'c' && ofs[1]) {
+						op_char = *++ofs & 0x1f;	/* Convert to control character */
 						ofs++;
 					}
-				}
-				else if (*ofs == 'c' && ofs[1]) {
-					op_char = *++ofs & 0x1f;	/* Convert to control character */
-					ofs++;
-				}
-				else if (*ofs >= '0' && *ofs <= '7') {
-					op_char = *ofs++ - '0';
-					if (*ofs >= '0' && *ofs <= '7') {
-						op_char <<= 3;
-						op_char += *ofs++ - '0';
+					else if (*ofs >= '0' && *ofs <= '7') {
+						op_char = *ofs++ - '0';
+						if (*ofs >= '0' && *ofs <= '7') {
+							op_char <<= 3;
+							op_char += *ofs++ - '0';
+						}
+						if (*ofs >= '0' && *ofs <= '7') {
+							op_char <<= 3;
+							op_char += *ofs++ - '0';
+						}
 					}
-					if (*ofs >= '0' && *ofs <= '7') {
-						op_char <<= 3;
-						op_char += *ofs++ - '0';
+					else {
+						switch (*ofs) {
+						case 'a':
+							op_char = '\a';
+							break;
+						case 'b':
+							op_char = '\b';
+							break;
+						case 'E':
+							op_char = 0x1b;
+							break;
+						case 'f':
+							op_char = '\f';
+							break;
+						case 'n':
+							op_char = '\n';
+							break;
+						case 'r':
+							op_char = '\r';
+							break;
+						case 't':
+							op_char = '\t';
+							break;
+						case 'v':
+							op_char = '\v';
+							break;
+						default: /* \"'  */
+							op_char = *ofs;
+							break;
+						}
+						ofs++;
 					}
-				}
-				else {
-					switch (*ofs) {
-					case 'a':
-						op_char = '\a';
-						break;
-					case 'b':
-						op_char = '\b';
-						break;
-					case 'E':
-						op_char = 0x1b;
-						break;
-					case 'f':
-						op_char = '\f';
-						break;
-					case 'n':
-						op_char = '\n';
-						break;
-					case 'r':
-						op_char = '\r';
-						break;
-					case 't':
-						op_char = '\t';
-						break;
-					case 'v':
-						op_char = '\v';
-						break;
-					default: /* \"'  */
-						op_char = *ofs;
-						break;
-					}
-					ofs++;
+				} else {
+					*ofs_op++ = '\\';
+					op_char = *ofs++;
 				}
 
 				*ofs_op++ = op_char;
@@ -1179,12 +1194,28 @@ err_exit:
 	return NULL;
 }
 
+const vector_t *
+alloc_strvec_quoted_escaped(const char *src)
+{
+	return alloc_strvec_quoted_escaped_common(src, true);
+}
+
+const vector_t *
+alloc_strvec_quoted(const char *src)
+{
+	return alloc_strvec_quoted_escaped_common(src, false);
+}
+
 vector_t *
-alloc_strvec_r(const char *string)
+alloc_strvec_r(const char *string, const vector_t *keywords_vec)
 {
 	const char *cp, *start;
 	size_t str_len;
 	vector_t *strvec;
+	unsigned i;
+	bool allow_mismatched_quotes;
+	keyword_t *keyword_vec;
+	const char *keyword;
 
 	if (!string)
 		return NULL;
@@ -1204,7 +1235,26 @@ alloc_strvec_r(const char *string)
 		if (*start == '"') {
 			start++;
 			if (!(cp = strchr(start, '"'))) {
-				report_config_error(CONFIG_UNMATCHED_QUOTE, "Unmatched quote: '%s'", string);
+				allow_mismatched_quotes = false;
+				if (vector_size(strvec) > 1 && keywords_vec) {
+					keyword = strvec_slot(strvec, 0);
+
+					/* Check to see if the second string will be reprocessed */
+					for (i = 0; i < vector_size(keywords_vec); i++) {
+						keyword_vec = vector_slot(keywords_vec, i);
+
+						if (!strcmp(keyword_vec->string, keyword)) {
+							allow_mismatched_quotes = keyword_vec->allow_mismatched_quotes;
+							break;
+						}
+					}
+				}
+				if (!allow_mismatched_quotes
+#ifndef _ONE_PROCESS_DEBUG_
+				     && prog_type != PROG_TYPE_PARENT
+#endif
+								     )
+					report_config_error(CONFIG_UNMATCHED_QUOTE, "Unmatched quote: '%s'", string);
 				break;
 			}
 			str_len = (size_t)(cp - start);
@@ -2933,7 +2983,7 @@ alloc_value_block(void (*alloc_func) (const vector_t *), const vector_t *strvec)
 	while (first_vec || read_line(buf, MAXBUF)) {
 		if (first_vec)
 			vec = first_vec;
-		else if (!(vec = alloc_strvec(buf)))
+		else if (!(vec = alloc_strvec(buf, NULL)))
 			continue;
 
 		if (!first_vec) {
@@ -2997,7 +3047,7 @@ process_stream(vector_t *keywords_vec, int need_bob)
 
 	buf = MALLOC(MAXBUF);
 	while (read_line(buf, MAXBUF)) {
-		strvec = alloc_strvec(buf);
+		strvec = alloc_strvec(buf, keywords_vec);
 
 		if (!strvec)
 			continue;

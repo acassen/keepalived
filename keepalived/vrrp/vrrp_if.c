@@ -416,10 +416,10 @@ dump_garp_delay(FILE *fp, const garp_delay_t *gd)
 	char time_str[26];
 	interface_t *ifp;
 
-	conf_write(fp, "------< GARP delay group %d >------", gd->aggregation_group);
+	conf_write(fp, "------< GARP delay group >------");
 
 	if (gd->have_garp_interval) {
-		conf_write(fp, " GARP interval = %" PRI_tv_sec "%6.6" PRI_tv_usec, gd->garp_interval.tv_sec, gd->garp_interval.tv_usec);
+		conf_write(fp, " GARP interval = %" PRI_tv_sec ".%6.6" PRI_tv_usec, gd->garp_interval.tv_sec, gd->garp_interval.tv_usec);
 		if (!ctime_r(&gd->garp_next_time.tv_sec, time_str))
 			strcpy(time_str, "invalid time ");
 		conf_write(fp, " GARP next time %" PRI_tv_sec ".%6.6" PRI_tv_usec " (%.19s.%6.6" PRI_tv_usec ")", gd->garp_next_time.tv_sec, gd->garp_next_time.tv_usec, time_str, gd->garp_next_time.tv_usec);
@@ -456,6 +456,8 @@ alloc_garp_delay(void)
 
 	PMALLOC(gd);
 	INIT_LIST_HEAD(&gd->e_list);
+	INIT_LIST_HEAD(&gd->garp_list);
+	INIT_LIST_HEAD(&gd->gna_list);
 
 	list_add_tail(&gd->e_list, &garp_delay);
 	return gd;
@@ -480,15 +482,16 @@ set_default_garp_delay(void)
 	vrrp_t *vrrp;
 	list_head_t *vip_list;
 	ip_address_t *vip;
+	bool have_ipv4, have_ipv6;
 
 	if (global_data->vrrp_garp_interval) {
-		default_delay.garp_interval.tv_sec = global_data->vrrp_garp_interval / 1000000;
-		default_delay.garp_interval.tv_usec = global_data->vrrp_garp_interval % 1000000;
+		default_delay.garp_interval.tv_sec = global_data->vrrp_garp_interval / TIMER_HZ;
+		default_delay.garp_interval.tv_usec = global_data->vrrp_garp_interval % TIMER_HZ;
 		default_delay.have_garp_interval = true;
 	}
 	if (global_data->vrrp_gna_interval) {
-		default_delay.gna_interval.tv_sec = global_data->vrrp_gna_interval / 1000000;
-		default_delay.gna_interval.tv_usec = global_data->vrrp_gna_interval % 1000000;
+		default_delay.gna_interval.tv_sec = global_data->vrrp_gna_interval / TIMER_HZ;
+		default_delay.gna_interval.tv_usec = global_data->vrrp_gna_interval % TIMER_HZ;
 		default_delay.have_gna_interval = true;
 	}
 
@@ -497,6 +500,24 @@ set_default_garp_delay(void)
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		if (!vrrp->ifp)
 			continue;
+
+		/* Check what family of addresses we have */
+		have_ipv4 = vrrp->family == AF_INET;
+		have_ipv6 = vrrp->family == AF_INET6;
+
+		list_for_each_entry(vip, &vrrp->evip, e_list) {
+			if (IP_IS6(vip))
+				have_ipv6 = true;
+			else
+				have_ipv4 = true;
+		}
+
+		/* We don't need a delay if there isn't a delay for the
+		 * address family we are using */
+		if (!((have_ipv4 && global_data->vrrp_garp_interval) ||
+		      (have_ipv6 && global_data->vrrp_gna_interval)))
+			continue;
+
 		ifp = IF_BASE_IFP(vrrp->ifp);
 		if (!ifp->garp_delay)
 			set_garp_delay(ifp, &default_delay);
@@ -697,8 +718,6 @@ dump_if(FILE *fp, const interface_t *ifp)
 			conf_write(fp, "   Gratuitous NA interval %" PRI_time_t "ms",
 				    ifp->garp_delay->gna_interval.tv_sec * 1000 +
 				     ifp->garp_delay->gna_interval.tv_usec / (TIMER_HZ / 1000));
-		if (ifp->garp_delay->aggregation_group)
-			conf_write(fp, "   Gratuitous ARP aggregation group %d", ifp->garp_delay->aggregation_group);
 	}
 
 #ifdef _HAVE_VRRP_VMAC_

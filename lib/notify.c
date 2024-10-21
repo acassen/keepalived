@@ -1117,7 +1117,7 @@ notify_script_init(int extra_params, const char *type)
 	const vector_t *strvec_qe;
 
 	/* We need to reparse the command line, allowing for quoted and escaped strings */
-	strvec_qe = alloc_strvec_quoted_escaped(NULL);
+	strvec_qe = alloc_strvec_quoted(NULL);
 
 	if (!strvec_qe) {
 		log_message(LOG_INFO, "Unable to parse notify script");

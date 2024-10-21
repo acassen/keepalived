@@ -133,7 +133,7 @@ misc_path_handler(__attribute__((unused)) const vector_t *strvec)
 	misc_checker_t *new_misck_checker = current_checker->data;
 
 	/* We need to allow quoted and escaped strings for the script and parameters */
-	strvec_qe = alloc_strvec_quoted_escaped(NULL);
+	strvec_qe = alloc_strvec_quoted(NULL);
 
 	set_script_params_array(strvec_qe, &new_misck_checker->script, 0);
 
@@ -209,7 +209,7 @@ install_misc_check_keyword(void)
 	install_keyword("MISC_CHECK", &misc_check_handler);
 	check_ptr = install_sublevel(VPP &current_checker);
 	install_checker_common_keywords(false);
-	install_keyword("misc_path", &misc_path_handler);
+	install_keyword_quoted("misc_path", &misc_path_handler);
 	install_keyword("misc_timeout", &misc_timeout_handler);
 	install_keyword("misc_dynamic", &misc_dynamic_handler);
 	install_keyword("user", &misc_user_handler);

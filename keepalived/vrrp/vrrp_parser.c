@@ -83,6 +83,7 @@ static vrrp_script_t *current_vscr;
 #ifdef _WITH_TRACK_PROCESS_
 static vrrp_tracked_process_t *current_tp;
 #endif
+static unsigned cur_aggregation_group;
 
 
 /* track groups for static items */
@@ -1538,7 +1539,7 @@ vrrp_vscript_script_handler(__attribute__((unused)) const vector_t *strvec)
 	const vector_t *strvec_qe;
 
 	/* We need to allow quoted and escaped strings for the script and parameters */
-	strvec_qe = alloc_strvec_quoted_escaped(NULL);
+	strvec_qe = alloc_strvec_quoted(NULL);
 
 	set_script_params_array(strvec_qe, &current_vscr->script, 0);
 	free_strvec(strvec_qe);
@@ -1914,7 +1915,7 @@ garp_group_garp_interval_handler(const vector_t *strvec)
 {
 	unsigned val;
 
-	if (!read_decimal_unsigned_strvec(strvec, 1, &val, 0, INT_MAX, TIMER_HZ_DIGITS, true)) {
+	if (!read_decimal_unsigned_strvec(strvec, 1, &val, 0, UINT_MAX, TIMER_HZ_DIGITS, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "garp_group garp_interval '%s' invalid", strvec_slot(strvec, 1));
 		return;
 	}
@@ -1931,7 +1932,7 @@ garp_group_gna_interval_handler(const vector_t *strvec)
 {
 	unsigned val;
 
-	if (!read_decimal_unsigned_strvec(strvec, 1, &val, 0, INT_MAX, TIMER_HZ_DIGITS, true)) {
+	if (!read_decimal_unsigned_strvec(strvec, 1, &val, 0, UINT_MAX, TIMER_HZ_DIGITS, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "garp_group gna_interval '%s' invalid", strvec_slot(strvec, 1));
 		return;
 	}
@@ -1971,7 +1972,6 @@ garp_group_interfaces_handler(const vector_t *strvec)
 {
 	interface_t *ifp;
 	const vector_t *interface_vec = read_value_block(strvec);
-	garp_delay_t *gd;
 	size_t i;
 
 	/* Handle the interfaces block being empty */
@@ -1980,12 +1980,8 @@ garp_group_interfaces_handler(const vector_t *strvec)
 		return;
 	}
 
-	/* First set the next aggregation group number */
-	current_ggd->aggregation_group = 1;
-	list_for_each_entry(gd, &garp_delay, e_list) {
-		if (gd->aggregation_group && gd != current_ggd)
-			current_ggd->aggregation_group++;
-	}
+	/* First set the configuration aggregation group number */
+	cur_aggregation_group++;
 
 	for (i = 0; i < vector_size(interface_vec); i++) {
 		ifp = if_get_by_ifname(vector_slot(interface_vec, i), IF_CREATE_IF_DYNAMIC);
@@ -2020,7 +2016,7 @@ garp_group_end_handler(void)
 	list_head_t *ifq;
 
 	if (!current_ggd->have_garp_interval && !current_ggd->have_gna_interval) {
-		report_config_error(CONFIG_GENERAL_ERROR, "garp group %d does not have any delay set - removing", current_ggd->aggregation_group);
+		report_config_error(CONFIG_GENERAL_ERROR, "garp group %u does not have any delay set - removing", cur_aggregation_group);
 
 		/* Remove the garp_delay from any interfaces that are using it */
 		ifq = get_interface_queue();
@@ -2115,11 +2111,11 @@ init_vrrp_keywords(bool active)
 #ifdef _WITH_BFD_
 	install_keyword("track_bfd", &vrrp_group_track_bfd_handler);
 #endif
-	install_keyword("notify_backup", &vrrp_gnotify_backup_handler);
-	install_keyword("notify_master", &vrrp_gnotify_master_handler);
-	install_keyword("notify_fault", &vrrp_gnotify_fault_handler);
-	install_keyword("notify_stop", &vrrp_gnotify_stop_handler);
-	install_keyword("notify", &vrrp_gnotify_handler);
+	install_keyword_quoted("notify_backup", &vrrp_gnotify_backup_handler);
+	install_keyword_quoted("notify_master", &vrrp_gnotify_master_handler);
+	install_keyword_quoted("notify_fault", &vrrp_gnotify_fault_handler);
+	install_keyword_quoted("notify_stop", &vrrp_gnotify_stop_handler);
+	install_keyword_quoted("notify", &vrrp_gnotify_handler);
 	install_keyword("smtp_alert", &vrrp_gsmtp_handler);
 	install_keyword("global_tracking", &vrrp_gglobal_tracking_handler);
 	install_keyword("sync_group_tracking_weight", &vrrp_sg_tracking_weight_handler);
@@ -2201,13 +2197,13 @@ init_vrrp_keywords(bool active)
 	install_keyword("nopreempt", &vrrp_nopreempt_handler);
 	install_keyword("preempt_delay", &vrrp_preempt_delay_handler);
 	install_keyword("debug", &vrrp_debug_handler);
-	install_keyword("notify_backup", &vrrp_notify_backup_handler);
-	install_keyword("notify_master", &vrrp_notify_master_handler);
-	install_keyword("notify_fault", &vrrp_notify_fault_handler);
-	install_keyword("notify_stop", &vrrp_notify_stop_handler);
-	install_keyword("notify_deleted", &vrrp_notify_deleted_handler);
-	install_keyword("notify", &vrrp_notify_handler);
-	install_keyword("notify_master_rx_lower_pri", vrrp_notify_master_rx_lower_pri);
+	install_keyword_quoted("notify_backup", &vrrp_notify_backup_handler);
+	install_keyword_quoted("notify_master", &vrrp_notify_master_handler);
+	install_keyword_quoted("notify_fault", &vrrp_notify_fault_handler);
+	install_keyword_quoted("notify_stop", &vrrp_notify_stop_handler);
+	install_keyword_quoted("notify_deleted", &vrrp_notify_deleted_handler);
+	install_keyword_quoted("notify", &vrrp_notify_handler);
+	install_keyword_quoted("notify_master_rx_lower_pri", vrrp_notify_master_rx_lower_pri);
 	install_keyword("smtp_alert", &vrrp_smtp_handler);
 	install_keyword("notify_priority_changes", &vrrp_notify_priority_changes_handler);
 #ifdef _WITH_LVS_
@@ -2238,7 +2234,7 @@ init_vrrp_keywords(bool active)
 #endif
 	/* Script declarations */
 	install_keyword_root("vrrp_script", &vrrp_script_handler, active, VPP &current_vscr);
-	install_keyword("script", &vrrp_vscript_script_handler);
+	install_keyword_quoted("script", &vrrp_vscript_script_handler);
 	install_keyword("interval", &vrrp_vscript_interval_handler);
 	install_keyword("timeout", &vrrp_vscript_timeout_handler);
 	install_keyword("weight", &vrrp_vscript_weight_handler);
@@ -2281,6 +2277,8 @@ vrrp_init_keywords(void)
 	init_bfd_keywords(true);
 #endif
 	add_track_file_keywords(true);
+
+	cur_aggregation_group = 0;
 
 	return keywords;
 }

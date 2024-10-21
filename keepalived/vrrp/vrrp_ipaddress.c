@@ -268,6 +268,7 @@ free_ipaddress(ip_address_t *ip_addr)
 {
 	FREE_PTR(ip_addr->label);
 	list_del_init(&ip_addr->e_list);
+	list_del_init(&ip_addr->garp_gna_list);
 	FREE(ip_addr);
 }
 
@@ -484,6 +485,7 @@ alloc_ipaddress(const vector_t *strvec, bool static_addr)
 		return NULL;
 	}
 	INIT_LIST_HEAD(&new->e_list);
+	INIT_LIST_HEAD(&new->garp_gna_list);
 
 	/* We expect the address first */
 	if (!parse_ipaddress(new, strvec_slot(strvec, 0), true)) {

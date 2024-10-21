@@ -171,54 +171,57 @@ read_file(const char *file_name, list_head_t *l, uint32_t max)
 {
 	FILE *fp;
 	rt_entry_t *rte;
-	vector_t *strvec = NULL;
 	char buf[MAX_RT_BUF];
 	unsigned long id;
-	const char *number;
+	const char *number, *name;
 	char *endptr;
+	size_t len;
 
 	fp = fopen(file_name, "r");
 	if (!fp)
 		return;
 
 	while (fgets(buf, MAX_RT_BUF, fp)) {
-		strvec = alloc_strvec(buf);
+		/* Remove comments */
+		if ((endptr = strchr(buf, '#')))
+			*endptr = '\0';
 
-		if (!strvec)
+		/* Remove trailing '\n' and skip empty lines */
+		if (!(len = strlen(buf)))
 			continue;
-
-		if (vector_size(strvec) != 2) {
-			free_strvec(strvec);
-			continue;
+		if (buf[len - 1] == '\n') {
+			if (len == 1)
+				continue;
+			buf[len - 1] = '\0';
 		}
+
+		/* check we have only two fields, and get them */
+		if (!(number = strtok(buf, " \t")))
+			continue;
+		if (!(name = strtok(NULL, " \t")))
+			continue;
+		if (strtok(NULL, " \t"))
+			continue;
 
 		PMALLOC(rte);
-		if (!rte) {
-			free_strvec(strvec);
+		if (!rte)
 			goto err;
-		}
 		INIT_LIST_HEAD(&rte->e_list);
 
-		number = strvec_slot(strvec, 0);
-		number += strspn(number, " \t");
 		id = strtoul(number, &endptr, 0);
 		if (*number == '-' || number == endptr || *endptr || id > max) {
 			FREE(rte);
-			free_strvec(strvec);
 			continue;
 		}
 		rte->id = (unsigned)id;
 
-		rte->name = STRDUP(strvec_slot(strvec, 1));
+		rte->name = STRDUP(name);
 		if (!rte->name) {
 			FREE(rte);
-			free_strvec(strvec);
 			goto err;
 		}
 
 		list_add_tail(&rte->e_list, l);
-
-		free_strvec(strvec);
 	}
 
 	fclose(fp);
@@ -227,12 +230,7 @@ read_file(const char *file_name, list_head_t *l, uint32_t max)
 err:
 	fclose(fp);
 
-	if (strvec)
-		free_strvec(strvec);
-
 	free_rt_entry_list(l);
-
-	return;
 }
 
 static void

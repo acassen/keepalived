@@ -734,8 +734,6 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 #ifdef _HAVE_VRRP_VMAC_
 	if (vrrp->vmac_garp_intvl.tv_sec) {
 		conf_write(fp, "   Gratuitous ARP for each secondary %s = %" PRI_time_t, __test_bit(VRRP_FLAG_VMAC_GARP_ALL_IF, &vrrp->flags) ? "i/f" : "VMAC", vrrp->vmac_garp_intvl.tv_sec);
-		ctime_r(&vrrp->vmac_garp_timer.tv_sec, time_str);
-		conf_write(fp, "   Next gratuitous ARP for such secondary = %" PRI_tv_sec ".%6.6" PRI_tv_usec " (%.24s.%6.6" PRI_tv_usec ")", vrrp->vmac_garp_timer.tv_sec, vrrp->vmac_garp_timer.tv_usec, time_str, vrrp->vmac_garp_timer.tv_usec);
 	}
 #endif
 	conf_write(fp, "   Send advert after receive lower priority advert = %s", vrrp->lower_prio_no_advert ? "false" : "true");

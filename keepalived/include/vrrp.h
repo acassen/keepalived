@@ -299,19 +299,15 @@ typedef struct _vrrp_t {
 	timeval_t		last_transition;	/* Store transition time */
 	unsigned		garp_delay;		/* Delay to launch gratuitous ARP */
 	timeval_t		garp_refresh;		/* Next scheduled gratuitous ARP refresh */
-	timeval_t		garp_refresh_timer;	/* Next scheduled gratuitous ARP timer */
 	unsigned		garp_rep;		/* gratuitous ARP repeat value */
 	unsigned		garp_refresh_rep;	/* refresh gratuitous ARP repeat value */
 	unsigned		garp_lower_prio_delay;	/* Delay to second set or ARP messages */
-	bool			garp_pending;		/* Are there gratuitous ARP messages still to be sent */
-	bool			gna_pending;		/* Are there gratuitous NA messages still to be sent */
 	unsigned		garp_lower_prio_rep;	/* Number of ARP messages to send at a time */
 	unsigned		down_timer_adverts;	/* Number of adverts missed before backup takes over as master */
 	unsigned		lower_prio_no_advert;	/* Don't send advert after lower prio advert received */
 	unsigned		higher_prio_send_advert; /* Send advert after higher prio advert received */
 #ifdef _HAVE_VRRP_VMAC_
 	timeval_t		vmac_garp_intvl;	/* Interval between GARPs on each VMAC */
-	timeval_t		vmac_garp_timer;	/* Next scheduled GARP for each VMAC */
 #endif
 	uint8_t			vrid;			/* virtual id. from 1(!) to 255 */
 	uint8_t			base_priority;		/* configured priority value */
@@ -477,6 +473,7 @@ extern void open_sockpool_socket(sock_t *);
 extern int new_vrrp_socket(vrrp_t *);
 extern void vrrp_send_adv(vrrp_t *, uint8_t);
 extern void vrrp_send_link_update(vrrp_t *, unsigned);
+extern void vrrp_send_vmac_update(vrrp_t *);
 extern void add_vrrp_to_interface(vrrp_t *, interface_t *, int, bool, bool, track_t);
 extern void del_vrrp_from_interface(vrrp_t *, interface_t *);
 extern bool vrrp_state_master_rx(vrrp_t *, const vrrphdr_t *, const char *, ssize_t);
