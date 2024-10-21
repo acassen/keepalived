@@ -482,6 +482,7 @@ set_default_garp_delay(void)
 	vrrp_t *vrrp;
 	list_head_t *vip_list;
 	ip_address_t *vip;
+	bool have_ipv4, have_ipv6;
 
 	if (global_data->vrrp_garp_interval) {
 		default_delay.garp_interval.tv_sec = global_data->vrrp_garp_interval / TIMER_HZ;
@@ -499,6 +500,24 @@ set_default_garp_delay(void)
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		if (!vrrp->ifp)
 			continue;
+
+		/* Check what family of addresses we have */
+		have_ipv4 = vrrp->family == AF_INET;
+		have_ipv6 = vrrp->family == AF_INET6;
+
+		list_for_each_entry(vip, &vrrp->evip, e_list) {
+			if (IP_IS6(vip))
+				have_ipv6 = true;
+			else
+				have_ipv4 = true;
+		}
+
+		/* We don't need a delay if there isn't a delay for the
+		 * address family we are using */
+		if (!((have_ipv4 && global_data->vrrp_garp_interval) ||
+		      (have_ipv6 && global_data->vrrp_gna_interval)))
+			continue;
+
 		ifp = IF_BASE_IFP(vrrp->ifp);
 		if (!ifp->garp_delay)
 			set_garp_delay(ifp, &default_delay);
