@@ -438,6 +438,7 @@ AS_IF([test $? -eq 0],
 # save the configure arguments
 #
 args=`echo $ac_configure_args | $SED -e "s/'//g"`
+AS_IF([test .$enable_reproducible_build = .yes], [`echo $ac_configure_args | $SED -e "s/-ffile-prefix-map=[[^ ]]*//g"`]
 AC_DEFINE_UNQUOTED(KEEPALIVED_CONFIGURE_OPTIONS,"$args", [configure options specified])
 
 AS_IF([test .$enable_lto = .yes],
