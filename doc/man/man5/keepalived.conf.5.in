@@ -367,28 +367,25 @@ possibly following any cleanup actions needed.
     # remove them).
     \fBlvs_flush_on_stop [VS]\fR
 
+    # number of gratuitous ARP messages to send at a time after
+    # transition to MASTER.
+    # (default: 5)
+    \fBvrrp_garp_master_repeat \fR1
+
     # delay for second set of gratuitous ARPs after transition to MASTER.
     # in seconds, 0 for no second set.
     # (default: 5)
     \fBvrrp_garp_master_delay \fR10
 
     # number of gratuitous ARP messages to send at a time after
-    # transition to MASTER.
-    # (default: 5)
-    \fBvrrp_garp_master_repeat \fR1
+    # lower priority advert received when MASTER.
+    # (default: vrrp_garp_master_repeat)
+    \fBvrrp_garp_lower_prio_repeat \fR1
 
     # delay for second set of gratuitous ARPs after lower priority
     # advert received when MASTER.
     # (default: vrrp_garp_master_delay)
     \fBvrrp_garp_lower_prio_delay \fR10
-
-    # Default value for vrrp down_timer_adverts.
-    \fBvrrp_down_timer_adverts \fR[1:100]
-
-    # number of gratuitous ARP messages to send at a time after
-    # lower priority advert received when MASTER.
-    # (default: vrrp_garp_master_repeat)
-    \fBvrrp_garp_lower_prio_repeat \fR1
 
     # minimum time interval for refreshing gratuitous ARPs while MASTER.
     # in seconds (resolution seconds).
@@ -428,9 +425,12 @@ possibly following any cleanup actions needed.
     # will cause it to send GARP/NA on each interface used by the VRRP instance.
     \fBvrrp_garp_extra_if [all] \fR100
 
+    # Default value for vrrp down_timer_adverts.
+    \fBvrrp_down_timer_adverts \fR[1:100]
+
     # If a lower priority advert is received, don't send another advert.
-    # This causes adherence to the RFCs. Defaults to false, unless
-    # strict_mode is set.
+    # This causes adherence to the RFCs prior to RFC9568.
+    # Defaults to false, unless strict_mode is set.
     \fBvrrp_lower_prio_no_advert \fR[<BOOL>]
 
     # If we are master and receive a higher priority advert, send an advert
@@ -1572,7 +1572,7 @@ and the limits apply to the switch as a whole.
 
 If the global vrrp_garp_interval and/or vrrp_gna_interval are set, any
 interfaces that aren't specified in a garp_group will inherit the global
-settings.
+settings on a per interface basis.
 .PP
 .nf
 The syntax for garp_group is :
