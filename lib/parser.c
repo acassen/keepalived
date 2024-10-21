@@ -1033,6 +1033,7 @@ alloc_strvec_quoted_escaped(const char *src)
 	char *op_buf;
 	const char *ofs, *ofs1;
 	char op_char;
+	unsigned i;
 
 	if (!src) {
 		if (!buf_extern)
@@ -1086,7 +1087,7 @@ alloc_strvec_quoted_escaped(const char *src)
 				if (*ofs == 'x' && isxdigit(ofs[1])) {
 					op_char = 0;
 					ofs++;
-					while (isxdigit(*ofs)) {
+					for (i = 0; i <= 1 && isxdigit(*ofs); i++) {
 						op_char <<= 4;
 						op_char |= isdigit(*ofs) ? *ofs - '0' : (10 + *ofs - (isupper(*ofs)  ? 'A' : 'a'));
 						ofs++;

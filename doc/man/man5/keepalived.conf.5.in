@@ -128,11 +128,11 @@ will be the three strings:
 i.e. the " and ' characters are removed and any intervening whitespace is retained.
 .PP
 Quoted strings can also have escaped characters, like the shell. \\a, \\b, \\E, \\f,
-\\n, \\r, \\t, \\v, \\nnn and \\xXX (where nnn is up to 3 octal digits, and XX is any
-sequence of hex digits) and \\cC (which produces the control version of
-character C) are all supported. \\C for any other character C is just
-treated as an escaped version of character C, so \\\\ is a \\ character and
-\\" will be a " character, but it won't start or terminate a quoted string.
+\\n, \\r, \\t, \\v, \\nnn and \\xXX (where nnn is up to 3 octal digits, and XX is up
+to two hex digits) and \\cC (which produces the control version of character C) are
+all supported. \\C for any other character C is just treated as an escaped version
+of character C, so \\\\ is a \\ character and \\" will be a " character, but it
+won't start or terminate a quoted string.
 .PP
 For specifying scripts with parameters, unquoted spaces will separate the parameters.
 If it is required for a parameter to contain a space, it should be enclosed in single
