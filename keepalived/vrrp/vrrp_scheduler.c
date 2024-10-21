@@ -1411,7 +1411,7 @@ vrrp_arpna_send(vrrp_t *vrrp, list_head_t *l, timeval_t *n)
 				send_gratuitous_arp_immediate(ifp, ip_addr);
 				ip_addr->garp_gna_pending = false;
 			} else {
-				vrrp->garp_pending = true;
+				vrrp->garp_gna_pending = true;
 				if (timercmp(&ifp->garp_delay->garp_next_time, n, <))
 					*n = ifp->garp_delay->garp_next_time;
 			}
@@ -1421,7 +1421,7 @@ vrrp_arpna_send(vrrp_t *vrrp, list_head_t *l, timeval_t *n)
 				ndisc_send_unsolicited_na_immediate(ifp, ip_addr);
 				ip_addr->garp_gna_pending = false;
 			} else {
-				vrrp->gna_pending = true;
+				vrrp->garp_gna_pending = true;
 				if (timercmp(&ifp->garp_delay->gna_next_time, n, <))
 					*n = ifp->garp_delay->gna_next_time;
 			}
@@ -1442,11 +1442,10 @@ vrrp_arp_thread(thread_ref_t thread)
 	set_time_now();
 
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
-		if (!vrrp->garp_pending && !vrrp->gna_pending)
+		if (!vrrp->garp_gna_pending)
 			continue;
 
-		vrrp->garp_pending = false;
-		vrrp->gna_pending = false;
+		vrrp->garp_gna_pending = false;
 
 		if (vrrp->state != VRRP_STATE_MAST || !vrrp->vipset)
 			continue;

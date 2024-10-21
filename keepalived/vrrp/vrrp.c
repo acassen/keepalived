@@ -1689,8 +1689,7 @@ vrrp_remove_delayed_arp(vrrp_t *vrrp)
 	list_for_each_entry(ip_addr, &vrrp->evip, e_list) {
 		ip_addr->garp_gna_pending = false;
 	}
-	vrrp->garp_pending = false;
-	vrrp->gna_pending = false;
+	vrrp->garp_gna_pending = false;
 }
 
 /* becoming master */

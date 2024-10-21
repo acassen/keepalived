@@ -303,9 +303,8 @@ typedef struct _vrrp_t {
 	unsigned		garp_rep;		/* gratuitous ARP repeat value */
 	unsigned		garp_refresh_rep;	/* refresh gratuitous ARP repeat value */
 	unsigned		garp_lower_prio_delay;	/* Delay to second set or ARP messages */
-	bool			garp_pending;		/* Are there gratuitous ARP messages still to be sent */
-	bool			gna_pending;		/* Are there gratuitous NA messages still to be sent */
 	unsigned		garp_lower_prio_rep;	/* Number of ARP messages to send at a time */
+	bool			garp_gna_pending;	/* Are there gratuitous ARP or NA messages still to be sent */
 	unsigned		down_timer_adverts;	/* Number of adverts missed before backup takes over as master */
 	unsigned		lower_prio_no_advert;	/* Don't send advert after lower prio advert received */
 	unsigned		higher_prio_send_advert; /* Send advert after higher prio advert received */
