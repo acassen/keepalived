@@ -2111,11 +2111,11 @@ init_vrrp_keywords(bool active)
 #ifdef _WITH_BFD_
 	install_keyword("track_bfd", &vrrp_group_track_bfd_handler);
 #endif
-	install_keyword("notify_backup", &vrrp_gnotify_backup_handler);
-	install_keyword("notify_master", &vrrp_gnotify_master_handler);
-	install_keyword("notify_fault", &vrrp_gnotify_fault_handler);
-	install_keyword("notify_stop", &vrrp_gnotify_stop_handler);
-	install_keyword("notify", &vrrp_gnotify_handler);
+	install_keyword_quoted("notify_backup", &vrrp_gnotify_backup_handler);
+	install_keyword_quoted("notify_master", &vrrp_gnotify_master_handler);
+	install_keyword_quoted("notify_fault", &vrrp_gnotify_fault_handler);
+	install_keyword_quoted("notify_stop", &vrrp_gnotify_stop_handler);
+	install_keyword_quoted("notify", &vrrp_gnotify_handler);
 	install_keyword("smtp_alert", &vrrp_gsmtp_handler);
 	install_keyword("global_tracking", &vrrp_gglobal_tracking_handler);
 	install_keyword("sync_group_tracking_weight", &vrrp_sg_tracking_weight_handler);
@@ -2197,13 +2197,13 @@ init_vrrp_keywords(bool active)
 	install_keyword("nopreempt", &vrrp_nopreempt_handler);
 	install_keyword("preempt_delay", &vrrp_preempt_delay_handler);
 	install_keyword("debug", &vrrp_debug_handler);
-	install_keyword("notify_backup", &vrrp_notify_backup_handler);
-	install_keyword("notify_master", &vrrp_notify_master_handler);
-	install_keyword("notify_fault", &vrrp_notify_fault_handler);
-	install_keyword("notify_stop", &vrrp_notify_stop_handler);
-	install_keyword("notify_deleted", &vrrp_notify_deleted_handler);
-	install_keyword("notify", &vrrp_notify_handler);
-	install_keyword("notify_master_rx_lower_pri", vrrp_notify_master_rx_lower_pri);
+	install_keyword_quoted("notify_backup", &vrrp_notify_backup_handler);
+	install_keyword_quoted("notify_master", &vrrp_notify_master_handler);
+	install_keyword_quoted("notify_fault", &vrrp_notify_fault_handler);
+	install_keyword_quoted("notify_stop", &vrrp_notify_stop_handler);
+	install_keyword_quoted("notify_deleted", &vrrp_notify_deleted_handler);
+	install_keyword_quoted("notify", &vrrp_notify_handler);
+	install_keyword_quoted("notify_master_rx_lower_pri", vrrp_notify_master_rx_lower_pri);
 	install_keyword("smtp_alert", &vrrp_smtp_handler);
 	install_keyword("notify_priority_changes", &vrrp_notify_priority_changes_handler);
 #ifdef _WITH_LVS_
@@ -2234,7 +2234,7 @@ init_vrrp_keywords(bool active)
 #endif
 	/* Script declarations */
 	install_keyword_root("vrrp_script", &vrrp_script_handler, active, VPP &current_vscr);
-	install_keyword("script", &vrrp_vscript_script_handler);
+	install_keyword_quoted("script", &vrrp_vscript_script_handler);
 	install_keyword("interval", &vrrp_vscript_interval_handler);
 	install_keyword("timeout", &vrrp_vscript_timeout_handler);
 	install_keyword("weight", &vrrp_vscript_weight_handler);

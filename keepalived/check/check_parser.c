@@ -987,8 +987,8 @@ init_check_keywords(bool active)
 	/* Pool regression detection and handling. */
 	install_keyword("alpha", &vs_alpha_handler);
 	install_keyword("omega", &omega_handler);
-	install_keyword("quorum_up", &quorum_up_handler);
-	install_keyword("quorum_down", &quorum_down_handler);
+	install_keyword_quoted("quorum_up", &quorum_up_handler);
+	install_keyword_quoted("quorum_down", &quorum_down_handler);
 	install_keyword("quorum", &quorum_handler);
 	install_keyword("hysteresis", &hysteresis_handler);
 	install_keyword("weight", &vs_weight_handler);
@@ -1004,8 +1004,8 @@ init_check_keywords(bool active)
 	install_keyword("uthreshold", &uthreshold_handler);
 	install_keyword("lthreshold", &lthreshold_handler);
 	install_keyword("inhibit_on_failure", &rs_inhibit_handler);
-	install_keyword("notify_up", &notify_up_handler);
-	install_keyword("notify_down", &notify_down_handler);
+	install_keyword_quoted("notify_up", &notify_up_handler);
+	install_keyword_quoted("notify_down", &notify_down_handler);
 	install_keyword("alpha", &rs_alpha_handler);
 	install_keyword("retry", &rs_retry_handler);
 	install_keyword("delay_before_retry", &rs_delay_before_retry_handler);

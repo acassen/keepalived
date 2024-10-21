@@ -747,7 +747,7 @@ possibly following any cleanup actions needed.
 
     # script to be run by keepalived to process notify events
     # The FIFO name will be passed to the script as the last parameter
-    \fBnotify_fifo_script \fRSTRING|QUOTED_STRING [username [groupname]]
+    \fBnotify_fifo_script \fRSTRING|QUOTED-STRING [username [groupname]]
 
     # FIFO to write vrrp notify events to.
     # The string written will be a line of the form: INSTANCE "VI_1" MASTER 100
@@ -758,7 +758,7 @@ possibly following any cleanup actions needed.
 
     # script to be run by keepalived to process vrrp notify events
     # The FIFO name will be passed to the script as the last parameter
-    \fBvrrp_notify_fifo_script \fRSTRING|QUOTED_STRING [username [groupname]]
+    \fBvrrp_notify_fifo_script \fRSTRING|QUOTED-STRING [username [groupname]]
 
     # FIFO to write notify healthchecker events to
     # The string written will be a line of the form:
@@ -769,7 +769,7 @@ possibly following any cleanup actions needed.
 
     # script to be run by keepalived to process healthchecher notify events
     # The FIFO name will be passed to the script as the last parameter
-    \fBlvs_notify_fifo_script \fRSTRING|QUOTED_STRING [username [groupname]]
+    \fBlvs_notify_fifo_script \fRSTRING|QUOTED-STRING [username [groupname]]
 
     # By default, when keepalived reloads the vrrp instance and sync group states
     # are not written to the relevant FIFOs. Setting this option will cause the
@@ -1143,7 +1143,7 @@ The syntax for track file is:
 
 \fBtrack_file \fR<STRING> {	# vrrp_track_file is a deprecated synonym
     # file to track (weight defaults to 1)
-    \fBfile \fR<QUOTED_STRING>
+    \fBfile \fR<QUOTED-STRING>
 
     # optional default weight
     \fBweight \fR<-2147483647..2147483647> [reverse]
@@ -1171,7 +1171,7 @@ The configuration block looks like:
         #  process "@KA_TMP_DIR@/a b" param1 "param 2"
         # would mean a process named '@KA_TMP_DIR@/a b' (quotes removed) with 2 parameters
         #  'param1' and 'param 2'.
-        \fBprocess\fR <STRING>|<QUOTED_STRING> [<STRING>|<QUOTED_STRING> ...]
+        \fBprocess\fR <STRING>|<QUOTED-STRING> [<STRING>|<QUOTED-STRING> ...]
 
         # If matching parameters, this specifies a partial match (i.e. the first
         #   n parameters match exactly), or an initial match, i.e. the last

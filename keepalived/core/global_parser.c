@@ -2474,9 +2474,9 @@ init_global_keywords(bool global_active)
 	install_keyword("smtp_connect_timeout", &smtpto_handler);
 	install_keyword("notification_email", &email_handler);
 	install_keyword("smtp_alert", &smtp_alert_handler);
-	install_keyword("startup_script", &startup_script_handler);
+	install_keyword_quoted("startup_script", &startup_script_handler);
 	install_keyword("startup_script_timeout", &startup_script_timeout_handler);
-	install_keyword("shutdown_script", &shutdown_script_handler);
+	install_keyword_quoted("shutdown_script", &shutdown_script_handler);
 	install_keyword("shutdown_script_timeout", &shutdown_script_timeout_handler);
 	install_keyword("max_auto_priority", &max_auto_priority_handler);
 	install_keyword("min_auto_priority_delay", &min_auto_priority_delay_handler);
@@ -2556,16 +2556,16 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_rlimit_rtime", &vrrp_rt_rlimit_handler);		/* Deprecated 02/02/2020 */
 #endif
 	install_keyword("notify_fifo", &global_notify_fifo);
-	install_keyword("notify_fifo_script", &global_notify_fifo_script);
+	install_keyword_quoted("notify_fifo_script", &global_notify_fifo_script);
 #ifdef _WITH_VRRP_
 	install_keyword("vrrp_notify_fifo", &vrrp_notify_fifo);
-	install_keyword("vrrp_notify_fifo_script", &vrrp_notify_fifo_script);
+	install_keyword_quoted("vrrp_notify_fifo_script", &vrrp_notify_fifo_script);
 	install_keyword("vrrp_notify_priority_changes", &vrrp_notify_priority_changes);
 	install_keyword("fifo_write_vrrp_states_on_reload", &fifo_write_vrrp_states_on_reload);
 #endif
 #ifdef _WITH_LVS_
 	install_keyword("lvs_notify_fifo", &lvs_notify_fifo);
-	install_keyword("lvs_notify_fifo_script", &lvs_notify_fifo_script);
+	install_keyword_quoted("lvs_notify_fifo_script", &lvs_notify_fifo_script);
 	install_keyword("checker_priority", &checker_prio_handler);
 	install_keyword("checker_no_swap", &checker_no_swap_handler);
 	install_keyword("checker_rt_priority", &checker_rt_priority_handler);
