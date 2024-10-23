@@ -831,7 +831,7 @@ static bool reload_config(void)
 
 	if (unsupported_change) {
 		/* We cannot reload the configuration, so continue with the old config */
-		free_global_data (global_data);
+		free_global_data(&global_data);
 		global_data = old_global_data;
 	}
 	else {
@@ -840,7 +840,7 @@ static bool reload_config(void)
 		    (global_data->process_name && strcmp(global_data->process_name, old_global_data->process_name)))
 			set_process_name(global_data->process_name);
 
-		free_global_data (old_global_data);
+		free_global_data(&old_global_data);
 	}
 
 	/* There is no point checking the script security of the
@@ -2910,7 +2910,7 @@ end:
 
 	free_parent_mallocs_startup(false);
 	free_parent_mallocs_exit();
-	free_global_data(global_data);
+	free_global_data(&global_data);
 
 	closelog();
 

@@ -181,9 +181,9 @@ checker_terminate_phase2(void)
 
 	/* Clean data */
 	if (global_data)
-		free_global_data(global_data);
+		free_global_data(&global_data);
 	if (check_data)
-		free_check_data(check_data);
+		free_check_data(&check_data);
 	free_parent_mallocs_exit();
 
 	/*
@@ -326,8 +326,9 @@ start_check(data_t *prev_global_data)
 		init_global_data(global_data, prev_global_data, true);
 
 	/* Update process name if necessary */
-	if ((!reload && global_data->lvs_process_name) ||
-	    (reload &&
+	if ((!prev_global_data &&		// startup
+	     global_data->lvs_process_name) ||
+	    (prev_global_data &&		// reload
 	     (!global_data->lvs_process_name != !prev_global_data->lvs_process_name ||
 	      (global_data->lvs_process_name && strcmp(global_data->lvs_process_name, prev_global_data->lvs_process_name)))))
 		set_process_name(global_data->lvs_process_name);
@@ -518,8 +519,8 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 	start_check(old_global_data);
 
 	/* free backup data */
-	free_check_data(old_check_data);
-	free_global_data(old_global_data);
+	free_check_data(&old_check_data);
+	free_global_data(&old_global_data);
 
 #ifndef _ONE_PROCESS_DEBUG_
 	save_config(true, "check", dump_data_check);

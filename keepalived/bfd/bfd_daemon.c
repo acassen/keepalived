@@ -85,9 +85,9 @@ stop_bfd(int status)
 	pidfile_rm(&bfd_pidfile);
 
 	/* Clean data */
-	free_global_data(global_data);
+	free_global_data(&global_data);
 	bfd_dispatcher_release(bfd_data);
-	free_bfd_data(bfd_data);
+	free_bfd_data(&bfd_data);
 	free_bfd_buffer();
 	thread_destroy_master(master);
 	free_parent_mallocs_exit();
@@ -159,8 +159,9 @@ start_bfd(__attribute__((unused)) data_t *prev_global_data)
 		init_global_data(global_data, prev_global_data, true);
 
 	/* Update process name if necessary */
-	if ((!reload && global_data->bfd_process_name) ||
-	    (reload &&
+	if ((!prev_global_data &&		// startup
+	    global_data->bfd_process_name) ||
+	    (prev_global_data &&		// reload
 	     (!global_data->bfd_process_name != !prev_global_data->bfd_process_name ||
 	      (global_data->bfd_process_name && strcmp(global_data->bfd_process_name, prev_global_data->bfd_process_name)))))
 		set_process_name(global_data->bfd_process_name);
@@ -287,8 +288,8 @@ reload_bfd_thread(__attribute__((unused)) thread_ref_t thread)
 	signal_set(SIGCHLD, thread_child_handler, master);
 	start_bfd(old_global_data);
 
-	free_bfd_data(old_bfd_data);
-	free_global_data(old_global_data);
+	free_bfd_data(&old_bfd_data);
+	free_global_data(&old_global_data);
 
 #ifndef _ONE_PROCESS_DEBUG_
 	save_config(true, "bfd", dump_bfd_data_global);

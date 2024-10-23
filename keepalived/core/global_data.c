@@ -424,8 +424,10 @@ init_global_data(data_t * data, data_t *prev_global_data, bool copy_unchangeable
 }
 
 void
-free_global_data(data_t * data)
+free_global_data(data_t **datap)
 {
+	data_t *data = *datap;
+
 	if (!data)
 		return;
 
@@ -502,6 +504,8 @@ free_global_data(data_t * data)
 #endif
 	FREE_CONST_PTR(data->config_directory);
 	FREE(data);
+
+	*datap = NULL;
 }
 
 FILE * __attribute__((malloc))

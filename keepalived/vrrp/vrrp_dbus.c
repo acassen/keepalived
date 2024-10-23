@@ -136,8 +136,8 @@ static GMainLoop *loop;
 
 /* Data passing between main vrrp thread and dbus thread */
 dbus_queue_ent_t *ent_ptr;
-static int dbus_in_pipe[2] = {-1, -1};
-static int dbus_out_pipe[2] = {-1, -1};
+static int dbus_in_pipe[2] = { -1 };	// [0] == -1 indicates pipe is closed
+static int dbus_out_pipe[2] = { -1 };	// Ditto
 static sem_t thread_end;
 
 /* The only characters that are valid in a dbus path are A-Z, a-z, 0-9, _ */
@@ -942,14 +942,12 @@ dbus_start_error(dbus_files_t *files)
 		close(dbus_in_pipe[0]);
 		close(dbus_in_pipe[1]);
 		dbus_in_pipe[0] = -1;
-		dbus_in_pipe[1] = -1;
 	}
 
 	if (dbus_out_pipe[0] != -1) {
 		close(dbus_out_pipe[0]);
 		close(dbus_out_pipe[1]);
 		dbus_out_pipe[0] = -1;
-		dbus_out_pipe[1] = -1;
 	}
 
 	return false;
@@ -1074,10 +1072,8 @@ dbus_stop(void)
 	close(dbus_in_pipe[0]);
 	close(dbus_in_pipe[1]);
 	dbus_in_pipe[0] = -1;
-	dbus_in_pipe[0] = -1;
 	close(dbus_out_pipe[0]);
 	close(dbus_out_pipe[1]);
-	dbus_out_pipe[0] = -1;
 	dbus_out_pipe[0] = -1;
 }
 

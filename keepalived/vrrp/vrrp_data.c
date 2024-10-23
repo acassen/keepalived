@@ -1260,8 +1260,10 @@ alloc_vrrp_data(void)
 }
 
 void
-free_vrrp_data(vrrp_data_t * data)
+free_vrrp_data(vrrp_data_t ** datap)
 {
+	vrrp_data_t *data = *datap;
+
 	free_ipaddress_list(&data->static_addresses);
 	free_iproute_list(&data->static_routes);
 	free_iprule_list(&data->static_rules);
@@ -1277,6 +1279,8 @@ free_vrrp_data(vrrp_data_t * data)
 #endif
 	free_vrrp_list(&data->vrrp);
 	FREE(data);
+
+	*datap = NULL;
 }
 
 static void

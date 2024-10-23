@@ -319,7 +319,7 @@ extern void alloc_ssvr(const char *, const char *);
 extern void free_checker_bfd(checker_tracked_bfd_t *);
 #endif
 extern check_data_t *alloc_check_data(void);
-extern void free_check_data(check_data_t *);
+extern void free_check_data(check_data_t **);
 extern void dump_data_check(FILE *);
 extern const char *format_vs (const virtual_server_t *);
 extern const char *format_vsge (const virtual_server_group_entry_t *);
