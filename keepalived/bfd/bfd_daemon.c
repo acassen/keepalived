@@ -159,8 +159,9 @@ start_bfd(__attribute__((unused)) data_t *prev_global_data)
 		init_global_data(global_data, prev_global_data, true);
 
 	/* Update process name if necessary */
-	if ((!reload && global_data->bfd_process_name) ||
-	    (reload &&
+	if ((!prev_global_data &&		// startup
+	    global_data->bfd_process_name) ||
+	    (prev_global_data &&		// reload
 	     (!global_data->bfd_process_name != !prev_global_data->bfd_process_name ||
 	      (global_data->bfd_process_name && strcmp(global_data->bfd_process_name, prev_global_data->bfd_process_name)))))
 		set_process_name(global_data->bfd_process_name);

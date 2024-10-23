@@ -526,8 +526,9 @@ start_vrrp(data_t *prev_global_data)
 	init_data(conf_file, vrrp_init_keywords, false);
 
 	/* Update process name if necessary */
-	if ((!reload && global_data->vrrp_process_name) ||
-	    (reload &&
+	if ((!prev_global_data && 		// startup
+	     global_data->vrrp_process_name) ||
+	    (prev_global_data &&		// reload
 	     (!global_data->vrrp_process_name != !prev_global_data->vrrp_process_name ||
 	      (global_data->vrrp_process_name && strcmp(global_data->vrrp_process_name, prev_global_data->vrrp_process_name)))))
 		set_process_name(global_data->vrrp_process_name);
