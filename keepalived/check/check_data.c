@@ -924,8 +924,10 @@ alloc_check_data(void)
 }
 
 void
-free_check_data(check_data_t *data)
+free_check_data(check_data_t **datap)
 {
+	check_data_t *data = *datap;
+
 	free_vs_list(&data->vs);
 	free_vsg_list(&data->vs_group);
 	free_track_file_list(&data->track_files);
@@ -933,6 +935,8 @@ free_check_data(check_data_t *data)
 	free_checker_bfd_list(&data->track_bfds);
 #endif
 	FREE(data);
+
+	*datap = NULL;
 }
 
 static void

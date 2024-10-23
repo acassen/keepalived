@@ -324,8 +324,8 @@ vrrp_terminate_phase2(int exit_status)
 	if (global_data->disable_local_igmp)
 		reset_disable_local_igmp();
 
-	free_global_data(global_data);
-	free_vrrp_data(vrrp_data);
+	free_global_data(&global_data);
+	free_vrrp_data(&vrrp_data);
 	free_vrrp_buffer();
 	free_interface_queue();
 	free_parent_mallocs_exit();
@@ -894,10 +894,8 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 #endif
 
 	/* free backup data */
-	free_vrrp_data(old_vrrp_data);
-	old_vrrp_data = NULL;
-	free_global_data(old_global_data);
-	old_global_data = NULL;
+	free_vrrp_data(&old_vrrp_data);
+	free_global_data(&old_global_data);
 
 	free_old_interface_queue();
 

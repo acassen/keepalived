@@ -51,7 +51,7 @@ extern void dump_bfd_data(FILE *, const bfd_data_t *);
 extern void dump_bfd_data_global(FILE *);
 #endif
 extern void bfd_print_data(void);
-extern void free_bfd_data(bfd_data_t *);
+extern void free_bfd_data(bfd_data_t **);
 extern void bfd_complete_init(void);
 extern void alloc_bfd_buffer(void);
 extern void free_bfd_buffer(void);

@@ -252,12 +252,16 @@ alloc_bfd_data(void)
 }
 
 void
-free_bfd_data(bfd_data_t *data)
+free_bfd_data(bfd_data_t **datap)
 {
+	bfd_data_t *data = *datap;
+
 	assert(data);
 
 	free_bfd_list(&data->bfd);
 	FREE(data);
+
+	*datap = NULL;
 }
 
 void

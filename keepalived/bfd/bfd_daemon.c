@@ -85,9 +85,9 @@ stop_bfd(int status)
 	pidfile_rm(&bfd_pidfile);
 
 	/* Clean data */
-	free_global_data(global_data);
+	free_global_data(&global_data);
 	bfd_dispatcher_release(bfd_data);
-	free_bfd_data(bfd_data);
+	free_bfd_data(&bfd_data);
 	free_bfd_buffer();
 	thread_destroy_master(master);
 	free_parent_mallocs_exit();
@@ -288,8 +288,8 @@ reload_bfd_thread(__attribute__((unused)) thread_ref_t thread)
 	signal_set(SIGCHLD, thread_child_handler, master);
 	start_bfd(old_global_data);
 
-	free_bfd_data(old_bfd_data);
-	free_global_data(old_global_data);
+	free_bfd_data(&old_bfd_data);
+	free_global_data(&old_global_data);
 
 #ifndef _ONE_PROCESS_DEBUG_
 	save_config(true, "bfd", dump_bfd_data_global);
