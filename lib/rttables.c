@@ -71,6 +71,9 @@
 #if HAVE_DECL_IFA_PROTO && defined UPDATE_RT_ADDRPROTOS_FILE
 #include <unistd.h>
 #endif
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
 
 #include "list_head.h"
 #include "memory.h"

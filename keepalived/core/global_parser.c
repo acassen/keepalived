@@ -1071,6 +1071,7 @@ vrrp_higher_prio_send_advert_handler(const vector_t *strvec)
 	else
 		global_data->vrrp_higher_prio_send_advert = true;
 }
+#endif
 
 #if defined _WITH_IPTABLES_ || defined _WITH_NFTABLES_
 static bool
@@ -1090,6 +1091,7 @@ check_valid_iptables_ipset_nftables_name(const vector_t *strvec, unsigned entry,
 }
 #endif
 
+#ifdef _WITH_VRRP_
 #ifdef _WITH_IPTABLES_
 static bool
 check_valid_iptables_chain_name(const vector_t *strvec, unsigned entry, const char *log_name)
@@ -1275,15 +1277,16 @@ vrrp_iptables_handler(__attribute__((unused)) const vector_t *strvec)
 	global_data->vrrp_nf_chain_priority = -1;
 }
 #endif
+#endif
 
 #ifdef _WITH_NFTABLES_
-#ifdef _WITH_VRRP_
 static bool
 check_valid_nftables_chain_name(const vector_t *strvec, unsigned entry, const char *log_name)
 {
 	return check_valid_iptables_ipset_nftables_name(strvec, entry, NFT_TABLE_MAXNAMELEN, "nftables", log_name);
 }
 
+#ifdef _WITH_VRRP_
 static void
 vrrp_nftables_handler(__attribute__((unused)) const vector_t *strvec)
 {
@@ -1376,6 +1379,8 @@ nftables_counters_handler(__attribute__((unused)) const vector_t *strvec)
 	global_data->nf_counters = true;
 }
 #endif
+
+#ifdef _WITH_VRRP_
 static void
 vrrp_version_handler(const vector_t *strvec)
 {
