@@ -2533,17 +2533,9 @@ init_global_keywords(bool global_active)
 #endif
 #endif
 #ifdef _WITH_NFTABLES_
-#ifdef _WITH_VRRP_
 	install_keyword("nftables", &vrrp_nftables_handler);
 	install_keyword("nftables_priority", &vrrp_nftables_priority_handler);
 	install_keyword("nftables_ifindex", &vrrp_nftables_ifindex_handler);
-#endif
-#ifdef _WITH_LVS_
-	install_keyword("nftables_ipvs", &ipvs_nftables_handler);
-	install_keyword("nftables_ipvs_priority", &ipvs_nftables_priority_handler);
-	install_keyword("nftables_ipvs_start_fwmark", &ipvs_nftables_start_fwmark_handler);
-#endif
-	install_keyword("nftables_counters", &nftables_counters_handler);
 #endif
 	install_keyword("vrrp_check_unicast_src", &vrrp_check_unicast_src_handler);
 	install_keyword("vrrp_skip_check_adv_addr", &vrrp_check_adv_addr_handler);
@@ -2554,6 +2546,16 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_cpu_affinity", &vrrp_cpu_affinity_handler);
 	install_keyword("vrrp_rlimit_rttime", &vrrp_rt_rlimit_handler);
 	install_keyword("vrrp_rlimit_rtime", &vrrp_rt_rlimit_handler);		/* Deprecated 02/02/2020 */
+#endif
+#ifdef _WITH_NFTABLES_
+#ifdef _WITH_LVS_
+	install_keyword("nftables_ipvs", &ipvs_nftables_handler);
+	install_keyword("nftables_ipvs_priority", &ipvs_nftables_priority_handler);
+	install_keyword("nftables_ipvs_start_fwmark", &ipvs_nftables_start_fwmark_handler);
+#endif
+#if defined _WITH_VRRP_ || defined _WITH_LVS_
+	install_keyword("nftables_counters", &nftables_counters_handler);
+#endif
 #endif
 	install_keyword("notify_fifo", &global_notify_fifo);
 	install_keyword_quoted("notify_fifo_script", &global_notify_fifo_script);
