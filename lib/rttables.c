@@ -181,7 +181,7 @@ read_file(const char *file_name, list_head_t *l, uint32_t max)
 	if (!fp)
 		return;
 
-	while (fgets(buf, MAX_RT_BUF, fp)) {
+	while (fgets(buf, sizeof(buf), fp)) {
 		/* Remove comments */
 		if ((endptr = strchr(buf, '#')))
 			*endptr = '\0';
