@@ -2427,7 +2427,7 @@ json_version_handler(const vector_t *strvec)
 	unsigned version = true;
 
 	if (vector_size(strvec) < 2) {
-		report_config_error(CONFIG_GENERAL_ERROR, "%s requires version", strvec_slot(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "%s requires version", strvec_slot(strvec, 0));
 		return;
 	}
 
