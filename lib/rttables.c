@@ -18,7 +18,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2001-2024 Alexandre Cassen, <acassen@gmail.com>
  */
 
 /*
@@ -36,6 +36,7 @@
 	6.6	946753a	15/09/23	ensure CONF_USR_DIR honours configure lib path - uses $(LIBDIR)
 		deb66ac	06/11/23	revert 946753a4
 	6.7	9626923	15/11/23	change using /usr/lib/iproute2 to /usr/share/iproute2
+	6.12	b43f84a	14/10/24	add rt_addrprotos.d subdirectories
 
     Debian, Ubuntu, RHEL and openSUSE moved from /etc/iproute2 to /usr/share/iproute2
     Mint, Gentoo and Archlinux currently use /etc/iproute2
@@ -67,6 +68,9 @@
 #include <linux/if_addr.h>
 #include <dirent.h>
 #include <errno.h>
+#if HAVE_DECL_IFA_PROTO && defined UPDATE_RT_ADDRPROTOS_FILE
+#include <unistd.h>
+#endif
 
 #include "list_head.h"
 #include "memory.h"
@@ -178,6 +182,12 @@ static LIST_HEAD_INITIALIZE(rt_addrprotos);
 static LIST_HEAD_INITIALIZE(rt_scopes);
 
 static char ret_buf[11];	/* uint32_t in decimal */
+
+#if HAVE_DECL_IFA_PROTO && defined UPDATE_RT_ADDRPROTOS_FILE
+static const char *created_addrprotos_file;
+static const char *created_addrprotos_dir;
+bool updated_addrprotos_file;
+#endif
 
 static void
 free_rt_entry(rt_entry_t *rte)
@@ -584,6 +594,78 @@ get_rttables_addrproto(uint32_t id)
 	return get_entry(id, &rt_scopes, RT_ADDRPROTOS_FILE, rtscope_default, 255);
 }
 
+#ifdef UPDATE_RT_ADDRPROTOS_FILE
+static void
+write_addrproto_config(const char *name, uint32_t val)
+{
+	char buf[256];
+	FILE *fp;
+	char *v, *e;
+	int ver_maj, ver_min, ver_rel;
+	char *res;
+	const char *path, *dir = NULL;
+	bool file_exists = false;
+	struct stat statbuf;
+
+	fp = popen("ip -V", "re");
+	res = fgets(buf, sizeof(buf), fp);
+	pclose(fp);
+
+	if (!res)
+		return;
+
+	/* Format is:
+	 *     ip utility, iproute2-5.10.0
+	 * or
+	 *     ip utility, iproute2-6.7.0, libbpf 1.2.3
+	 */
+	if (!(v = strchr(buf, '-')))
+		return;
+
+	v++;
+	if ((e = strchr(v, ',')))
+		*e = '\0';
+	sscanf(v, "%d.%d.%d", &ver_maj, &ver_min, &ver_rel);
+	if (ver_maj >= 7 || (ver_maj == 6 && ver_min >= 12)) {
+		dir = IPROUTE_ETC_DIR "/" RT_ADDRPROTOS_FILE ".d";
+		path = IPROUTE_ETC_DIR "/" RT_ADDRPROTOS_FILE ".d/keepalived_private.conf" ;
+	} else if (ver_maj == 6 && ver_min >= 3) {
+		path = IPROUTE_ETC_DIR "/" RT_ADDRPROTOS_FILE;
+	} else
+		return;
+
+	stat(IPROUTE_ETC_DIR, &statbuf);
+	if (dir) {
+		if (!mkdir(dir, statbuf.st_mode & ~S_IFMT)) {	// This may fail if the directory already exists
+			created_addrprotos_dir = dir;
+			chmod(dir, statbuf.st_mode & ~S_IFMT);
+		}
+	} else {
+		/* Check if rt_addrprotos file exists */
+		file_exists = !stat(path, &statbuf);
+	}
+
+	if (!(fp = fopen(path, "a")))
+		return;
+
+	if (!file_exists)
+		chmod(path, statbuf.st_mode & ~S_IFMT & ~(S_IXUSR | S_IXGRP | S_IXOTH));
+
+	if (dir || !file_exists) {
+		fputs("# File created by keepalived - feel free to remove it\n", fp);
+		fprintf(fp, "%u\t%s\n", val, name);
+	} else
+		fprintf(fp, "%u\t%s\t# entry added by keepalived - feel free to remove it\n", val, name);
+
+	fclose(fp);
+
+	if (!file_exists)
+		created_addrprotos_file = path;
+	else
+		updated_addrprotos_file = true;
+}
+#endif
+
 bool
 create_rttables_addrproto(const char *name, uint8_t *id)
 {
@@ -618,8 +700,30 @@ create_rttables_addrproto(const char *name, uint8_t *id)
 
 	list_add_tail(&rte->e_list, &rt_addrprotos);
 
+#ifdef UPDATE_RT_ADDRPROTOS_FILE
+	/* Save the entry so iproute can use it */
+	write_addrproto_config(name, *id);
+#endif
+
 	return true;
 }
+
+#ifdef UPDATE_RT_ADDRPROTOS_FILE
+void
+remove_created_addrprotos_file(void)
+{
+	if (created_addrprotos_file) {
+		unlink(created_addrprotos_file);
+
+		if (created_addrprotos_dir)
+			rmdir(created_addrprotos_dir);
+	} else if (updated_addrprotos_file) {
+		if (system("sed -i -e '/keepalived/d' " IPROUTE_ETC_DIR "/" RT_ADDRPROTOS_FILE)) {
+			/* Dummy to aviod unused result warning */
+		}
+	}
+}
+#endif
 
 bool
 find_rttables_addrproto(const char *name, uint8_t *id)
