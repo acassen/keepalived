@@ -421,6 +421,15 @@ init_global_data(data_t * data, data_t *prev_global_data, bool copy_unchangeable
 		data->snmp_rs_stats_update_interval = data->snmp_vs_stats_update_interval;
 #endif
 #endif
+
+#ifdef _WITH_VRRP_
+#ifdef IPROUTE_USR_DIR
+	if (!data->iproute_usr_dir && IPROUTE_USR_DIR[0])
+		data->iproute_usr_dir = STRDUP(IPROUTE_USR_DIR);
+#endif
+	if (!data->iproute_etc_dir && IPROUTE_ETC_DIR[0])
+		data->iproute_etc_dir = STRDUP(IPROUTE_ETC_DIR);
+#endif
 }
 
 void
@@ -503,6 +512,10 @@ free_global_data(data_t **datap)
 	FREE_CONST_PTR(data->reload_time_file);
 #endif
 	FREE_CONST_PTR(data->config_directory);
+#ifdef _WITH_VRRP_
+	FREE_CONST_PTR(data->iproute_usr_dir);
+	FREE_CONST_PTR(data->iproute_etc_dir);
+#endif
 	FREE(data);
 
 	*datap = NULL;
@@ -923,5 +936,9 @@ dump_global_data(FILE *fp, data_t * data)
 		conf_write(fp, " current realtime time limit = %u", val);
 #ifdef _WITH_JSON_
 	conf_write(fp, " json_version %u", global_data->json_version);
+#endif
+#ifdef _WITH_VRRP_
+	conf_write(fp, " iproute usr directory %s", global_data->iproute_usr_dir ? global_data->iproute_usr_dir : "(none)");
+	conf_write(fp, " iproute etc directory %s", global_data->iproute_etc_dir ? global_data->iproute_etc_dir : "(none)");
 #endif
 }

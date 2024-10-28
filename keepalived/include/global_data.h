@@ -294,6 +294,10 @@ typedef struct _data {
 #ifdef _WITH_JSON_
 	unsigned			json_version;
 #endif
+#ifdef _WITH_VRRP_
+	const char			*iproute_usr_dir;
+	const char			*iproute_etc_dir;
+#endif
 } data_t;
 
 /* Global vars exported */

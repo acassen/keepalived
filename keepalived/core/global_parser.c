@@ -2440,6 +2440,30 @@ json_version_handler(const vector_t *strvec)
 }
 #endif
 
+#ifdef _WITH_VRRP_
+static void
+iproute_usr_handler(const vector_t *strvec)
+{
+	if (vector_size(strvec) != 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "%s requires path", strvec_slot(strvec, 0));
+		return;
+	}
+
+	global_data->iproute_usr_dir = STRDUP(strvec_slot(strvec, 1));
+}
+
+static void
+iproute_etc_handler(const vector_t *strvec)
+{
+	if (vector_size(strvec) != 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "%s requires path", strvec_slot(strvec, 0));
+		return;
+	}
+
+	global_data->iproute_etc_dir = STRDUP(strvec_slot(strvec, 1));
+}
+#endif
+
 void
 init_global_keywords(bool global_active)
 {
@@ -2654,5 +2678,9 @@ init_global_keywords(bool global_active)
 	install_keyword("data_use_instance", &data_use_instance_handler);
 #ifdef _WITH_JSON_
 	install_keyword("json_version", &json_version_handler);
+#endif
+#ifdef _WITH_VRRP_
+	install_keyword("iproute_usr_dir", &iproute_usr_handler);
+	install_keyword("iproute_etc_dir", &iproute_etc_handler);
 #endif
 }
