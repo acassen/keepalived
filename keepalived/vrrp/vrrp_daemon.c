@@ -318,6 +318,10 @@ vrrp_terminate_phase2(int exit_status)
 
 	clear_rt_names();
 
+#if HAVE_DECL_IFA_PROTO && defined UPDATE_RT_ADDRPROTOS_FILE
+	remove_created_addrprotos_file();
+#endif
+
 	if (global_data->vrrp_notify_fifo.fd != -1)
 		notify_fifo_close(&global_data->notify_fifo, &global_data->vrrp_notify_fifo);
 
@@ -1125,6 +1129,9 @@ start_vrrp_child(void)
 #ifdef _USE_SYSTEMD_NOTIFY_
 	systemd_unset_notify();
 #endif
+
+	/* Set the protocol for ip addresses we add */
+	set_addrproto();
 
 #ifdef _VRRP_FD_DEBUG_
 	if (do_vrrp_fd_debug)

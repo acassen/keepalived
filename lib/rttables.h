@@ -35,6 +35,10 @@ extern bool find_rttables_realms(const char *, uint32_t *);
 extern bool find_rttables_group(const char *, uint32_t *);
 #endif
 extern bool find_rttables_proto(const char *, uint8_t *);
+#if HAVE_DECL_IFA_PROTO
+extern bool create_rttables_addrproto(const char *, uint8_t *);
+extern bool find_rttables_addrproto(const char *, uint8_t *);
+#endif
 extern bool find_rttables_rtntype(const char *, uint8_t *);
 extern bool find_rttables_scope(const char *, uint8_t *);
 
@@ -43,5 +47,8 @@ extern const char *get_rttables_scope(uint32_t);
 extern const char *get_rttables_group(uint32_t);
 #endif
 extern const char *get_rttables_rtntype(uint8_t);
+#if HAVE_DECL_IFA_PROTO && defined UPDATE_RT_ADDRPROTOS_FILE
+extern void remove_created_addrprotos_file(void);
+#endif
 
 #endif

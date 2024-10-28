@@ -234,6 +234,12 @@ AC_ARG_WITH(run-dir,
 AC_ARG_WITH(tmp-dir,
   [AS_HELP_STRING([--with-tmp-dir=PATH_TO_TMP], [specify directory where run-time temporary files are to be located])],
   [TMP_DIR_SPECIFIED=Y], [TMP_DIR_SPECIFIED=N])
+AC_ARG_WITH(iproute-usr-dir,
+  [AS_HELP_STRING([--with-iproute-usr-dir=PATH_TO_CONFIG_FILES], [specify usr directory iproute2 uses for config files])])
+AC_ARG_WITH(iproute-etc-dir,
+  [AS_HELP_STRING([--with-iproute-etc-dir=PATH_TO_CONFIG_FILES], [specify etc directory iproute2 uses for config files])])
+AC_ARG_ENABLE(update-rt-addrprotos-file,
+  [AS_HELP_STRING([--enable-update-rt-addrprotos-file], [update iproute rt_addrprotos file if no entry for keepalived])])
 AC_ARG_ENABLE(strict-config-checks,
   [AS_HELP_STRING([--enable-strict-config-checks], [build with strict configuration checking])])
 AC_ARG_ENABLE(hardening,
@@ -1732,6 +1738,15 @@ for flag in IFA_FLAGS; do
   fi
 done
 
+dnl - Introduced in Linux 5.18
+AC_CHECK_DECLS([IFA_PROTO], [], [], [[#include <linux/if_addr.h>]])
+for flag in IFA_PROTO; do
+  AS_VAR_COPY([decl_var], [ac_cv_have_decl_$flag])
+  if test ${decl_var} = yes; then
+    add_system_opt[${flag}]
+  fi
+done
+
 dnl -- RedHat backported ENCAP_IP and ENCAP_IP6 without MPLS and ILA
 AS_IF([test $ac_cv_have_decl_RTA_ENCAP = yes],
   [
@@ -2726,6 +2741,68 @@ fi
 AC_DEFINE_UNQUOTED([KA_TMP_DIR], [ "${KA_TMP_DIR}" ], [Location for temporary files])
 AC_SUBST([KA_TMP_DIR], [${KA_TMP_DIR}])
 
+dnl -- iproute2 can have directories other than /usr/share/iproute2 and /etc/iproute2 configured
+dnl -- for config files if options for the paths are specified. Otherwise try to find the paths
+dnl -- in the ip-route man page, and if that fails, try finding the strings in the executable.
+dnl -- The latter two options are not very nice, but I can't think of a better way.
+dnl -- Finally, there are runtime configuration options to override these defaults.
+AS_IF([test .${with_iproute_usr_dir} != . ], [iproute_usr_dir="$with_iproute_usr_dir"])
+AS_IF([test .${with_iproute_etc_dir} != . ], [iproute_etc_dir="$with_iproute_etc_dir"])
+AS_IF([test .${with_iproute_usr_dir} = . && test .${with_iproute_etc_dir} = . ],
+  [
+    dnl -- try the man page
+    man ip-route | grep -q /rt_tables
+    AS_IF([test $? = 0],
+      [
+	IPROUTE_DIRS=$(man ip route | tr " \t" "\n\n" | $SED -e "s/[[\.,;:?\!]]*//g" | grep "/rt_tables$" | $SED -e "s:/rt_tables$::")
+	set $(<<<$IPROUTE_DIRS sort -u)
+	second_route=$2
+	set $IPROUTE_DIRS
+	AS_IF([test .$second_route = .],
+	  [
+	    iproute_etc_dir=$1
+	    iproute_usr_dir=
+	  ],
+	  [
+	    iproute_usr_dir=$1
+	    iproute_etc_dir=$2
+	  ])
+      ],
+      [
+        # try finding the paths in the executable
+	set $(strings $(type -p ip) | grep /rt_tables | $SED -e "s:/rt_tables::")
+	for i in $1 $2; do
+	  grep -q /etc <<<$i
+	  AS_IF([test $? -eq 0], [iproute_etc_dir=$i])
+	  grep -q /usr <<<$i
+	  AS_IF([test $? -eq 0], [iproute_usr_dir=$i])
+	done
+      ])
+    AS_IF([test .${iproute_etc_dir}${iproute_usr_dir} = . ],
+      [
+	iproute_etc_dir=/etc/iproute2
+	iproute_usr_dir=/usr/share/iproute2
+      ])
+  ])
+AS_IF([test .${iproute_etc_dir} != . ],
+  [
+    AC_DEFINE_UNQUOTED([IPROUTE_ETC_DIR], ["$iproute_etc_dir"], [etc path to iproute2 config files])
+    add_config_opt([IPROUTE_ETC_DIR=$iproute_etc_dir])
+  ])
+AS_IF([test .${iproute_usr_dir} != . ],
+  [
+    AC_DEFINE_UNQUOTED([IPROUTE_USR_DIR], ["$iproute_usr_dir"], [usr path to iproute2 config files])
+    add_config_opt([IPROUTE_USR_DIR=$iproute_usr_dir])
+  ])
+
+AS_IF([test .${enable_update_rt_addrprotos_file} = ."yes"],
+  [
+    AC_DEFINE([UPDATE_RT_ADDRPROTOS_FILE], [ 1 ], [update iproute2 rt_addrprotos file])
+    echo You probably do not want to use this option\; it is better to create an
+    echo entry in /etc/iproute2/rt_addrprotos, or add keepalived.conf with a relevant
+    echo entry in /etc/iproute2/rt_addrprotos.d if your version of iproute2 is \>= 6.12.
+  ])
+
 dnl - Check type of rlim_t for printf() - this check needs to be late on
 dnl - since _FILE_OFFSET_BITS (set when using netsnmp) alters sizeof(rlim_t)
 SAV_CFLAGS="$CFLAGS"
@@ -3454,6 +3531,11 @@ echo "init type                : ${INIT_TYPE}"
 echo "systemd notify           : ${USE_SYSTEMD_NOTIFY}"
 echo "Strict config checks     : ${STRICT_CONFIG}"
 echo "Build documentation      : ${HAVE_SPHINX_BUILD}"
+echo "iproute usr directory    : ${iproute_usr_dir}"
+echo "iproute etc directory    : ${iproute_etc_dir}"
+if test .${enable_update_rt_addrprotos_file} = .yes; then
+  echo "update rt_addrprotos     : Yes"
+fi
 if test ${ENABLE_STACKTRACE} = Yes; then
   echo "Stacktrace support       : Yes"
 fi

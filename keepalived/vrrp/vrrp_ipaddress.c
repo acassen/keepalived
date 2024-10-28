@@ -46,6 +46,10 @@
 
 #define INFINITY_LIFE_TIME      0xFFFFFFFF
 
+#if HAVE_DECL_IFA_PROTO
+static uint8_t address_protocol;
+#endif
+
 const char *
 ipaddresstos(char *buf, const ip_address_t *ip_addr)
 {
@@ -212,6 +216,10 @@ netlink_ipaddress(ip_address_t *ip_addr, int cmd)
 
 		if (ip_addr->have_peer)
 			addattr_l(&req.n, sizeof(req), IFA_ADDRESS, &ip_addr->peer, req.ifa.ifa_family == AF_INET6 ? 16 : 4);
+
+#if HAVE_DECL_IFA_PROTO		// introduced in Linux v5.18
+		addattr8(&req.n, sizeof(req), IFA_PROTO, address_protocol);
+#endif
 	}
 
 	/* If the state of the interface or its parent is down, it might be because the interface
@@ -837,4 +845,13 @@ void reinstate_static_address(ip_address_t *ip_addr)
 	ip_addr->set = (netlink_ipaddress(ip_addr, IPADDRESS_ADD) > 0);
 	format_ipaddress(ip_addr, buf, sizeof(buf));
 	log_message(LOG_INFO, "Restoring deleted static address %s", buf);
+}
+
+void
+set_addrproto(void)
+{
+#if HAVE_DECL_IFA_PROTO
+	if (!find_rttables_addrproto("keepalived", &address_protocol))
+		create_rttables_addrproto("keepalived", &address_protocol);
+#endif
 }

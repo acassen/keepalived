@@ -1071,6 +1071,7 @@ vrrp_higher_prio_send_advert_handler(const vector_t *strvec)
 	else
 		global_data->vrrp_higher_prio_send_advert = true;
 }
+#endif
 
 #if defined _WITH_IPTABLES_ || defined _WITH_NFTABLES_
 static bool
@@ -1090,6 +1091,7 @@ check_valid_iptables_ipset_nftables_name(const vector_t *strvec, unsigned entry,
 }
 #endif
 
+#ifdef _WITH_VRRP_
 #ifdef _WITH_IPTABLES_
 static bool
 check_valid_iptables_chain_name(const vector_t *strvec, unsigned entry, const char *log_name)
@@ -1275,15 +1277,16 @@ vrrp_iptables_handler(__attribute__((unused)) const vector_t *strvec)
 	global_data->vrrp_nf_chain_priority = -1;
 }
 #endif
+#endif
 
 #ifdef _WITH_NFTABLES_
-#ifdef _WITH_VRRP_
 static bool
 check_valid_nftables_chain_name(const vector_t *strvec, unsigned entry, const char *log_name)
 {
 	return check_valid_iptables_ipset_nftables_name(strvec, entry, NFT_TABLE_MAXNAMELEN, "nftables", log_name);
 }
 
+#ifdef _WITH_VRRP_
 static void
 vrrp_nftables_handler(__attribute__((unused)) const vector_t *strvec)
 {
@@ -1376,6 +1379,8 @@ nftables_counters_handler(__attribute__((unused)) const vector_t *strvec)
 	global_data->nf_counters = true;
 }
 #endif
+
+#ifdef _WITH_VRRP_
 static void
 vrrp_version_handler(const vector_t *strvec)
 {
@@ -2427,7 +2432,7 @@ json_version_handler(const vector_t *strvec)
 	unsigned version = true;
 
 	if (vector_size(strvec) < 2) {
-		report_config_error(CONFIG_GENERAL_ERROR, "%s requires version", strvec_slot(strvec, 1));
+		report_config_error(CONFIG_GENERAL_ERROR, "%s requires version", strvec_slot(strvec, 0));
 		return;
 	}
 
@@ -2437,6 +2442,30 @@ json_version_handler(const vector_t *strvec)
 	}
 
 	global_data->json_version = version;
+}
+#endif
+
+#ifdef _WITH_VRRP_
+static void
+iproute_usr_handler(const vector_t *strvec)
+{
+	if (vector_size(strvec) != 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "%s requires path", strvec_slot(strvec, 0));
+		return;
+	}
+
+	global_data->iproute_usr_dir = STRDUP(strvec_slot(strvec, 1));
+}
+
+static void
+iproute_etc_handler(const vector_t *strvec)
+{
+	if (vector_size(strvec) != 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "%s requires path", strvec_slot(strvec, 0));
+		return;
+	}
+
+	global_data->iproute_etc_dir = STRDUP(strvec_slot(strvec, 1));
 }
 #endif
 
@@ -2533,17 +2562,9 @@ init_global_keywords(bool global_active)
 #endif
 #endif
 #ifdef _WITH_NFTABLES_
-#ifdef _WITH_VRRP_
 	install_keyword("nftables", &vrrp_nftables_handler);
 	install_keyword("nftables_priority", &vrrp_nftables_priority_handler);
 	install_keyword("nftables_ifindex", &vrrp_nftables_ifindex_handler);
-#endif
-#ifdef _WITH_LVS_
-	install_keyword("nftables_ipvs", &ipvs_nftables_handler);
-	install_keyword("nftables_ipvs_priority", &ipvs_nftables_priority_handler);
-	install_keyword("nftables_ipvs_start_fwmark", &ipvs_nftables_start_fwmark_handler);
-#endif
-	install_keyword("nftables_counters", &nftables_counters_handler);
 #endif
 	install_keyword("vrrp_check_unicast_src", &vrrp_check_unicast_src_handler);
 	install_keyword("vrrp_skip_check_adv_addr", &vrrp_check_adv_addr_handler);
@@ -2554,6 +2575,16 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_cpu_affinity", &vrrp_cpu_affinity_handler);
 	install_keyword("vrrp_rlimit_rttime", &vrrp_rt_rlimit_handler);
 	install_keyword("vrrp_rlimit_rtime", &vrrp_rt_rlimit_handler);		/* Deprecated 02/02/2020 */
+#endif
+#ifdef _WITH_NFTABLES_
+#ifdef _WITH_LVS_
+	install_keyword("nftables_ipvs", &ipvs_nftables_handler);
+	install_keyword("nftables_ipvs_priority", &ipvs_nftables_priority_handler);
+	install_keyword("nftables_ipvs_start_fwmark", &ipvs_nftables_start_fwmark_handler);
+#endif
+#if defined _WITH_VRRP_ || defined _WITH_LVS_
+	install_keyword("nftables_counters", &nftables_counters_handler);
+#endif
 #endif
 	install_keyword("notify_fifo", &global_notify_fifo);
 	install_keyword_quoted("notify_fifo_script", &global_notify_fifo_script);
@@ -2652,5 +2683,9 @@ init_global_keywords(bool global_active)
 	install_keyword("data_use_instance", &data_use_instance_handler);
 #ifdef _WITH_JSON_
 	install_keyword("json_version", &json_version_handler);
+#endif
+#ifdef _WITH_VRRP_
+	install_keyword("iproute_usr_dir", &iproute_usr_handler);
+	install_keyword("iproute_etc_dir", &iproute_etc_handler);
 #endif
 }

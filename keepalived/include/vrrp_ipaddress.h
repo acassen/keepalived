@@ -117,5 +117,6 @@ extern void get_diff_address(vrrp_t *, vrrp_t *, list_head_t *);
 extern void clear_address_list(list_head_t *, bool);
 extern void clear_diff_static_addresses(void);
 extern void reinstate_static_address(ip_address_t *);
+extern void set_addrproto(void);
 
 #endif
