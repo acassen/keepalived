@@ -851,8 +851,7 @@ void
 set_addrproto(void)
 {
 #if HAVE_DECL_IFA_PROTO
-	find_rttables_addrproto("keepalived", &address_protocol);
-	if (!address_protocol)
-		address_protocol = RTPROT_KEEPALIVED;
+	if (!find_rttables_addrproto("keepalived", &address_protocol))
+		create_rttables_addrproto("keepalived", &address_protocol);
 #endif
 }

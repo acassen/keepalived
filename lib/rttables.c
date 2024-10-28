@@ -578,6 +578,49 @@ get_rttables_scope(uint32_t id)
 }
 
 #if HAVE_DECL_IFA_PROTO
+static const char *
+get_rttables_addrproto(uint32_t id)
+{
+	return get_entry(id, &rt_scopes, RT_ADDRPROTOS_FILE, rtscope_default, 255);
+}
+
+bool
+create_rttables_addrproto(const char *name, uint8_t *id)
+{
+	unsigned val;
+	rt_entry_t *rte;
+
+	/* We need to find a free value - try RTPROT_KEEPALIVED first */
+	val = RTPROT_KEEPALIVED;
+	if (!get_rttables_addrproto(val)) {
+		for (val = 0; val <= 255; val++) {
+			if (get_rttables_addrproto(val))
+				break;
+		}
+	}
+
+	if (val > 255)
+		return false;
+
+	*id = val & 0xff;
+
+	/* Add the entry so other configuration can use it */
+	PMALLOC(rte);
+	if (!rte)
+		return false;
+
+	rte->id = val;
+	rte->name = STRDUP(name);
+	if (!rte->name) {
+		FREE(rte);
+		return false;
+	}
+
+	list_add_tail(&rte->e_list, &rt_addrprotos);
+
+	return true;
+}
+
 bool
 find_rttables_addrproto(const char *name, uint8_t *id)
 {

@@ -36,6 +36,7 @@ extern bool find_rttables_group(const char *, uint32_t *);
 #endif
 extern bool find_rttables_proto(const char *, uint8_t *);
 #if HAVE_DECL_IFA_PROTO
+extern bool create_rttables_addrproto(const char *, uint8_t *);
 extern bool find_rttables_addrproto(const char *, uint8_t *);
 #endif
 extern bool find_rttables_rtntype(const char *, uint8_t *);
