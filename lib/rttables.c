@@ -31,6 +31,7 @@
 	4.4	13ada95	24/11/15	add support for rt_tables.d
 	4.10	719e331	09/01/17	add support for rt_protos.d
 	5.15	cee0cf8	14/10/21	adds --libdir option to configure
+	6.3	bdb8d85	27/03/23	add support for IFA_PROT
 	6.5	0a0a8f1	26/07/23	read from /usr/lib/iproute2/FOO unless /etc/iproute2/FOO exists - both specifiable to make
 	6.6	946753a	15/09/23	ensure CONF_USR_DIR honours configure lib path - uses $(LIBDIR)
 		deb66ac	06/11/23	revert 946753a4
@@ -86,6 +87,9 @@
 #define	RT_GROUPS_FILE	"group"
 #endif
 #define	RT_SCOPES_FILE	"rt_scopes"
+#if HAVE_DECL_IFA_PROTO
+#define RT_ADDRPROTOS_FILE "rt_addrprotos"
+#endif
 
 typedef struct _rt_entry {
 	unsigned int	id;
@@ -149,6 +153,16 @@ static rt_entry_t const rtscope_default[] = {
 	{ 0, NULL, {0}},
 };
 
+#if HAVE_DECL_IFA_PROTO
+static rt_entry_t const rtaddrproto_default[] = {
+	{ IFAPROT_UNSPEC, "unspecified", {0}},
+	{ IFAPROT_KERNEL_LO, "kernel_lo", {0}},
+	{ IFAPROT_KERNEL_RA, "kernel_ra", {0}},
+	{ IFAPROT_KERNEL_LL, "kernel_ll", {0}},
+	{ 0, NULL, {0}},
+};
+#endif
+
 #define	MAX_RT_BUF	128
 
 static LIST_HEAD_INITIALIZE(rt_tables);
@@ -158,6 +172,9 @@ static LIST_HEAD_INITIALIZE(rt_groups);
 #endif
 static LIST_HEAD_INITIALIZE(rt_realms);
 static LIST_HEAD_INITIALIZE(rt_protos);
+#if HAVE_DECL_IFA_PROTO
+static LIST_HEAD_INITIALIZE(rt_addrprotos);
+#endif
 static LIST_HEAD_INITIALIZE(rt_scopes);
 
 static char ret_buf[11];	/* uint32_t in decimal */
@@ -206,6 +223,9 @@ clear_rt_names(void)
 #endif
 	free_rt_entry_list(&rt_realms);
 	free_rt_entry_list(&rt_protos);
+#if HAVE_DECL_IFA_PROTO
+	free_rt_entry_list(&rt_addrprotos);
+#endif
 	free_rt_entry_list(&rt_scopes);
 }
 
@@ -556,3 +576,18 @@ get_rttables_scope(uint32_t id)
 {
 	return get_entry(id, &rt_scopes, RT_SCOPES_FILE, rtscope_default, 255);
 }
+
+#if HAVE_DECL_IFA_PROTO
+bool
+find_rttables_addrproto(const char *name, uint8_t *id)
+{
+	uint32_t val;
+
+	if (!find_entry(name, &val, &rt_addrprotos, RT_ADDRPROTOS_FILE, rtaddrproto_default, 255))
+		return false;
+
+	*id = val & 0xff;
+
+	return true;
+}
+#endif

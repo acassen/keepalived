@@ -1126,6 +1126,9 @@ start_vrrp_child(void)
 	systemd_unset_notify();
 #endif
 
+	/* Set the protocol for ip addresses we add */
+	set_addrproto();
+
 #ifdef _VRRP_FD_DEBUG_
 	if (do_vrrp_fd_debug)
 		set_extra_threads_debug(dump_vrrp_fd);

@@ -1736,6 +1736,15 @@ for flag in IFA_FLAGS; do
   fi
 done
 
+dnl - Introduced in Linux 5.18
+AC_CHECK_DECLS([IFA_PROTO], [], [], [[#include <linux/if_addr.h>]])
+for flag in IFA_PROTO; do
+  AS_VAR_COPY([decl_var], [ac_cv_have_decl_$flag])
+  if test ${decl_var} = yes; then
+    add_system_opt[${flag}]
+  fi
+done
+
 dnl -- RedHat backported ENCAP_IP and ENCAP_IP6 without MPLS and ILA
 AS_IF([test $ac_cv_have_decl_RTA_ENCAP = yes],
   [
@@ -2773,8 +2782,16 @@ AS_IF([test .${with_iproute_usr_dir} = . && test .${with_iproute_etc_dir} = . ],
 	iproute_usr_dir=/usr/share/iproute2
       ])
   ])
-AS_IF([test .${iproute_etc_dir} != . ], [AC_DEFINE_UNQUOTED([IPROUTE_ETC_DIR], ["$iproute_etc_dir"], [etc path to iproute2 config files])])
-AS_IF([test .${iproute_usr_dir} != . ], [AC_DEFINE_UNQUOTED([IPROUTE_USR_DIR], ["$iproute_usr_dir"], [usr path to iproute2 config files])])
+AS_IF([test .${iproute_etc_dir} != . ],
+  [
+    AC_DEFINE_UNQUOTED([IPROUTE_ETC_DIR], ["$iproute_etc_dir"], [etc path to iproute2 config files])
+    add_config_opt([IPROUTE_ETC_DIR=$iproute_etc_dir])
+  ])
+AS_IF([test .${iproute_usr_dir} != . ],
+  [
+    AC_DEFINE_UNQUOTED([IPROUTE_USR_DIR], ["$iproute_usr_dir"], [usr path to iproute2 config files])
+    add_config_opt([IPROUTE_USR_DIR=$iproute_usr_dir])
+  ])
 
 dnl - Check type of rlim_t for printf() - this check needs to be late on
 dnl - since _FILE_OFFSET_BITS (set when using netsnmp) alters sizeof(rlim_t)
@@ -3504,6 +3521,8 @@ echo "init type                : ${INIT_TYPE}"
 echo "systemd notify           : ${USE_SYSTEMD_NOTIFY}"
 echo "Strict config checks     : ${STRICT_CONFIG}"
 echo "Build documentation      : ${HAVE_SPHINX_BUILD}"
+echo "iproute usr directory    : ${iproute_usr_dir}"
+echo "iproute etc directory    : ${iproute_etc_dir}"
 if test ${ENABLE_STACKTRACE} = Yes; then
   echo "Stacktrace support       : Yes"
 fi
