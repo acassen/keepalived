@@ -47,8 +47,5 @@ extern const char *get_rttables_scope(uint32_t);
 extern const char *get_rttables_group(uint32_t);
 #endif
 extern const char *get_rttables_rtntype(uint8_t);
-#if HAVE_DECL_IFA_PROTO && defined UPDATE_RT_ADDRPROTOS_FILE
-extern void remove_created_addrprotos_file(void);
-#endif
 
 #endif
