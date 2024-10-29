@@ -238,8 +238,6 @@ AC_ARG_WITH(iproute-usr-dir,
   [AS_HELP_STRING([--with-iproute-usr-dir=PATH_TO_CONFIG_FILES], [specify usr directory iproute2 uses for config files])])
 AC_ARG_WITH(iproute-etc-dir,
   [AS_HELP_STRING([--with-iproute-etc-dir=PATH_TO_CONFIG_FILES], [specify etc directory iproute2 uses for config files])])
-AC_ARG_ENABLE(update-rt-addrprotos-file,
-  [AS_HELP_STRING([--enable-update-rt-addrprotos-file], [update iproute rt_addrprotos file if no entry for keepalived])])
 AC_ARG_ENABLE(strict-config-checks,
   [AS_HELP_STRING([--enable-strict-config-checks], [build with strict configuration checking])])
 AC_ARG_ENABLE(hardening,
@@ -2795,14 +2793,6 @@ AS_IF([test .${iproute_usr_dir} != . ],
     add_config_opt([IPROUTE_USR_DIR=$iproute_usr_dir])
   ])
 
-AS_IF([test .${enable_update_rt_addrprotos_file} = ."yes"],
-  [
-    AC_DEFINE([UPDATE_RT_ADDRPROTOS_FILE], [ 1 ], [update iproute2 rt_addrprotos file])
-    echo You probably do not want to use this option\; it is better to create an
-    echo entry in /etc/iproute2/rt_addrprotos, or add keepalived.conf with a relevant
-    echo entry in /etc/iproute2/rt_addrprotos.d if your version of iproute2 is \>= 6.12.
-  ])
-
 dnl - Check type of rlim_t for printf() - this check needs to be late on
 dnl - since _FILE_OFFSET_BITS (set when using netsnmp) alters sizeof(rlim_t)
 SAV_CFLAGS="$CFLAGS"
@@ -3533,9 +3523,6 @@ echo "Strict config checks     : ${STRICT_CONFIG}"
 echo "Build documentation      : ${HAVE_SPHINX_BUILD}"
 echo "iproute usr directory    : ${iproute_usr_dir}"
 echo "iproute etc directory    : ${iproute_etc_dir}"
-if test .${enable_update_rt_addrprotos_file} = .yes; then
-  echo "update rt_addrprotos     : Yes"
-fi
 if test ${ENABLE_STACKTRACE} = Yes; then
   echo "Stacktrace support       : Yes"
 fi

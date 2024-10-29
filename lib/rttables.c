@@ -68,7 +68,7 @@
 #include <linux/if_addr.h>
 #include <dirent.h>
 #include <errno.h>
-#if HAVE_DECL_IFA_PROTO && defined UPDATE_RT_ADDRPROTOS_FILE
+#if HAVE_DECL_IFA_PROTO
 #include <unistd.h>
 #endif
 #ifdef HAVE_SYS_STAT_H
@@ -185,12 +185,6 @@ static LIST_HEAD_INITIALIZE(rt_addrprotos);
 static LIST_HEAD_INITIALIZE(rt_scopes);
 
 static char ret_buf[11];	/* uint32_t in decimal */
-
-#if HAVE_DECL_IFA_PROTO && defined UPDATE_RT_ADDRPROTOS_FILE
-static const char *created_addrprotos_file;
-static const char *created_addrprotos_dir;
-bool updated_addrprotos_file;
-#endif
 
 static void
 free_rt_entry(rt_entry_t *rte)
@@ -597,7 +591,6 @@ get_rttables_addrproto(uint32_t id)
 	return get_entry(id, &rt_scopes, RT_ADDRPROTOS_FILE, rtscope_default, 255);
 }
 
-#ifdef UPDATE_RT_ADDRPROTOS_FILE
 static void
 write_addrproto_config(const char *name, uint32_t val)
 {
@@ -631,18 +624,16 @@ write_addrproto_config(const char *name, uint32_t val)
 	sscanf(v, "%d.%d.%d", &ver_maj, &ver_min, &ver_rel);
 	if (ver_maj >= 7 || (ver_maj == 6 && ver_min >= 12)) {
 		dir = IPROUTE_ETC_DIR "/" RT_ADDRPROTOS_FILE ".d";
-		path = IPROUTE_ETC_DIR "/" RT_ADDRPROTOS_FILE ".d/keepalived_private.conf" ;
-	} else if (ver_maj == 6 && ver_min >= 3) {
+		path = IPROUTE_ETC_DIR "/" RT_ADDRPROTOS_FILE ".d/keepalived.conf" ;
+	} else if (ver_maj == 6 && ver_min >= 3)
 		path = IPROUTE_ETC_DIR "/" RT_ADDRPROTOS_FILE;
-	} else
+	else
 		return;
 
 	stat(IPROUTE_ETC_DIR, &statbuf);
 	if (dir) {
-		if (!mkdir(dir, statbuf.st_mode & ~S_IFMT)) {	// This may fail if the directory already exists
-			created_addrprotos_dir = dir;
+		if (!mkdir(dir, statbuf.st_mode & ~S_IFMT))	// This may fail if the directory already exists
 			chmod(dir, statbuf.st_mode & ~S_IFMT);
-		}
 	} else {
 		/* Check if rt_addrprotos file exists */
 		file_exists = !stat(path, &statbuf);
@@ -654,20 +645,10 @@ write_addrproto_config(const char *name, uint32_t val)
 	if (!file_exists)
 		chmod(path, statbuf.st_mode & ~S_IFMT & ~(S_IXUSR | S_IXGRP | S_IXOTH));
 
-	if (dir || !file_exists) {
-		fputs("# File created by keepalived - feel free to remove it\n", fp);
-		fprintf(fp, "%u\t%s\n", val, name);
-	} else
-		fprintf(fp, "%u\t%s\t# entry added by keepalived - feel free to remove it\n", val, name);
+	fprintf(fp, "%u\t%s\t# added by keepalived\n", val, name);
 
 	fclose(fp);
-
-	if (!file_exists)
-		created_addrprotos_file = path;
-	else
-		updated_addrprotos_file = true;
 }
-#endif
 
 bool
 create_rttables_addrproto(const char *name, uint8_t *id)
@@ -703,30 +684,11 @@ create_rttables_addrproto(const char *name, uint8_t *id)
 
 	list_add_tail(&rte->e_list, &rt_addrprotos);
 
-#ifdef UPDATE_RT_ADDRPROTOS_FILE
 	/* Save the entry so iproute can use it */
 	write_addrproto_config(name, *id);
-#endif
 
 	return true;
 }
-
-#ifdef UPDATE_RT_ADDRPROTOS_FILE
-void
-remove_created_addrprotos_file(void)
-{
-	if (created_addrprotos_file) {
-		unlink(created_addrprotos_file);
-
-		if (created_addrprotos_dir)
-			rmdir(created_addrprotos_dir);
-	} else if (updated_addrprotos_file) {
-		if (system("sed -i -e '/keepalived/d' " IPROUTE_ETC_DIR "/" RT_ADDRPROTOS_FILE)) {
-			/* Dummy to aviod unused result warning */
-		}
-	}
-}
-#endif
 
 bool
 find_rttables_addrproto(const char *name, uint8_t *id)
