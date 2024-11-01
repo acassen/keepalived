@@ -171,7 +171,7 @@ vrrp_instance               identify a VRRP instance definition block
 state                       specify the instance state in standard use
 Interface                   specify the network interface for the instance to run on                string
 mcast_src_ip                specify the src IP address value for VRRP adverts IP header
-lvs_sync_daemon_inteface    specify the network interface for the LVS sync_daemon to run on         string
+lvs_sync_daemon_interface   specify the network interface for the LVS sync_daemon to run on         string
 virtual_router_id           specify to which VRRP router id the instance belongs                    numerical
 priority                    specify the instance priority in the VRRP router                        numerical
 advert_int                  specify the advertisement interval in seconds (set to 1)                numerical
