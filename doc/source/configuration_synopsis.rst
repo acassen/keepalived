@@ -166,28 +166,29 @@ VRRP Instance Definitions Synopsis
             (or **notify_fault** “ /path_to_script/script_fault.sh <arg_list>”)
     }
 
-==========================  ======================================================================= =========
-Keyword                     Definition                                                              Type
-==========================  ======================================================================= =========
-vrrp_instance               identify a VRRP instance definition block
-state                       specify the instance state in standard use
-Interface                   specify the network interface for the instance to run on                string
-mcast_src_ip                specify the src IP address value for VRRP adverts IP header
-lvs_sync_daemon_interface*  specify the network interface for the LVS sync_daemon to run on         string
-virtual_router_id           specify to which VRRP router id the instance belongs                    numerical
-priority                    specify the instance priority in the VRRP router                        numerical
-advert_int                  specify the advertisement interval in seconds (set to 1)                numerical
-smtp_alert                  Activate the SMTP notification for MASTER state transition
-authentication              identify a VRRP authentication definition block
-auth_type                   specify which kind of authentication to use (PASS|AH)
-auth_pass                   specify the password string to use                                      string
-virtual_ipaddress           identify a VRRP VIP definition block
-virtual_ipaddress_excluded  identify a VRRP VIP excluded definition block (not protocol VIPs)
-notify_master               specify a shell script to be executed during transition to master state path
-notify_backup               specify a shell script to be executed during transition to backup state path
-notify_fault                specify a shell script to be executed during transition to fault state  path
-vrrp_sync_group             Identify the VRRP synchronization instances group                       string
-==========================  ======================================================================= =========
-* lvs_sync_daemon_interface is deprecated. Please use global lvs_sync_daemon
+==============================  ======================================================================= =========
+Keyword                         Definition                                                              Type
+==============================  ======================================================================= =========
+vrrp_instance                   identify a VRRP instance definition block
+state                           specify the instance state in standard use
+Interface                       specify the network interface for the instance to run on                string
+mcast_src_ip                    specify the src IP address value for VRRP adverts IP header
+lvs_sync_daemon_interface [#]_  specify the network interface for the LVS sync_daemon to run on         string
+virtual_router_id               specify to which VRRP router id the instance belongs                    numerical
+priority                        specify the instance priority in the VRRP router                        numerical
+advert_int                      specify the advertisement interval in seconds (set to 1)                numerical
+smtp_alert                      Activate the SMTP notification for MASTER state transition
+authentication                  identify a VRRP authentication definition block
+auth_type                       specify which kind of authentication to use (PASS|AH)
+auth_pass                       specify the password string to use                                      string
+virtual_ipaddress               identify a VRRP VIP definition block
+virtual_ipaddress_excluded      identify a VRRP VIP excluded definition block (not protocol VIPs)
+notify_master                   specify a shell script to be executed during transition to master state path
+notify_backup                   specify a shell script to be executed during transition to backup state path
+notify_fault                    specify a shell script to be executed during transition to fault state  path
+vrrp_sync_group                 Identify the VRRP synchronization instances group                       string
+==============================  ======================================================================= =========
+
+.. [#] lvs_sync_daemon_interface is deprecated. Please use global lvs_sync_daemon
 
 Path type: A system path to a script eg: “/usr/local/bin/transit.sh <arg_list>”
