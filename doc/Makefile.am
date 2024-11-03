@@ -53,7 +53,7 @@ BUILDDIR	= build
 
 
 # Internal variables.
-PAPEROPT	= -D latex_paper_size=$(PAPER)
+PAPEROPT	= -D latexelements.papersize=$(PAPER)paper
 ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(PAPEROPT) $(SPHINXOPTS) source
 # the i18n builder cannot share the environment and doctrees with the others
 I18NSPHINXOPTS  = $(PAPEROPT) $(SPHINXOPTS) source
