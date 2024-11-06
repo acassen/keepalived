@@ -693,7 +693,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
     signs="d"
     WARN_SIGN=""
   ])
-CFLAGS="$CFLAGS -Werror=format $WARN_SIGN"
+CFLAGS="$SAV_CFLAGS -Werror=format $WARN_SIGN"
 for field in t tv.tv_sec tv.tv_usec ts.tv_sec ts.tv_nsec; do
   for sign in $signs; do
     for len in "" l ll; do
