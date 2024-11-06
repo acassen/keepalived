@@ -158,7 +158,9 @@ create_pidfile(pidfile_t *pidf)
 	struct stat st, fd_st;
 	int error;
 	int ret;
+#if HAVE_DECL_F_OFD_SETLK == 1
 	struct flock fl = { .l_type = F_WRLCK, .l_whence = SEEK_SET, .l_start = 0, .l_len = 0 };
+#endif
 
 	for (;;) {
 		/* We want to create the file with permissions rw-r--r-- */
@@ -177,6 +179,7 @@ create_pidfile(pidfile_t *pidf)
 			return true;
 		}
 
+#if HAVE_DECL_F_OFD_SETLK == 1
 		fl.l_pid = 0;
 		while ((ret = fcntl(pidf->fd, F_OFD_SETLK, &fl)) && errno == EINTR);
 		if (ret) {
@@ -187,6 +190,7 @@ create_pidfile(pidfile_t *pidf)
 
 			break;
 		}
+#endif
 
 		/* Make sure the file has not been removed/moved */
 		if (stat(pidf->path, &st)) {

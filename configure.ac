@@ -693,7 +693,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
     signs="d"
     WARN_SIGN=""
   ])
-CFLAGS="$CFLAGS -Werror=format $WARN_SIGN"
+CFLAGS="$SAV_CFLAGS -Werror=format $WARN_SIGN"
 for field in t tv.tv_sec tv.tv_usec ts.tv_sec ts.tv_nsec; do
   for sign in $signs; do
     for len in "" l ll; do
@@ -1695,7 +1695,7 @@ AC_CHECK_LIB(magic, magic_open,
 AM_CONDITIONAL([MAGIC], [test $MAGIC -eq 1])
 unset LIBS
 
-dnl -- Check for the following variables introduced at various times into Linux
+dnl -- Check for the following definitions introduced at various times into Linux
 dnl --RTAX_QUICKACK		dnl -- Linux 3.11
 dnl --FRA_SUPPRESS_PREFIXLEN	dnl -- Linux 3.12
 dnl --FRA_SUPPRESS_IFGROUP	dnl -- Linux 3.12
@@ -1730,6 +1730,19 @@ done
 dnl - Introduced in Linux 3.14
 AC_CHECK_DECLS([IFA_FLAGS], [], [], [[#include <linux/if_addr.h>]])
 for flag in IFA_FLAGS; do
+  AS_VAR_COPY([decl_var], [ac_cv_have_decl_$flag])
+  if test ${decl_var} = yes; then
+    add_system_opt[${flag}]
+  fi
+done
+
+dnl -- Linux 3.15
+AC_CHECK_DECLS([F_OFD_SETLK], [], [],
+  [[
+    #include <unistd.h>
+    #include <fcntl.h>
+  ]])
+for flag in F_OFD_SETLK; do
   AS_VAR_COPY([decl_var], [ac_cv_have_decl_$flag])
   if test ${decl_var} = yes; then
     add_system_opt[${flag}]
