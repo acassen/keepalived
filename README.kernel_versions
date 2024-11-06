@@ -12,6 +12,29 @@ introduced features that are used conditionally.
 At the end of this file is a list of kernel configure options that affect
 functionality that keepalived uses.
 
+Distros supported and kernel versions
+=====================================
+Distro		Oldest ver	Kernel ver	EOL
+------		----------	----------	---
+Ubuntu		20.04		5.4		April 2025
+Debian		12		6.1		10-06-26
+RHEL		8		4.18.0		May 2029
+CentOS		no support
+CentOS Stream	always more recent than oldest RHEL
+Fedora		39		6.5		26-11-24
+Fedora		40		6.8-6.11	Four weeks after n+2 released
+Gentoo		Updated weekly
+AlmaLinux	9		5.14		31-05-27
+Alpine		3.17		?5.15		22-11-24
+Alpine		3.18		6.1		09-05-25
+ArchLinux	2024.09.01	6.10.7		Dec 24 - appears to keep last 3 months of installation media, released at beginning of month
+Mint		20		5.4		April 2025			https://en.wikipedia.org/wiki/Linux_Mint
+openSUSE	15.5		5.14.21		31-12-24			https://en.wikipedia.org/wiki/OpenSUSE
+openSUSE	15.6		6.4		31-12-25			https://en.wikipedia.org/wiki/OpenSUSE
+SUSE		15 SP5		5.14.21		26-01-25			https://en.wikipedia.org/wiki/SUSE_Linux_Enterprise
+SUSE		15 SP6		6.4.0						A service pack is supported for 6 months after release of next service pack (approx annual)
+Manjaro		Rolling		4.19.322					https://en.wikipedia.org/wiki/Manjaro and https://manjaristas.org/branch_compare?q=%23kernels
+
 =============================================================================
 
 The oldest kernel version currently supported is Linux 3.10
