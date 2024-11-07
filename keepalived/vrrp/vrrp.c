@@ -40,8 +40,10 @@
 #include <netinet/ip6.h>
 #include <stdint.h>
 #include <net/if_arp.h>
-#include <linux/if_ether.h>
 #include <net/ethernet.h>
+#if !defined ETH_HLEN || !defined ETH_ZLEN
+#include <linux/if_ether.h>		/* This may not be needed at all - try removing and see if any issues raised */
+#endif
 #ifdef _NETWORK_TIMESTAMP_
 #include <linux/net_tstamp.h>
 #endif
