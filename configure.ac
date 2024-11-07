@@ -431,10 +431,10 @@ ENABLE_LOG_FILE_APPEND=No
 
 # Ensure we don't override FORTIFY_SOURCE
 ADD_FORTIFY_SOURCE=1
-grep -q -- "-D *_FORTIFY_SOURCE=" <<<$CPPFLAGS
+echo $CPPFLAGS | grep -q -- "-D *_FORTIFY_SOURCE="
 AS_IF([test $? -eq 0],
   [
-    FORTIFY_SOURCE=$(<<<$CPPFLAGS $SED -e "s/.*-D *_FORTIFY_SOURCE=//" -e "s/ .*//")
+    FORTIFY_SOURCE=$(echo $CPPFLAGS | $SED -e "s/.*-D *_FORTIFY_SOURCE=//" -e "s/ .*//")
     ADD_FORTIFY_SOURCE=0
   ],[FORTIFY_SOURCE=2])
 
@@ -715,7 +715,7 @@ for field in t tv.tv_sec tv.tv_usec ts.tv_sec ts.tv_nsec; do
 	  if [[ $field = t ]]; then
 	    name=time_t
 	  else
-	    name=$(<<<$field $SED -e "s/\.tv//")
+	    name=$(echo $field | $SED -e "s/\.tv//")
 	  fi
 	  AC_DEFINE_UNQUOTED([PRI_$name], [ "$len$sign" ])
 	], [])
@@ -2766,7 +2766,7 @@ AS_IF([test .${with_iproute_usr_dir} = . && test .${with_iproute_etc_dir} = . ],
     AS_IF([test $? = 0],
       [
 	IPROUTE_DIRS=$(man ip route | tr " \t" "\n\n" | $SED -e "s/[[\.,;:?\!]]*//g" | grep "/rt_tables$" | $SED -e "s:/rt_tables$::")
-	set $(<<<$IPROUTE_DIRS sort -u)
+	set $(echo $IPROUTE_DIRS | sort -u)
 	second_route=$2
 	set $IPROUTE_DIRS
 	AS_IF([test .$second_route = .],
@@ -2783,9 +2783,9 @@ AS_IF([test .${with_iproute_usr_dir} = . && test .${with_iproute_etc_dir} = . ],
         # try finding the paths in the executable
 	set $(strings $(type -p ip) | grep /rt_tables | $SED -e "s:/rt_tables::")
 	for i in $1 $2; do
-	  grep -q /etc <<<$i
+	  echo $i | grep -q /etc
 	  AS_IF([test $? -eq 0], [iproute_etc_dir=$i])
-	  grep -q /usr <<<$i
+	  echo $i | grep -q /usr
 	  AS_IF([test $? -eq 0], [iproute_usr_dir=$i])
 	done
       ])
