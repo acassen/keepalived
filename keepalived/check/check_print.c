@@ -38,7 +38,7 @@ check_print_data(void)
 {
 	FILE *fp;
 
-	fp = open_dump_file("keepalived_check.data");
+	fp = open_dump_file("_check");
 
 	if (!fp)
 		return;

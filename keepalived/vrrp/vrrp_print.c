@@ -42,7 +42,7 @@ vrrp_print_data(void)
 {
 	FILE *fp;
 
-	fp = open_dump_file("keepalived.data");
+	fp = open_dump_file("");
 
 	if (!fp)
 		return;

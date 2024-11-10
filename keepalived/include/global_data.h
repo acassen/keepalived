@@ -298,6 +298,9 @@ typedef struct _data {
 	const char			*iproute_usr_dir;
 	const char			*iproute_etc_dir;
 #endif
+	const char			*state_dump_file;
+	const char			*stats_dump_file;
+	const char			*json_dump_file;
 } data_t;
 
 /* Global vars exported */

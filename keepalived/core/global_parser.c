@@ -2469,6 +2469,42 @@ iproute_etc_handler(const vector_t *strvec)
 }
 #endif
 
+static void
+state_dump_file_handler(const vector_t *strvec)
+{
+	if (vector_size(strvec) != 2 ||
+	    !strvec_slot(strvec, 1)[0]) {
+		report_config_error(CONFIG_GENERAL_ERROR, "%s requires a non-empty path", strvec_slot(strvec, 0));
+		return;
+	}
+
+	global_data->state_dump_file = STRDUP(strvec_slot(strvec, 1));
+}
+
+static void
+stats_dump_file_handler(const vector_t *strvec)
+{
+	if (vector_size(strvec) != 2 ||
+	    !strvec_slot(strvec, 1)[0]) {
+		report_config_error(CONFIG_GENERAL_ERROR, "%s requires a non-empty path", strvec_slot(strvec, 0));
+		return;
+	}
+
+	global_data->stats_dump_file = STRDUP(strvec_slot(strvec, 1));
+}
+
+static void
+json_dump_file_handler(const vector_t *strvec)
+{
+	if (vector_size(strvec) != 2 ||
+	    !strvec_slot(strvec, 1)[0]) {
+		report_config_error(CONFIG_GENERAL_ERROR, "%s requires a non-empty path", strvec_slot(strvec, 0));
+		return;
+	}
+
+	global_data->json_dump_file = STRDUP(strvec_slot(strvec, 1));
+}
+
 void
 init_global_keywords(bool global_active)
 {
@@ -2688,4 +2724,7 @@ init_global_keywords(bool global_active)
 	install_keyword("iproute_usr_dir", &iproute_usr_handler);
 	install_keyword("iproute_etc_dir", &iproute_etc_handler);
 #endif
+	install_keyword("state_dump_file", &state_dump_file_handler);
+	install_keyword("stats_dump_file", &stats_dump_file_handler);
+	install_keyword("json_dump_file", &json_dump_file_handler);
 }
