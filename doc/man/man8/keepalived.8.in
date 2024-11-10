@@ -372,20 +372,20 @@ will shut down.
 .TP
 .B USR1\fP or \fBSIGFUNC=DATA
 Write configuration data to
-.B @KA_TMP_DIR@/keepalived.data
+.B @KA_TMP_DIR@/keepalived.data or file configured by state_dump_file
 .TP
 .B USR2\fP or \fBSIGFUNC=STATS
 Write statistics info to
-.B @KA_TMP_DIR@/keepalived.stats
+.B @KA_TMP_DIR@/keepalived.stats or file configured by stats_dump_file
 .TP
 .B SIGFUNC=STATS_CLEAR
 Write statistics info to
-.B @KA_TMP_DIR@/keepalived.stats
+.B @KA_TMP_DIR@/keepalived.stats or file configured by stats_dump_file
 and clear the statistics counters
 .TP
 .B SIGFUNC=JSON
 Write configuration data in JSON format to
-.B @KA_TMP_DIR@/keepalived.json
+.B @KA_TMP_DIR@/keepalived.json or file configured  by json_dump_file
 .TP
 .B SIGFUNC=TDATA
 This causes

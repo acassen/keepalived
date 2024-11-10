@@ -299,7 +299,7 @@ bfd_print_data(void)
 {
 	FILE *fp;
 
-	fp = open_dump_file("keepalived_bfd.data");
+	fp = open_dump_file("_bfd");
 
 	if (!fp)
 		return;

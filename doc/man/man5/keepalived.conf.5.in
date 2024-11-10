@@ -964,7 +964,24 @@ possibly following any cleanup actions needed.
     # if more than one keepalived instance is running on a system.
     # In order to alleviate this, enabling data_use_instance includes the
     # instance name and network namespace in the file name of the .data files.
+    # This also applies to SIGUSR2 for outputting stats.
     \fBdata_use_instance \fR[<BOOL>]
+
+    # If the files produced by SIGUSR1 and SIGUSR2 are on slow storage, then writing to
+    # them may cause keepalived processes to block. This option allows specifying the
+    # location to which the files should be written, and should ideally be a tmpfs rather
+    # than a real disc, and definitely not network attached storage or other storage that
+    # can block for more than a few microseconds.
+    # If path ends in a / it is considered to be a directory and the normal filenames
+    # in that directory will be used, otherwise it will be used as the full path name
+    # of the file to be written. Note that \fBdata_use_instance\fR may also modify the
+    # file name.
+    # For the state files, these are template names and "_checker" will be added
+    # for the checker process, "_bfd" will be added for the BFD process and
+    # "_parent" will be added for the parent process.
+    \fBstate_file_location \fRpath
+    \fBstats_file_location \fRpath
+    \fBjson_file_location \fRpath
 
     # json_version 2 puts the VRRP data in a named array and adds
     # track_process details. Default is version 1.

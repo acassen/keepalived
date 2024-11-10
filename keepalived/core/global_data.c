@@ -516,46 +516,78 @@ free_global_data(data_t **datap)
 	FREE_CONST_PTR(data->iproute_usr_dir);
 	FREE_CONST_PTR(data->iproute_etc_dir);
 #endif
+	FREE_CONST_PTR(data->state_dump_file);
+	FREE_CONST_PTR(data->stats_dump_file);
+	FREE_CONST_PTR(data->json_dump_file);
+
 	FREE(data);
 
 	*datap = NULL;
 }
 
 FILE * __attribute__((malloc))
-open_dump_file(const char *file_name)
+open_dump_file(const char *default_file_name)
 {
 	FILE *fp;
-	const char *full_file_name;
-	char *tmp_file_name;
+	const char *file_name;
+	char *full_file_name;
 	const char *dot;
-	int len;
+	size_t len;
+	const char *dir;
+	size_t dir_len;
 
-	if (global_data->data_use_instance &&
-	    (global_data->instance_name || global_data->network_namespace)) {
-		len = strlen(tmp_dir) + 1 + strlen(file_name) + 1;
+	/*
+	 * If no leading /, use tmp_dir
+	 * If trailing /, add "keepalived%s.data", default_file_name
+	 */
+
+	if (global_data->state_dump_file &&
+	    global_data->state_dump_file[0] == '/') {
+		dir = global_data->state_dump_file;
+		dir_len = strlen(dir);
+		if (dir[dir_len - 1] != '/')
+			dir_len = strrchr(dir, '/') - dir;
+	} else {
+		dir = tmp_dir;
+		dir_len = strlen(tmp_dir);
+	}
+
+	if (global_data->state_dump_file &&
+	    global_data->state_dump_file[strlen(global_data->state_dump_file) - 1] != '/') {
+		if (!(file_name = strrchr(global_data->state_dump_file, '/')))
+			file_name = global_data->state_dump_file;
+		else
+			file_name++;	/* Skip to last '/' */
+	} else
+		file_name = "keepalived.data";
+
+	if (!(dot = strrchr(file_name, '.')))
+		dot = file_name + strlen(file_name);
+
+	len = dir_len + 1 + strlen(file_name) + 1 + strlen(default_file_name);
+	if (global_data->data_use_instance) {
 		if (global_data->instance_name)
 			len += strlen(global_data->instance_name) + 1;
 		if (global_data->network_namespace)
 			len += strlen(global_data->network_namespace) + 1;
+	}
 
-		tmp_file_name = MALLOC(len);
+	full_file_name = MALLOC(len);
 
-		dot = strrchr(file_name, '.');
-		sprintf(tmp_file_name, "%s/%.*s.%s%s%s%s", tmp_dir,
-				(int)(dot - file_name), file_name,
-				global_data->network_namespace ? global_data->network_namespace : "",
-				global_data->instance_name && global_data->network_namespace ? "_" : "",
-				global_data->instance_name ? global_data->instance_name : "",
-				dot);
-		full_file_name = tmp_file_name;
-	} else
-		full_file_name = make_tmp_filename(file_name);
+	snprintf(full_file_name, len, "%.*s/%.*s%s%s%s%s%s%s", (int)dir_len, dir,
+			(int)(dot - file_name), file_name,
+			default_file_name,
+			global_data->data_use_instance && (global_data->instance_name || global_data->network_namespace) ? "." : "",
+			global_data->data_use_instance && global_data->network_namespace ? global_data->network_namespace : "",
+			global_data->data_use_instance && global_data->instance_name && global_data->network_namespace ? "_" : "",
+			global_data->data_use_instance && global_data->instance_name ? global_data->instance_name : "",
+			dot);
 
 	fp = fopen_safe(full_file_name, "w");
 
 	if (!fp)
 		log_message(LOG_INFO, "Can't open dump file %s (%d: %s)",
-			file_name, errno, strerror(errno));
+			full_file_name, errno, strerror(errno));
 
 	FREE_CONST(full_file_name);
 
@@ -941,4 +973,10 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " iproute usr directory %s", global_data->iproute_usr_dir ? global_data->iproute_usr_dir : "(none)");
 	conf_write(fp, " iproute etc directory %s", global_data->iproute_etc_dir ? global_data->iproute_etc_dir : "(none)");
 #endif
+	if (global_data->state_dump_file)
+		conf_write(fp, " state dump file %s", global_data->state_dump_file);
+	if (global_data->stats_dump_file)
+		conf_write(fp, " stats dump file %s", global_data->stats_dump_file);
+	if (global_data->json_dump_file)
+		conf_write(fp, " json dump file %s", global_data->json_dump_file);
 }

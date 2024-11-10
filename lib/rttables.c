@@ -605,7 +605,7 @@ write_addrproto_config(const char *name, uint32_t val)
 	bool file_exists = false;
 	struct stat statbuf;
 
-	fp = popen("ip -V", "re");
+	fp = popen("ip -V 2>&1", "re");
 	res = fgets(buf, sizeof(buf), fp);
 	pclose(fp);
 
@@ -616,14 +616,25 @@ write_addrproto_config(const char *name, uint32_t val)
 	 *     ip utility, iproute2-5.10.0
 	 * or
 	 *     ip utility, iproute2-6.7.0, libbpf 1.2.3
-	 */
+         * or
+         *     BusyBox v1.36.1 (2024-06-10 07:11:47 UTC) multi-call binary
+	 *
+	 * Busybox does not support the iproute2 configuration files.
+         */
+        if (!strstr(buf, "iproute2"))
+                return;
+        if (strstr(buf, "BusyBox"))
+                return;
+
 	if (!(v = strchr(buf, '-')))
 		return;
 
 	v++;
 	if ((e = strchr(v, ',')))
 		*e = '\0';
-	sscanf(v, "%d.%d.%d", &ver_maj, &ver_min, &ver_rel);
+	if (sscanf(v, "%d.%d.%d", &ver_maj, &ver_min, &ver_rel) != 3)
+		return;
+
 	if (ver_maj >= 7 || (ver_maj == 6 && ver_min >= 12)) {
 		dir = IPROUTE_ETC_DIR "/" RT_ADDRPROTOS_FILE ".d";
 		path = IPROUTE_ETC_DIR "/" RT_ADDRPROTOS_FILE ".d/keepalived.conf" ;
