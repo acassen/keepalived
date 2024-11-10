@@ -412,8 +412,9 @@ initialise_list(list_head_t *l, const char *file_name, const rt_entry_t *default
 
 			read_file(path, l, max);
 		}
+
+		closedir(dir);
 	}
-	closedir(dir);
 #endif
 
 	/* Now read the entries in the IPROUTE_ETC_DIR subdirectory */
@@ -425,8 +426,9 @@ initialise_list(list_head_t *l, const char *file_name, const rt_entry_t *default
 
 			read_file(path, l, max);
 		}
+
+		closedir(dir);
 	}
-	closedir(dir);
 
 	FREE_PTR(path);
 #ifdef IPROUTE_USR_DIR
