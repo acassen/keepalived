@@ -2394,9 +2394,15 @@ chk_min_cfg(vrrp_t *vrrp)
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) the virtual router id must be set", vrrp->iname);
 		return false;
 	}
-	if (!vrrp->ifp && !__test_bit(VRRP_FLAG_UNICAST_CONFIGURED, &vrrp->flags)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Unknown interface!", vrrp->iname);
-		return false;
+	if (!vrrp->ifp) {
+		if (!__test_bit(VRRP_FLAG_UNICAST_CONFIGURED, &vrrp->flags)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Unknown interface!", vrrp->iname);
+			return false;
+		}
+		if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) cannot use VMAC if no interface specified", vrrp->iname);
+			return false;
+		}
 	}
 
 	return true;
