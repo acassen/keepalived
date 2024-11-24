@@ -685,7 +685,7 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 	/* The following should only be specified for VMACs and ipvlans */
 	if (__test_bit(VRRP_VMAC_GROUP, &vrrp->flags))
 		conf_write(fp, "     Interface group %u", vrrp->vmac_group);
-	else if (vrrp->ifp->base_ifp->group)
+	else if (vrrp->ifp && vrrp->ifp->base_ifp->group)
 		conf_write(fp, "     Interface group %u (copied from parent)", vrrp->ifp->base_ifp->group);
 
 	if (vrrp->ifp && vrrp->ifp->is_ours) {
