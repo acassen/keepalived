@@ -1536,6 +1536,9 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 {
 	unicast_peer_t *peer;
 
+	if (!vrrp->sockets)
+		return;
+
 #ifdef _HAVE_VRRP_VMAC_
 	if (vrrp->saddr.ss_family == AF_UNSPEC &&
 	    vrrp->family == AF_INET6 &&
