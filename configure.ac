@@ -1419,6 +1419,15 @@ AC_CHECK_DECLS([ETHERTYPE_IPV6], [],
   ],
   [[#include <net/ethernet.h>]])
 
+# IPV6_FREEBIND - added Linux v4.15
+AS_IF([test .$enable_vrrp != .no],
+  [
+    AC_CHECK_DECLS([IPV6_FREEBIND],
+      [add_system_opt([IPV6_FREEBIND])],
+      [],
+      [[#include <linux/in6.h>]])
+  ])
+
 # IPV6_MULTICAST_ALL - added Linux v4.20
 AC_CHECK_DECLS([IPV6_MULTICAST_ALL],
   [

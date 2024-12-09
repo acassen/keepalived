@@ -2536,6 +2536,16 @@ open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp,
 		}
 #endif
 
+		/* Allow binding even if the address doesn't exist yet */
+#if !HAVE_DECL_IPV6_FREEBIND
+		if (family == AF_INET6) {
+			if (setsockopt(fd, IPPROTO_IPV6, IPV6_TRANSPARENT, &on, sizeof on))
+				log_message(LOG_INFO, "IPV6_TRANSPARENT failed %d - %m", errno);
+		} else
+#endif
+		if (setsockopt(fd, family == AF_INET ? IPPROTO_IP : IPPROTO_IPV6, family == AF_INET ? IP_FREEBIND : IPV6_FREEBIND, &on, sizeof on))
+			log_message(LOG_INFO, "IP%s_FREEBIND failed %d - %m", family == AF_INET ? "" : "V6", errno);
+
 		/* Bind to the local unicast address */
 		if (bind(fd, PTR_CAST_CONST(struct sockaddr, unicast_src), unicast_src->ss_family == AF_INET ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6))) {
 			log_message(LOG_INFO, "bind unicast_src %s failed %d - %m", inet_sockaddrtos(unicast_src), errno);
