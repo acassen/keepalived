@@ -1536,6 +1536,9 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 {
 	unicast_peer_t *peer;
 
+	if (!vrrp->sockets)
+		return;
+
 #ifdef _HAVE_VRRP_VMAC_
 	if (vrrp->saddr.ss_family == AF_UNSPEC &&
 	    vrrp->family == AF_INET6 &&
@@ -2391,9 +2394,17 @@ chk_min_cfg(vrrp_t *vrrp)
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) the virtual router id must be set", vrrp->iname);
 		return false;
 	}
-	if (!vrrp->ifp && !__test_bit(VRRP_FLAG_UNICAST_CONFIGURED, &vrrp->flags)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Unknown interface!", vrrp->iname);
-		return false;
+	if (!vrrp->ifp) {
+		if (!__test_bit(VRRP_FLAG_UNICAST_CONFIGURED, &vrrp->flags)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Unknown interface!", vrrp->iname);
+			return false;
+		}
+#ifdef _HAVE_VRRP_VMAC_
+		if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) cannot use VMAC if no interface specified", vrrp->iname);
+			return false;
+		}
+#endif
 	}
 
 	return true;
@@ -2524,6 +2535,16 @@ open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp,
 			return -2;
 		}
 #endif
+
+		/* Allow binding even if the address doesn't exist yet */
+#if !HAVE_DECL_IPV6_FREEBIND
+		if (family == AF_INET6) {
+			if (setsockopt(fd, IPPROTO_IPV6, IPV6_TRANSPARENT, &on, sizeof on))
+				log_message(LOG_INFO, "IPV6_TRANSPARENT failed %d - %m", errno);
+		} else
+#endif
+		if (setsockopt(fd, family == AF_INET ? IPPROTO_IP : IPPROTO_IPV6, family == AF_INET ? IP_FREEBIND : IPV6_FREEBIND, &on, sizeof on))
+			log_message(LOG_INFO, "IP%s_FREEBIND failed %d - %m", family == AF_INET ? "" : "V6", errno);
 
 		/* Bind to the local unicast address */
 		if (bind(fd, PTR_CAST_CONST(struct sockaddr, unicast_src), unicast_src->ss_family == AF_INET ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6))) {
