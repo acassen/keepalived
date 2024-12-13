@@ -729,6 +729,7 @@ read_hex_str(const char *str, uint8_t **data, uint8_t **data_mask)
 	uint8_t mask_val;
 	bool using_mask = false;
 	uint16_t len;
+	bool has_error = false;
 
 	/* The output octet string cannot be longer than (strlen(str) + 1)/2 */
 	str_len = (strlen(str) + 1) / 2;
@@ -745,8 +746,10 @@ read_hex_str(const char *str, uint8_t **data, uint8_t **data_mask)
 			break;
 
 		val = hex_val(*p++, !!data_mask);
-		if (val == 0xff)
+		if (val == 0xff) {
+			has_error = true;
 			break;
+		}
 		if (val == 0xfe) {
 			mask_val = 0x0f;
 			val = 0;
@@ -758,8 +761,10 @@ read_hex_str(const char *str, uint8_t **data, uint8_t **data_mask)
 			val1 = val << 4;
 			mask_val <<= 4;
 			val = hex_val(*p++, !!data_mask);
-			if (val == 0xff)
+			if (val == 0xff) {
+				has_error = true;
 				break;
+			}
 			if (val == 0xfe) {
 				mask_val |= 0x0f;
 				val = 0;
@@ -773,7 +778,7 @@ read_hex_str(const char *str, uint8_t **data, uint8_t **data_mask)
 		len++;
 	}
 
-	if (val == 0xff || !len) {
+	if (has_error || !len) {
 		FREE_ONLY(buf);
 		FREE_ONLY(mask);
 		return 0;
