@@ -701,6 +701,11 @@ read_decimal_unsigned_strvec(const vector_t *strvec, size_t index, unsigned *res
  * The string can include wildcard characters, x or X, in which
  * case mask will be allocated and used to indicate the wildcard half octets (nibbles)
  */
+
+/* The following must have values > 0x0f */
+#define HEX_ERROR	0xff
+#define HEX_WILDCARD	0xfe
+
 static uint8_t
 hex_val(char p, bool allow_wildcard)
 {
@@ -712,9 +717,9 @@ hex_val(char p, bool allow_wildcard)
 		return p - 'A' + 10;
 
 	if (allow_wildcard && p == 'X')
-		return 0xfe;
+		return HEX_WILDCARD;
 
-	return 0xff;
+	return HEX_ERROR;
 }
 
 uint16_t
@@ -746,11 +751,11 @@ read_hex_str(const char *str, uint8_t **data, uint8_t **data_mask)
 			break;
 
 		val = hex_val(*p++, !!data_mask);
-		if (val == 0xff) {
+		if (val == HEX_ERROR) {
 			has_error = true;
 			break;
 		}
-		if (val == 0xfe) {
+		if (val == HEX_WILDCARD) {
 			mask_val = 0x0f;
 			val = 0;
 			using_mask = true;
@@ -761,11 +766,11 @@ read_hex_str(const char *str, uint8_t **data, uint8_t **data_mask)
 			val1 = val << 4;
 			mask_val <<= 4;
 			val = hex_val(*p++, !!data_mask);
-			if (val == 0xff) {
+			if (val == HEX_ERROR) {
 				has_error = true;
 				break;
 			}
-			if (val == 0xfe) {
+			if (val == HEX_WILDCARD) {
 				mask_val |= 0x0f;
 				val = 0;
 				using_mask = true;
@@ -809,6 +814,9 @@ read_hex_str(const char *str, uint8_t **data, uint8_t **data_mask)
 
 	return len;
 }
+
+#undef HEX_ERROR
+#undef HEX_WILDCARD
 
 void
 set_string(const char **var, const vector_t *strvec, const char *param_name)
