@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 MAJ_VER=$(uname -r | cut -d'.' -f1)
 MIN_VER=$(uname -r | cut -d'.' -f2)
@@ -22,6 +22,7 @@ exit 1
 fi
 
 # The magic file must be the one in the snap
-export MAGIC=${SNAP}/usr/share/misc/magic
+MAGIC="${SNAP}/usr/share/misc/magic"
+export MAGIC
 
-exec ${SNAP}/usr/sbin/${BINARY} "$@"
+exec "${SNAP}/usr/sbin/${BINARY}" "$@"
