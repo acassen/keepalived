@@ -1,9 +1,12 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Get a count of each defined term used in #if directives
 # This can be useful to check for typos in the names
 
-grep "#[ \t]*if" $(find . -name "*.[ch]") | \
+declare -a c_src_files=()
+mapfile -t c_src_files < <(find . -name "*.[ch]")
+
+grep "#[ \t]*if" "${c_src_files[@]}" | \
 	grep -v "_H$" | \
 	sed -e "s/.*://" | \
 	sed -e "s/#ifn*def *//" -e "s/#if  *//" | \
