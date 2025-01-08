@@ -130,6 +130,8 @@ parts:
         DEB_URL="http://launchpadlibrarian.net/548325871/linux-libc-dev_5.8.0-63.71_armhf.deb"
       elif [ $ARCH = s390x ]; then
         DEB_URL="http://launchpadlibrarian.net/548279675/linux-libc-dev_5.8.0-63.71_s390x.deb"
+      elif [ $ARCH = riscv64 ]; then
+        DEB_URL="http://launchpadlibrarian.net/548280908/linux-libc-dev_5.8.0-63.71_riscv64.deb"
       fi
       wget --quiet ${DEB_URL} -O ${SNAPCRAFT_STAGE}/linux-libc-dev.deb
       echo -n "Unpacking kernel headers..."
@@ -194,27 +196,33 @@ parts:
     override-pull: |
       KERNEL_VER="4.18.0"
       ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
-      if [ $ARCH = amd64 ] || [ $ARCH = ppc64el ] ||  [ $ARCH = arm64 ]; then
+      if [ $ARCH = amd64 ] || [ $ARCH = ppc64el ] || [ $ARCH = arm64 ]; then
         DEB_URL="http://launchpadlibrarian.net/431512728/linux-libc-dev_4.18.0-26.27_amd64.deb"
       elif [ $ARCH = armhf ]; then
         DEB_URL="http://launchpadlibrarian.net/431525966/linux-libc-dev_4.18.0-26.27_armhf.deb"
       elif [ $ARCH = s390x ]; then
         DEB_URL="http://launchpadlibrarian.net/431485536/linux-libc-dev_4.18.0-26.27_s390x.deb"
       fi
-      wget --quiet ${DEB_URL} -O ${SNAPCRAFT_STAGE}/linux-libc-dev.deb
-      echo -n "Unpacking kernel headers..."
-      dpkg -x ${SNAPCRAFT_STAGE}/linux-libc-dev.deb ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev
-      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
-      rm -f ${SNAPCRAFT_STAGE}/linux-libc-dev.deb
+      # Ubuntu 18.10 Cosmic Cuttle had no riscv64 support
+      if [ $ARCH != riscv64 ]; then
+        wget --quiet ${DEB_URL} -O ${SNAPCRAFT_STAGE}/linux-libc-dev.deb
+        echo -n "Unpacking kernel headers..."
+        dpkg -x ${SNAPCRAFT_STAGE}/linux-libc-dev.deb ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev
+        printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+        rm -f ${SNAPCRAFT_STAGE}/linux-libc-dev.deb
+      fi
     override-build: |
       snapcraftctl build
-      # Move header from the part to the host
-      ARCH_DIR=$(ls -d ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/*/asm | sed -e "s:/asm$::" -e "s:.*/::")
-      for d in linux asm-generic $ARCH_DIR/asm; do
-        dest=/usr/include/$d
-        rm -rf $dest
-        mv ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/$d ${dest%/*}
-      done
+      ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
+      if [ $ARCH != riscv64 ]; then
+        # Move header from the part to the host
+        ARCH_DIR=$(ls -d ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/*/asm | sed -e "s:/asm$::" -e "s:.*/::")
+        for d in linux asm-generic $ARCH_DIR/asm; do
+          dest=/usr/include/$d
+          rm -rf $dest
+          mv ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/$d ${dest%/*}
+        done
+      fi
       rm -rf ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev
       echo -n "Build kernel:"
       printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
@@ -259,24 +267,30 @@ parts:
       ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
       if [ $ARCH = amd64 ]; then
         ARCHIVE_URL="http://security.ubuntu.com/ubuntu/pool/main/l/linux/"
-      else
+      elif [ $ARCH != riscv64 ]; then
         ARCHIVE_URL="http://ports.ubuntu.com/pool/main/l/linux/"
       fi
-      DEB_SUFFIX=$(wget ${ARCHIVE_URL} -O - | grep linux-libc-dev | cut -d'_' -f2-3 | cut -d'"' -f1 | grep ${ARCH} | grep ${KERNEL_VER} | tail -n1)
-      wget --quiet ${ARCHIVE_URL}/linux-libc-dev_${DEB_SUFFIX} -O ${SNAPCRAFT_STAGE}/linux-libc-dev.deb
-      echo -n "Unpacking kernel headers..."
-      dpkg -x ${SNAPCRAFT_STAGE}/linux-libc-dev.deb ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev
-      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
-      rm -f ${SNAPCRAFT_STAGE}/linux-libc-dev.deb
+      # Ubuntu 18.40 (Bionic Beaver) had no riscv64 support
+      if [ $ARCH != riscv64 ]; then
+        DEB_SUFFIX=$(wget ${ARCHIVE_URL} -O - | grep linux-libc-dev | cut -d'_' -f2-3 | cut -d'"' -f1 | grep ${ARCH} | grep ${KERNEL_VER} | tail -n1)
+        wget --quiet ${ARCHIVE_URL}/linux-libc-dev_${DEB_SUFFIX} -O ${SNAPCRAFT_STAGE}/linux-libc-dev.deb
+        echo -n "Unpacking kernel headers..."
+        dpkg -x ${SNAPCRAFT_STAGE}/linux-libc-dev.deb ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev
+        printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+        rm -f ${SNAPCRAFT_STAGE}/linux-libc-dev.deb
+      fi
     override-build: |
       snapcraftctl build
       # Move header from the part to the host
-      ARCH_DIR=$(ls -d ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/*/asm | sed -e "s:/asm$::" -e "s:.*/::")
-      for d in linux asm-generic $ARCH_DIR/asm; do
-        dest=/usr/include/$d
-        rm -rf $dest
-        mv ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/$d ${dest%/*}
-      done
+      ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
+      if [ $ARCH != riscv64]; then
+        ARCH_DIR=$(ls -d ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/*/asm | sed -e "s:/asm$::" -e "s:.*/::")
+        for d in linux asm-generic $ARCH_DIR/asm; do
+          dest=/usr/include/$d
+          rm -rf $dest
+          mv ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/$d ${dest%/*}
+        done
+      fi
       rm -rf ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev
       echo -n "Build kernel:"
       printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
@@ -323,9 +337,9 @@ parts:
       elif [ $ARCH = armhf ]; then
         DEB_URL="http://launchpadlibrarian.net/422971427/linux-libc-dev_3.13.0-170.220_i386.deb"
       fi
-      if [ $ARCH != s390x ]; then
-        # s390x was not supported on Trusty, so there are no kernel headers for it.
-        # Just let it build with the previous headers.
+      if [ $ARCH != s390x ] && [ $ARCH != riscv64 ]; then
+        # riscv64 and s390x were not supported on Trusty, so there are no kernel headers for them.
+        # Just let them build with the previous headers.
         wget --quiet ${DEB_URL} -O ${SNAPCRAFT_STAGE}/linux-libc-dev.deb
         echo -n "Unpacking kernel headers..."
         dpkg -x ${SNAPCRAFT_STAGE}/linux-libc-dev.deb ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev
@@ -335,7 +349,7 @@ parts:
     override-build: |
       snapcraftctl build
       ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
-      if [ $ARCH != s390x ]; then
+      if [ $ARCH != s390x ] && [ $ARCH != riscv64]; then
         # Move header from the part to the host
         ARCH_DIR=$(ls -d ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/*/asm | sed -e "s:/asm$::" -e "s:.*/::")
         for d in linux asm-generic $ARCH_DIR/asm; do
