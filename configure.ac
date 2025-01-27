@@ -801,7 +801,7 @@ if test "$enable_conversion_checks" = yes; then
   AC_MSG_CHECKING([for usable -Wconversion])
   SAV_CFLAGS="$CFLAGS"
   CFLAGS="$CFLAGS -Wconversion -O2 -Werror"
-  AS_IF([test $ADD_FORTIFY_SOURCE -eq 1], [CFLAGS="$CFLAGS -Wp,-D_FORTIFY_SOURCE=$FORTIFY_SOURCE"])
+  AS_IF([test $ADD_FORTIFY_SOURCE -eq 1], [CFLAGS="$CFLAGS -D_FORTIFY_SOURCE=$FORTIFY_SOURCE"])
   AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
     #include <sys/types.h>
     #include <sys/select.h>
@@ -1052,7 +1052,7 @@ if test "$enable_hardening" != no; then
 
   AS_IF([test $ADD_FORTIFY_SOURCE -eq 1],
     [
-      FLAG="-Wp,-D_FORTIFY_SOURCE=$FORTIFY_SOURCE"
+      FLAG="-D_FORTIFY_SOURCE=$FORTIFY_SOURCE"
       AC_MSG_CHECKING([for $FLAG support])
       CFLAGS="$CFLAGS -O2 $FLAG"
       AC_COMPILE_IFELSE(
