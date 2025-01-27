@@ -509,14 +509,13 @@ parts:
     override-build: |
       craftctl default
       KERNEL_VER="3.13.0"
+      # Move header from the part to the host
+      ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
       if [ $ARCH != s390x ] && [ $ARCH != riscv64 ]; then
         echo -n "Unpacking kernel $KERNEL_VER headers..."
         dpkg -x ${CRAFT_STAGE}/linux-libc-dev-$KERNEL_VER.deb ${CRAFT_STAGE}/keepalived-linux-libc-dev
         printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${CRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
         rm -f ${CRAFT_STAGE}/linux-libc-dev-$KERNEL_VER.deb
-      fi
-      ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
-      if [ $ARCH != s390x ] && [ $ARCH != riscv64 ]; then
         # Move header from the part to the host
         ARCH_DIR=$(ls -d ${CRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/*/asm | sed -e "s:/asm$::" -e "s:.*/::")
         for d in linux asm-generic $ARCH_DIR/asm; do
