@@ -102,8 +102,8 @@ tcp_epilog(thread_ref_t thread, bool is_success)
 
 	checker = THREAD_ARG(thread);
 
-	if (is_success || checker->retry_it >= checker->retry) {
-		delay = checker->delay_loop;
+	delay = checker->delay_loop;
+	if (is_success || ((checker->is_up || !checker->has_run) && checker->retry_it >= checker->retry)) {
 		checker->retry_it = 0;
 
 		if (is_success && (!checker->is_up || !checker->has_run)) {
@@ -135,7 +135,7 @@ tcp_epilog(thread_ref_t thread, bool is_success)
 				smtp_alert(SMTP_MSG_RS, checker, NULL,
 					   "=> TCP CHECK failed on service <=");
 		}
-	} else {
+	} else if (checker->is_up) {
 		delay = checker->delay_before_retry;
 		++checker->retry_it;
 	}
