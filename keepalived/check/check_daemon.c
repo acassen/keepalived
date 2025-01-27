@@ -642,6 +642,7 @@ register_check_thread_addresses(void)
 #ifndef _ONE_PROCESS_DEBUG_
 	register_thread_address("reload_check_thread", reload_check_thread);
 	register_thread_address("start_checker_termination_thread", start_checker_termination_thread);
+	register_thread_address("print_check_data", print_check_data);
 #endif
 	register_thread_address("lvs_notify_fifo_script_exit", lvs_notify_fifo_script_exit);
 	register_thread_address("checker_shutdown_backstop_thread", checker_shutdown_backstop_thread);
@@ -827,7 +828,6 @@ void
 register_check_parent_addresses(void)
 {
 #ifndef _ONE_PROCESS_DEBUG_
-	register_thread_address("print_check_data", print_check_data);
 	register_thread_address("check_respawn_thread", check_respawn_thread);
 	register_thread_address("delayed_restart_check_child_thread", delayed_restart_check_child_thread);
 #endif
