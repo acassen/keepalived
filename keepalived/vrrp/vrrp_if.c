@@ -1688,7 +1688,14 @@ update_added_interface(interface_t *ifp)
 			}
 		}
 
-		if (vrrp->flags) {
+		if (
+#ifdef _HAVE_VRRP_VMAC_
+		    __test_bit(VRRP_VMAC_BIT, &vrrp->flags) ||
+#ifdef _HAVE_VRRP_IPVLAN_
+		    __test_bit(VRRP_IPVLAN_BIT, &vrrp->flags)
+#endif
+#endif
+								) {
 			if (top->type & TRACK_VRRP) {
 				add_vrrp_to_interface(vrrp, ifp->base_ifp, top->weight, top->weight_multiplier == -1, false, TRACK_VRRP_DYNAMIC);
 				if (!IF_ISUP(vrrp->configured_ifp->base_ifp) && !__test_bit(VRRP_FLAG_DONT_TRACK_PRIMARY, &vrrp->flags)) {
