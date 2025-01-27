@@ -1894,7 +1894,7 @@ The syntax for vrrp_instance is :
     # VRRP instance MUST use the same value.
     \fBdown_timer_adverts \fR[1-100]
 
-    # Some users experience "thread_timer_expired" log messages. These are caused
+    # Some users experience "thread timer expired" log messages. These are caused
     # by the kernel not scheduling keepalived quickly enough after a timer expired,
     # which is always due to insufficient CPU resources being available (if running
     # keepalived in a VM it could be due to the VM itself not being scheduled), or
@@ -1909,7 +1909,7 @@ The syntax for vrrp_instance is :
     # this option), and if that time has expired since the last advert has been sent,
     # the VRRP instance will revert to backup state (remember to include any track_script
     # etc. weights when calculating the highest priority of other instances).
-    \fbthread_timer_expired \fR[HIGHEST_PRIORITY_OF_OTHER_INSTANCES]
+    \fBtimer_expired_backup \fR[HIGHEST_PRIORITY_OF_OTHER_INSTANCES]
 
     # If keepalived is late running by more than 2 advert intervals for a VRRP instance,
     # it is possible that another instance has taken over as master.
