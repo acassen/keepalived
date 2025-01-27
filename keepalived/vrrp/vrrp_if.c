@@ -1720,7 +1720,10 @@ update_added_interface(interface_t *ifp)
 		/* Reopen any socket on this interface if necessary */
 		if (
 #ifdef _HAVE_VRRP_VMAC_
-		    !vrrp->flags &&
+		    !__test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
+#ifdef _HAVE_VRRP_IPVLAN_
+		    !__test_bit(VRRP_IPVLAN_BIT, &vrrp->flags) &&
+#endif
 #endif
 		    vrrp->sockets->fd_in == -1)
 			setup_interface(vrrp);
