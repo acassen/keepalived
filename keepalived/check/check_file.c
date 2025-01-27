@@ -150,7 +150,9 @@ add_rs_to_track_files(void)
 	tracked_file_monitor_t *tfl;
 
 	list_for_each_entry(vs, &check_data->vs, e_list) {
+		current_vs = vs;
 		list_for_each_entry(rs, &vs->rs, e_list) {
+			current_rs = rs;
 			list_for_each_entry(tfl, &rs->track_files, e_list) {
 				/* queue new checker - we don't have a compare function since we don't
 				 * update file checkers that way on a reload. */
@@ -169,6 +171,8 @@ add_rs_to_track_files(void)
 			}
 		}
 	}
+	current_vs = NULL;
+	current_rs = NULL;
 }
 
 void

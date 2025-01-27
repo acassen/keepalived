@@ -2428,6 +2428,7 @@ register_parent_thread_addresses(void)
 	register_thread_address("startup_script_completed", startup_script_completed);
 	register_thread_address("shutdown_script_completed", shutdown_script_completed);
 	register_thread_address("run_startup_script", run_startup_script);
+	register_thread_address("print_parent_data", print_parent_data);
 }
 #endif
 
