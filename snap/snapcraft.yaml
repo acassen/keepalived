@@ -358,7 +358,7 @@ parts:
       elif [ $ARCH = ppc64el ]; then
         DEB_URL="http://launchpadlibrarian.net/431492858/linux-libc-dev_4.18.0-26.27_ppc64el.deb"
       elif [ $ARCH = arm64 ]; then
-        DEB_UTL="http://launchpadlibrarian.net/431531681/linux-libc-dev_4.18.0-26.27_arm64.deb"
+        DEB_URL="http://launchpadlibrarian.net/431531681/linux-libc-dev_4.18.0-26.27_arm64.deb"
       elif [ $ARCH = armhf ]; then
         DEB_URL="http://launchpadlibrarian.net/431525966/linux-libc-dev_4.18.0-26.27_armhf.deb"
       elif [ $ARCH = s390x ]; then
