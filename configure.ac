@@ -431,12 +431,37 @@ ENABLE_LOG_FILE_APPEND=No
 
 # Ensure we don't override FORTIFY_SOURCE
 ADD_FORTIFY_SOURCE=1
-echo $CPPFLAGS | grep -q -- "-D *_FORTIFY_SOURCE="
-AS_IF([test $? -eq 0],
+AC_MSG_CHECKING([if _FORTIFY_SOURCE is enabled])
+SAV_CFLAGS=$CFLAGS
+CFLAGS="$CFLAGS -O2"
+SAV_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS=$(echo $SAV_CPPFLAGS | sed -e "s/ [^ ]*-D *_FORTIFY_SOURCE=[0-9]*//")
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+  #include <stdio.h>
+  int main(void)
+  {
+    printf("%d", _FORTIFY_SOURCE);
+  }
+  ]])],
   [
-    FORTIFY_SOURCE=$(echo $CPPFLAGS | $SED -e "s/.*-D *_FORTIFY_SOURCE=//" -e "s/ .*//")
+    AC_MSG_RESULT([yes])
     ADD_FORTIFY_SOURCE=0
-  ],[FORTIFY_SOURCE=2])
+    FORTIFY_SOURCE=$(echo | gcc -O3 -dM -E - | grep _FORTIFY_SOURCE | sed -e "s/.* //")
+  ],
+  [
+    AC_MSG_RESULT([no])
+  ])
+CPPFLAGS=$SAV_CPPFLAGS
+CFLAGS=$SAV_CFLAGS
+AS_IF([test $ADD_FORTIFY_SOURCE -eq 1],
+  [
+    echo $CPPFLAGS | grep -q -- "-D *_FORTIFY_SOURCE="
+    AS_IF([test $? -eq 0],
+      [
+	FORTIFY_SOURCE=$(echo $CPPFLAGS | $SED -e "s/.*-D *_FORTIFY_SOURCE=//" -e "s/ .*//")
+	ADD_FORTIFY_SOURCE=0
+      ],[FORTIFY_SOURCE=2])
+  ])
 
 #
 # save the configure arguments
@@ -1010,7 +1035,6 @@ if test "$enable_hardening" != no; then
 
   for FLAG in \
 	  "-Wformat -Werror=format-security" \
-	  "-Wp,-D_FORTIFY_SOURCE=$FORTIFY_SOURCE" \
 	  "-fexceptions" \
 	  "-fstack-protector-strong" \
 	  "--param=ssp-buffer-size=4" \
@@ -1025,6 +1049,19 @@ if test "$enable_hardening" != no; then
       [AC_MSG_RESULT([no])])
     CFLAGS=$SAV_CFLAGS
   done
+
+  AS_IF([test $ADD_FORTIFY_SOURCE -eq 1],
+    [
+      FLAG="-Wp,-D_FORTIFY_SOURCE=$FORTIFY_SOURCE"
+      AC_MSG_CHECKING([for $FLAG support])
+      CFLAGS="$CFLAGS -O2 $FLAG"
+      AC_COMPILE_IFELSE(
+	[AC_LANG_SOURCE([[ ]])],
+	[AC_MSG_RESULT([yes])]
+	  add_to_var([KA_CFLAGS], [$FLAG]),
+	[AC_MSG_RESULT([no])])
+      CFLAGS=$SAV_CFLAGS
+    ])
 
   WL_FLAGS=
   for FLAG in \
