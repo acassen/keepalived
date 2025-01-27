@@ -460,7 +460,7 @@ AS_IF([test $ADD_FORTIFY_SOURCE -eq 1],
       [
 	FORTIFY_SOURCE=$(echo $CPPFLAGS | $SED -e "s/.*-D *_FORTIFY_SOURCE=//" -e "s/ .*//")
 	ADD_FORTIFY_SOURCE=0
-      ],[FORTIFY_SOURCE=2])
+      ],[FORTIFY_SOURCE=3])
   ])
 
 #
