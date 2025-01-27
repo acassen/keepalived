@@ -1690,9 +1690,9 @@ update_added_interface(interface_t *ifp)
 
 		if (
 #ifdef _HAVE_VRRP_VMAC_
-		    __test_bit(VRRP_VMAC_BIT, &vrrp->flags) ||
+		    __test_bit(VRRP_VMAC_BIT, &vrrp->flags)
 #ifdef _HAVE_VRRP_IPVLAN_
-		    __test_bit(VRRP_IPVLAN_BIT, &vrrp->flags)
+		    || __test_bit(VRRP_IPVLAN_BIT, &vrrp->flags)
 #endif
 #endif
 								) {
