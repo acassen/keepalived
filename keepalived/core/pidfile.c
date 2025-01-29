@@ -167,7 +167,7 @@ create_pidfile(pidfile_t *pidf)
 		if (umask_val & (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))
 			umask(umask_val & ~(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH));
 
-		while ((pidf->fd = open(pidf->path, O_NOFOLLOW | O_CREAT | O_WRONLY | O_NONBLOCK, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1 && errno == EINTR);
+		while ((pidf->fd = open(pidf->path, O_NOFOLLOW | O_CREAT | O_WRONLY | O_NONBLOCK | O_CLOEXEC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1 && errno == EINTR);
 		error = errno;
 
 		/* Restore the default umask */
