@@ -16,131 +16,41 @@ Distros supported and kernel versions
 =====================================
 Distro		Oldest ver	Kernel ver	EOL
 ------		----------	----------	---
+Ubuntu		24.10		6.11		July 2025
+Ubuntu		24.04		6.8		May 2029
+Ubuntu		22.04		5.15		April 2027
 Ubuntu		20.04		5.4		April 2025
 Debian		12		6.1		10-06-26
+RHEL		9		5.14
 RHEL		8		4.18.0		May 2029
 CentOS		no support
-CentOS Stream	always more recent than oldest RHEL
+CentOS Stream	always at least as recent as newest RHEL
+Fedora		42		6.13
+Fedora		41		6.11-6.12
+Fedora		40		6.8-6.12	Four weeks after n+2 released
 Fedora		39		6.5		26-11-24
-Fedora		40		6.8-6.11	Four weeks after n+2 released
 Gentoo		Updated weekly
-AlmaLinux	9		5.14		31-05-27
-Alpine		3.17		?5.15		22-11-24
+AlmaLinux	9.5		5.14		31-05-27			Follows RHEL
 Alpine		3.18		6.1		09-05-25
+Alpine		3.19		6.6		09-11-25
+Alpine		3.20		6.6		01-04-26
+Alpine		3.21		6.12		01-11-25
 ArchLinux	2024.09.01	6.10.7		Dec 24 - appears to keep last 3 months of installation media, released at beginning of month
 Mint		20		5.4		April 2025			https://en.wikipedia.org/wiki/Linux_Mint
+Mint		21		5.15		April 2027			https://en.wikipedia.org/wiki/Linux_Mint
+Mint		22		6.11		June 2029			https://en.wikipedia.org/wiki/Linux_Mint
 openSUSE	15.5		5.14.21		31-12-24			https://en.wikipedia.org/wiki/OpenSUSE
 openSUSE	15.6		6.4		31-12-25			https://en.wikipedia.org/wiki/OpenSUSE
 SUSE		15 SP5		5.14.21		26-01-25			https://en.wikipedia.org/wiki/SUSE_Linux_Enterprise
-SUSE		15 SP6		6.4.0						A service pack is supported for 6 months after release of next service pack (approx annual)
-Manjaro		Rolling		4.19.322					https://en.wikipedia.org/wiki/Manjaro and https://manjaristas.org/branch_compare?q=%23kernels
-Oracle		7		3.10		31-12-24			https://en.wikipedia.org/wiki/Oracle_Linux
+SUSE		15 SP6		6.4.0		31-07-31			A service pack is supported for 6 months after release of next service pack (approx annual)
+Manjaro		Rolling		4.19.322-6.13					https://en.wikipedia.org/wiki/Manjaro and https://manjaristas.org/branch_compare?q=%23kernels
 Oracle		8		4.18		31-07-29			https://en.wikipedia.org/wiki/Oracle_Linux
+Oracle		9		5.14		32-06-30			https://en.wikipedia.org/wiki/Oracle_Linux
 
 =============================================================================
 
-The oldest kernel version currently supported is Linux 3.10
+The oldest kernel version currently supported is Linux 4.18
 -----------------------------------------------------------
-
-dnl ----[Check have IPV4_DEVCONF defines - since Linux 3.11]----
-
-./keepalived/check/check_parser.c:#ifdef IP_VS_SVC_F_SCHED1		/* From Linux 3.11 */
-
-Support for open(..., O_TMPFILE,...) added	-- Linux 3.11	/* Backported into RHEL7 linux-3.10 somewhere between 3.10.0-229 and 3.10.0-1160 */
-
-dnl --RTAX_QUICKACK		dnl -- Linux 3.11
-dnl --FRA_SUPPRESS_PREFIXLEN	dnl -- Linux 3.12
-dnl --FRA_SUPPRESS_IFGROUP	dnl -- Linux 3.12
-
-./keepalived/include/global_data.h:	bool				namespace_with_ipsets;	/* override for namespaces with ipsets on Linux < 3.13 */
-
-./keepalived/vrrp/vrrp_iptables_calls.c:#if defined IP_SET_OP_GET_FNAME		/* Since Linux 3.13 */
-
-./keepalived/vrrp/vrrp_ipset.c:	 * than Linux 3.13, since ipsets didn't understand namespaces prior to that. */
-
-dnl - Introduced in Linux 3.14
-AC_CHECK_DECLS([IFA_FLAGS], [], [], [[#include <linux/if_addr.h>]])
-AC_CHECK_DECLS([NFT_META_L4PROTO], [], [], [#include <linux/netfilter/nf_tables.h>])
-
-./keepalived/vrrp/vrrp_ipaddress.c:#ifdef IFA_F_MANAGETEMPADDR		/* Linux 3.14 */
-./keepalived/vrrp/vrrp_ipaddress.c:#ifdef IFA_F_NOPREFIXROUTE		/* Linux 3.14 */
-
-./keepalived/vrrp/vrrp_ipaddress.c:#ifdef IFA_F_MANAGETEMPADDR		/* Linux 3.14 */
-./keepalived/vrrp/vrrp_ipaddress.c:#ifdef IFA_F_NOPREFIXROUTE		/* Linux 3.14 */
-
-dnl ----[ Checks for kernel IFLA_INET6_ADDR_GEN_MODE support ]----
-  # Introduced in Linux 3.17
-
-memfd_create - introduced in Linux 3.17 and glibc 2.27		/* Backported into RHEL7 linux-3.10 somewhere between 3.10.0-229 and 3.10.0-1160 */
-
-dnl -- Since Linux 3.18
-AC_CHECK_DECLS([IPVS_DEST_ATTR_ADDR_FAMILY], [add_system_opt([IPVS_DEST_ATTR_ADDR_FAMILY])], [], [#include <linux/ip_vs.h>])
-
-dnl -- xt_set_info_match_v4 declared since Linux 3.19
-
-./lib/rttables.c:#ifdef RTPROT_BABEL		/* Since Linux 3.19 */
-
-dnl --RTAX_CC_ALGO		dnl -- Linux 4.0
-
-./keepalived/vrrp/vrrp_ipaddress.c:#ifdef IFA_F_MCAUTOJOIN			/* Linux 4.1 */
-
-dnl -- Since Linux 4.1
-IPVS_SVC_ATTR_STATS64,
-IPVS_DEST_ATTR_STATS64], [],
-
-dnl --RTA_VIA			dnl -- Linux 4.1
-dnl --RTA_NEWDST		dnl -- Linux 4.1
-dnl --RTA_PREF			dnl -- Linux 4.1
-
-./keepalived/include/ip_vs.h:/* Prior to Linux 4.2 have to include linux/in.h and linux/in6.h
-
-./keepalived/include/vrrp_iproute.h:#if HAVE_DECL_RTA_ENCAP	/* Since Linux 4.3 */
-
-dnl -- Since Linux 4.3
-AC_CHECK_DECLS([
-IPVS_DAEMON_ATTR_SYNC_MAXLEN,
-IPVS_DAEMON_ATTR_MCAST_GROUP,
-IPVS_DAEMON_ATTR_MCAST_GROUP6,
-IPVS_DAEMON_ATTR_MCAST_PORT,
-IPVS_DAEMON_ATTR_MCAST_TTL], [],
-
-dnl -- Since Linux 4.3
-AC_DEFINE([_HAVE_IPVS_SYNCD_ATTRIBUTES_], [ 1 ], [Define to 1 if have IPVS syncd attributes])
-
-dnl --FRA_TUN_ID		dnl -- Linux 4.3
-dnl --RTA_ENCAP			dnl -- Linux 4.3
-
-dnl ----[ Checks for kernel IFLA_VRF_... support ]----
-  # Introduced in Linux 4.3
-
-MCL_ONFAULT			-- Linux 4.4
-dnl --RTEXT_FILTER_SKIP_STATS	dnl -- Linux 4.4
-dnl --RTA_EXPIRES		dnl -- Linux 4.5
-
-./keepalived/vrrp/vrrp_iptables.c:/* Linux 4.5 introduced a namespace collision when including
-./keepalived/vrrp/vrrp_iptables_calls.c:/* Linux 4.5 introduced a namespace collision when including
-
-# Linux 4.5 to 4.5.4 has <libiptc/libiptc.h> indirectly including <net/if.h>
-# and <linux/if.h> which causes a namespace collision.
-
-dnl --FRA_L3MDEV		dnl -- Linux 4.8
-
-dnl --IPVLAN_MODE_L3S		dnl -- Linux 4.9
-
-dnl --FRA_UID_RANGE		dnl -- Linux 4.10
-
-/* CORENAME_MAX_SIZE in kernel source include/linux/binfmts.h defines
- * the maximum string length, * see core_pattern[CORENAME_MAX_SIZE] in
- * fs/coredump.c. Currently (Linux 4.10) defines it to be 128, but the
- * definition is not exposed to user-space. */
-
-dnl --RTA_TTL_PROPAGATE		dnl -- Linux 4.12
-IFLA_IPVLAN_FLAGS, IPVLAN_MODE_PRIVATE, IPVLAN_MODE_VEPA - Linux 4.15
-dnl --RTAX_FASTOPEN_NO_COOKIE	dnl -- Linux 4.15
-dnl --FRA_PROTOCOL		dnl -- Linux 4.17
-dnl --FRA_IP_PROTO		dnl -- Linux 4.17
-dnl --FRA_SPORT_RANGE		dnl -- Linux 4.17
-dnl --FRA_DPORT_RANGE		dnl -- Linux 4.17
 
 ./lib/rbtree.c:/* This is updated to Linux v4.18.10 lib/rbtree.c
 
@@ -167,6 +77,9 @@ NFTNL_SET_ELEM_KEY_END
 dnl -- Since Linux 5.7
 NFT_SET_CONCAT
 NFTNL_SET_EXPR also libnftnl 1.1.7, nft 0.9.5
+
+Since Linux 5.18
+IFA_PROTO
 
 dnl ----[ Is HTTP_GET regex checking wanted? ]----
 $PKG_CONFIG --exists libpcre2-8

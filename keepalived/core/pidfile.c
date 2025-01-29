@@ -282,7 +282,9 @@ pidfile_write(pidfile_t *pidf)
 					close(pidf->fd);
 				}
 
-				while ((pidf->fd = open(pidf->path, O_NOFOLLOW | O_WRONLY | O_NONBLOCK)) == -1 && errno == EINTR);
+				/* There is a window where the pid file could be deleted between us closing it and re-opening it,
+				 * so allow for creating the pidfile again. */
+				while ((pidf->fd = open(pidf->path, O_NOFOLLOW | O_CREAT | O_WRONLY | O_NONBLOCK | O_CLOEXEC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1 && errno == EINTR);
 
 				if (pidf->fd == -1)
 					return false;
