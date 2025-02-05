@@ -665,7 +665,20 @@ write_addrproto_config(const char *name, uint32_t val)
 	else
 		return;
 
-	stat(IPROUTE_ETC_DIR, &statbuf);
+	/* If IPROUTE_ETC_DIR doesn't exist, create it */
+	if (stat(IPROUTE_ETC_DIR, &statbuf)) {
+		if (stat(IPROUTE_USR_DIR, &statbuf)) {
+			/* Use sensible defaults for directory permission */
+			statbuf.st_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+		}
+
+		/* Create directory */
+		if (mkdir(IPROUTE_ETC_DIR, statbuf.st_mode & ~S_IFMT)) {
+			log_message(LOG_INFO, "Unable to create directory " IPROUTE_ETC_DIR " for rt_addrproto keepalived");
+			return;
+		}
+	}
+
 	if (dir) {
 		if (!mkdir(dir, statbuf.st_mode & ~S_IFMT))	// This may fail if the directory already exists
 			chmod(dir, statbuf.st_mode & ~S_IFMT);
