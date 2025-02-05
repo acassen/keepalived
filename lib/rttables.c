@@ -106,6 +106,12 @@ typedef struct _rt_entry {
 	list_head_t	e_list;
 } rt_entry_t;
 
+typedef enum {
+	DIRS_NOT_CHECKED,
+	DIRS_EXIST,
+	DIRS_DONT_EXIST,
+} dir_state_t;
+
 static rt_entry_t const rtntypes[] = {
 	{ RTN_LOCAL, "local", {0}},
 	{ RTN_NAT, "nat", {0}},
@@ -185,6 +191,8 @@ static LIST_HEAD_INITIALIZE(rt_addrprotos);
 static LIST_HEAD_INITIALIZE(rt_scopes);
 
 static char ret_buf[11];	/* uint32_t in decimal */
+
+static dir_state_t dir_state = DIRS_NOT_CHECKED;
 
 static void
 free_rt_entry(rt_entry_t *rte)
@@ -372,68 +380,82 @@ initialise_list(list_head_t *l, const char *file_name, const rt_entry_t *default
 	if (!list_empty(l))
 		return;
 
-	path = MALLOC(PATH_MAX);
+	if (dir_state == DIRS_NOT_CHECKED) {
 #ifdef IPROUTE_USR_DIR
-	etc_path = MALLOC(PATH_MAX);
+		if (!stat(IPROUTE_USR_DIR, &statbuf) && (statbuf.st_mode & S_IFMT) == S_IFDIR)
+			dir_state = DIRS_EXIST;
+		else
+#endif
+		if (!stat(IPROUTE_ETC_DIR, &statbuf) && (statbuf.st_mode & S_IFMT) == S_IFDIR)
+			dir_state = DIRS_EXIST;
+		else
+			dir_state = DIRS_DONT_EXIST;
+	}
+
+	if (dir_state == DIRS_EXIST) {
+		path = MALLOC(PATH_MAX);
+#ifdef IPROUTE_USR_DIR
+		etc_path = MALLOC(PATH_MAX);
 #endif
 
-	/* The default location is IPROUTE_USR_DIR, but it is overridden
-	 * if the file exists in IPROUTE_USR_DIR. */
-	snprintf(path, PATH_MAX, "%s/%s", IPROUTE_ETC_DIR, file_name);
-	if (!stat(path, &statbuf) && (statbuf.st_mode & S_IFMT) == S_IFREG)
-		read_file(path, l, max);
-#ifdef IPROUTE_USR_DIR
-	else {
-		snprintf(path, PATH_MAX, "%s/%s", IPROUTE_USR_DIR, file_name);
+		/* The default location is IPROUTE_USR_DIR, but it is overridden
+		 * if the file exists in IPROUTE_USR_DIR. */
+		snprintf(path, PATH_MAX, "%s/%s", IPROUTE_ETC_DIR, file_name);
 		if (!stat(path, &statbuf) && (statbuf.st_mode & S_IFMT) == S_IFREG)
 			read_file(path, l, max);
-	}
+#ifdef IPROUTE_USR_DIR
+		else {
+			snprintf(path, PATH_MAX, "%s/%s", IPROUTE_USR_DIR, file_name);
+			if (!stat(path, &statbuf) && (statbuf.st_mode & S_IFMT) == S_IFREG)
+				read_file(path, l, max);
+		}
 #endif
 
-	/* iproute2 uses subdirectories for rt_protos, rt_addrprotos, rt_tables
-	 * (and protodown_reasons) as at v6.11.
-	 * To futureproof our code, we will read subdirectories for all files,
-	 * in case iproute2 introduces support for them in the future.
-	 * We need to check all files ending .conf under IPROUTE_USR_DIR and read
-	 * them unless the matching file exists under IPROUTE_ETC_DIR. We then read
-	 * all relevant files under IPROUTE_ETC_DIR. */
+		/* iproute2 uses subdirectories for rt_protos, rt_addrprotos, rt_tables
+		 * (and protodown_reasons) as at v6.11.
+		 * To futureproof our code, we will read subdirectories for all files,
+		 * in case iproute2 introduces support for them in the future.
+		 * We need to check all files ending .conf under IPROUTE_USR_DIR and read
+		 * them unless the matching file exists under IPROUTE_ETC_DIR. We then read
+		 * all relevant files under IPROUTE_ETC_DIR. */
 #ifdef IPROUTE_USR_DIR
-	snprintf(path, PATH_MAX, "%s/%s.d", IPROUTE_USR_DIR, file_name);
-	if ((dir = opendir(path))) {
-		while ((ent = readdir(dir))) {
-			if (!wanted_file(path, IPROUTE_USR_DIR, file_name, ent->d_name))
-				continue;
+		snprintf(path, PATH_MAX, "%s/%s.d", IPROUTE_USR_DIR, file_name);
+		if ((dir = opendir(path))) {
+			while ((ent = readdir(dir))) {
+				if (!wanted_file(path, IPROUTE_USR_DIR, file_name, ent->d_name))
+					continue;
 
-			/* Check if the file exists in IPROUTE_ETC_DIR. We just check if there is a matching
-			 * entry, and don't care what type the entry is */
-			snprintf(etc_path, PATH_MAX, "%s/%s.d/%s", IPROUTE_ETC_DIR, file_name, ent->d_name);
-			if (!stat(etc_path, &statbuf))
-				continue;
+				/* Check if the file exists in IPROUTE_ETC_DIR. We just check if there is a matching
+				 * entry, and don't care what type the entry is */
+				snprintf(etc_path, PATH_MAX, "%s/%s.d/%s", IPROUTE_ETC_DIR, file_name, ent->d_name);
+				if (!stat(etc_path, &statbuf))
+					continue;
 
-			read_file(path, l, max);
+				read_file(path, l, max);
+			}
+
+			closedir(dir);
+		}
+#endif
+
+		/* Now read the entries in the IPROUTE_ETC_DIR subdirectory */
+		snprintf(path, PATH_MAX, "%s/%s.d", IPROUTE_ETC_DIR, file_name);
+		if ((dir = opendir(path))) {
+			while ((ent = readdir(dir))) {
+				if (!wanted_file(path, IPROUTE_ETC_DIR, file_name, ent->d_name))
+					continue;
+
+				read_file(path, l, max);
+			}
+
+			closedir(dir);
 		}
 
-		closedir(dir);
-	}
-#endif
-
-	/* Now read the entries in the IPROUTE_ETC_DIR subdirectory */
-	snprintf(path, PATH_MAX, "%s/%s.d", IPROUTE_ETC_DIR, file_name);
-	if ((dir = opendir(path))) {
-		while ((ent = readdir(dir))) {
-			if (!wanted_file(path, IPROUTE_ETC_DIR, file_name, ent->d_name))
-				continue;
-
-			read_file(path, l, max);
-		}
-
-		closedir(dir);
-	}
-
-	FREE_PTR(path);
+		FREE_PTR(path);
 #ifdef IPROUTE_USR_DIR
-	FREE_PTR(etc_path);
+		FREE_PTR(etc_path);
 #endif
+	}
 
 	if (default_list)
 		add_default(l, default_list);
@@ -647,6 +669,8 @@ write_addrproto_config(const char *name, uint32_t val)
 	if (dir) {
 		if (!mkdir(dir, statbuf.st_mode & ~S_IFMT))	// This may fail if the directory already exists
 			chmod(dir, statbuf.st_mode & ~S_IFMT);
+		else if (errno == EEXIST)
+			file_exists = !stat(path, &statbuf);
 	} else {
 		/* Check if rt_addrprotos file exists */
 		file_exists = !stat(path, &statbuf);
@@ -698,7 +722,8 @@ create_rttables_addrproto(const char *name, uint8_t *id)
 	list_add_tail(&rte->e_list, &rt_addrprotos);
 
 	/* Save the entry so iproute can use it */
-	write_addrproto_config(name, *id);
+	if (dir_state != DIRS_DONT_EXIST)
+		write_addrproto_config(name, *id);
 
 	return true;
 }
