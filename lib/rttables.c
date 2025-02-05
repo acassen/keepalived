@@ -36,7 +36,7 @@
 	6.6	946753a	15/09/23	ensure CONF_USR_DIR honours configure lib path - uses $(LIBDIR)
 		deb66ac	06/11/23	revert 946753a4
 	6.7	9626923	15/11/23	change using /usr/lib/iproute2 to /usr/share/iproute2
-	6.12	b43f84a	14/10/24	add rt_addrprotos.d subdirectories
+	6.13	b43f84a	14/10/24	add rt_addrprotos.d subdirectories
 
     Debian, Ubuntu, RHEL and openSUSE moved from /etc/iproute2 to /usr/share/iproute2
     Mint, Gentoo and Archlinux currently use /etc/iproute2
@@ -657,7 +657,7 @@ write_addrproto_config(const char *name, uint32_t val)
 	if (sscanf(v, "%d.%d.%d", &ver_maj, &ver_min, &ver_rel) != 3)
 		return;
 
-	if (ver_maj >= 7 || (ver_maj == 6 && ver_min >= 12)) {
+	if (ver_maj >= 7 || (ver_maj == 6 && ver_min >= 13)) {
 		dir = IPROUTE_ETC_DIR "/" RT_ADDRPROTOS_FILE ".d";
 		path = IPROUTE_ETC_DIR "/" RT_ADDRPROTOS_FILE ".d/keepalived.conf" ;
 	} else if (ver_maj == 6 && ver_min >= 3)
