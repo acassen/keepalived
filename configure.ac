@@ -446,7 +446,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   [
     AC_MSG_RESULT([yes])
     ADD_FORTIFY_SOURCE=0
-    FORTIFY_SOURCE=$(echo | gcc -O3 -dM -E - | grep _FORTIFY_SOURCE | sed -e "s/.* //")
+    FORTIFY_SOURCE=$(echo | $CC -O3 -dM -E - | grep _FORTIFY_SOURCE | sed -e "s/.* //")
   ],
   [
     AC_MSG_RESULT([no])
@@ -460,7 +460,31 @@ AS_IF([test $ADD_FORTIFY_SOURCE -eq 1],
       [
 	FORTIFY_SOURCE=$(echo $CPPFLAGS | $SED -e "s/.*-D *_FORTIFY_SOURCE=//" -e "s/ .*//")
 	ADD_FORTIFY_SOURCE=0
-      ],[FORTIFY_SOURCE=3])
+      ],
+      [
+	SAV_CFLAGS=$CFLAGS
+	SAV_CPPFLAGS=$CPPFLAGS
+	CFLAGS="$CFLAGS -Werror -O2"
+	CPPFLAGS="$SAV_CPPFLAGS -D_FORTIFY_SOURCE=3"
+	AC_COMPILE_IFELSE([
+	  AC_LANG_SOURCE([[
+	      #include <stdio.h>
+	      int main(void) {}
+	    ]])],
+	  [FORTIFY_SOURCE=3],
+	  [
+	    CPPFLAGS="$SAV_CPPFLAGS -D_FORTIFY_SOURCE=2"
+	    AC_COMPILE_IFELSE([
+	      AC_LANG_SOURCE([[
+		  #include <stdio.h>
+		  int main(void) {}
+		]])],
+	      [FORTIFY_SOURCE=2],
+	      [FORTIFY_SOURCE=1])
+	  ])
+	CPPFLAGS=$SAV_CPPFLAGS
+	CFLAGS=$SAV_CFLAGS
+      ])
   ])
 
 #
