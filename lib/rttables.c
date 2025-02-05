@@ -590,7 +590,7 @@ get_rttables_scope(uint32_t id)
 static const char *
 get_rttables_addrproto(uint32_t id)
 {
-	return get_entry(id, &rt_scopes, RT_ADDRPROTOS_FILE, rtscope_default, 255);
+	return get_entry(id, &rt_addrprotos, RT_ADDRPROTOS_FILE, rtaddrproto_default, 255);
 }
 
 static void
