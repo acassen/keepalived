@@ -333,6 +333,10 @@ typedef struct _vrrp_t {
 	timeval_t		last_advert_sent;	/* Time of sending last advert */
 	size_t			kernel_rx_buf_size;	/* Socket receive buffer size */
 
+	unsigned		rogue_counter;		/* Used if we are address owner and another */
+	thread_ref_t		rogue_timer_thread;	/* system advertises it is the address owner */
+	unsigned		rogue_adver_int;
+
 #ifdef _WITH_FIREWALL_
 	unsigned		accept;			/* Allow the non-master owner to process
 							 * the packets destined to VIP. */

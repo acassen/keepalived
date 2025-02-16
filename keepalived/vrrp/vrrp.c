@@ -1,4 +1,3 @@
-//#define NO_OWNER_BACKOFF
 /*
  * Soft:        Keepalived is a failover program for the LVS project
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
@@ -1886,6 +1885,12 @@ vrrp_state_leave_master(vrrp_t * vrrp, bool advF)
 	vrrp_init_instance_sands(vrrp);
 	++vrrp->stats->release_master;
 	vrrp->last_transition = timer_now();
+
+	if (vrrp->rogue_timer_thread) {
+		thread_cancel(vrrp->rogue_timer_thread);
+		vrrp->rogue_timer_thread = NULL;
+	} else
+		vrrp->rogue_counter = 0;
 }
 
 void
@@ -2085,6 +2090,16 @@ log_message(LOG_INFO, "Backup restoring prio_owner");
 	}
 }
 
+
+static void
+vrrp_rogue_timer_thread(thread_ref_t thread)
+{
+	vrrp_t *vrrp = THREAD_ARG(thread);
+
+	/* We have not received a further advert, so we continue as master */
+	vrrp->rogue_timer_thread = NULL;
+}
+
 /* MASTER state processing */
 void
 vrrp_state_master_tx(vrrp_t * vrrp)
@@ -2099,6 +2114,19 @@ vrrp_state_master_tx(vrrp_t * vrrp)
 		log_message(LOG_INFO, "(%s) Entering MASTER STATE"
 				    , vrrp->iname);
 		vrrp_state_become_master(vrrp);
+	} else if (vrrp->base_priority == VRRP_PRIO_OWNER) {
+		if (vrrp->rogue_counter && !--vrrp->rogue_counter) {
+			/* For an explanation of what is happening here, see
+			 * vrrp_state_master_rx(). */
+			unsigned long timer = max(vrrp->rogue_adver_int, vrrp->adver_int);
+
+			if (vrrp->version == VRRP_VERSION_3)
+				timer *= TIMER_CENTI_HZ;
+			else
+				timer *= TIMER_HZ;
+			timer = (timer * 12) / 10;	// Apply the "a bit more than" - 1.2 here
+			vrrp->rogue_timer_thread = thread_add_timer(master, vrrp_rogue_timer_thread, vrrp, timer);
+		}
 	}
 }
 
@@ -2183,13 +2211,38 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 	if (hd->priority == vrrp->effective_priority) {
 		if (addr_cmp == 0)
 			log_message(LOG_INFO, "(%s) WARNING - equal priority advert received from remote host with our IP address.", vrrp->iname);
-		else if (vrrp->effective_priority == VRRP_PRIO_OWNER && addr_cmp < 0) {
+		else if (vrrp->effective_priority == VRRP_PRIO_OWNER) {
 			/* If we are configured as the address owner (priority == 255), and we receive an advertisement
-			 * from another system indicating it is also the address owner, then there is a clear conflict.
-			 * Report a configuration error, and drop our priority as a workaround. */
-			log_message(LOG_INFO, "(%s) CONFIGURATION ERROR: local instance and a remote instance are both configured as address owner, please fix - reducing local priority", vrrp->iname);
-			vrrp->effective_priority = VRRP_PRIO_OWNER - 1;
-			vrrp->total_priority = VRRP_PRIO_OWNER - 1;
+			 * from another system indicating it is also the address owner, then there is a clear conflict. */
+			if (addr_cmp < 0) {
+				/* Report a configuration error, and drop our priority as a workaround. */
+				log_message(LOG_INFO, "(%s) CONFIGURATION ERROR: local instance and a remote instance are both configured as address owner, please fix - reducing local priority", vrrp->iname);
+				vrrp->effective_priority = VRRP_PRIO_OWNER - 1;
+				vrrp->total_priority = VRRP_PRIO_OWNER - 1;
+			} else if (vrrp->rogue_timer_thread) {
+				/* We are still receiving adverts when the rogue should have stopped
+				 * if it implements keepalived's rogue handling.
+				 * We must fall back now to stop there being two masters.
+				 */
+				thread_cancel(vrrp->rogue_timer_thread);
+				vrrp->rogue_timer_thread = NULL;
+				vrrp->effective_priority = VRRP_PRIO_OWNER - 1;
+				vrrp->total_priority = VRRP_PRIO_OWNER - 1;
+			} else {
+				/* We have the higher primary IP address.
+				 * We need to see if the remote, rogue, address owner will stop
+				 * sending adverts. We wait for us to send two adverts, and then
+				 * "a bit more than" max(our adver_int, rogue's adver_int). If we
+				 * still receive an advert after we have sent two more adverts,
+				 * and before the timer expires, then we assume that the rogue
+				 * will not back off and we back off ourself. */
+				if (vrrp->version == VRRP_VERSION_2)
+					vrrp->rogue_adver_int = hd->v2.adver_int;
+				else
+					vrrp->rogue_adver_int = ntohs(hd->v3.adver_int) & 0xfff;
+				if (!vrrp->rogue_counter)
+					vrrp->rogue_counter = 2;
+			}
 		}
 	}
 
@@ -5310,5 +5363,6 @@ void
 register_vrrp_fifo_addresses(void)
 {
 	register_thread_address("vrrp_notify_fifo_script_exit", vrrp_notify_fifo_script_exit);
+	register_thread_address("vrrp_rogue_timer_thread", vrrp_rogue_timer_thread);
 }
 #endif
