@@ -95,7 +95,7 @@ typedef struct _vrrphdr {			/* rfc2338.5.1 */
 			uint8_t adver_int;	/* advertisement interval (in sec) */
 		} v2;
 		struct {
-			uint16_t adver_int;	/* advertisement interval (in centi-sec (100ms)) */
+			uint16_t adver_int;	/* advertisement interval (in centi-sec (10ms)) */
 		} v3;
 	};
 	uint16_t		chksum;		/* checksum (ip-like one) */

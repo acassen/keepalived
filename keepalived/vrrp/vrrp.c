@@ -1,3 +1,4 @@
+//#define NO_OWNER_BACKOFF
 /*
  * Soft:        Keepalived is a failover program for the LVS project
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
@@ -1104,7 +1105,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 	     (vrrp->family == AF_INET6 && vrrp->multicast_pkt)) == __test_bit(VRRP_FLAG_UNICAST, &vrrp->flags)) {
 		/* So far as I can see, with IPv6 if multicasts are enabled on an interface, we will receive them
 		 * on a socket even if we haven't registered the multicast address on the socket.
-		 * If anyone know how to stop receiving them, please raise a github issue with the details.
+		 * If anyone knows how to stop receiving them, please raise a github issue with the details.
 		 */
 		log_message(LOG_INFO, "(%s) Expected %sicast packet but received %sicast packet",
 				vrrp->iname,
