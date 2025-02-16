@@ -2183,7 +2183,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 	if (hd->priority == vrrp->effective_priority) {
 		if (addr_cmp == 0)
 			log_message(LOG_INFO, "(%s) WARNING - equal priority advert received from remote host with our IP address.", vrrp->iname);
-		else if (vrrp->base_priority == VRRP_PRIO_OWNER) {
+		else if (vrrp->effective_priority == VRRP_PRIO_OWNER && addr_cmp < 0) {
 			/* If we are configured as the address owner (priority == 255), and we receive an advertisement
 			 * from another system indicating it is also the address owner, then there is a clear conflict.
 			 * Report a configuration error, and drop our priority as a workaround. */
