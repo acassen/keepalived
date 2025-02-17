@@ -618,6 +618,11 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 			conf_write(fp, "   Master priority = %d", vrrp->master_priority);
 			if (vrrp->version == VRRP_VERSION_3)
 				conf_write(fp, "   Master advert interval = %u milli-sec", vrrp->master_adver_int / (TIMER_HZ / 1000));
+		} else if (vrrp->state == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER) {
+			conf_write(fp, "   Rogue master counter = %u", vrrp->rogue_counter);
+			conf_write(fp, "   Roger timer thread = %p", vrrp->rogue_timer_thread);
+			if (vrrp->rogue_counter || vrrp->rogue_timer_thread)
+				conf_write(fp, "   Roger adver interval = %u ms", vrrp->rogue_adver_int / (TIMER_HZ / 1000));
 		}
 	}
 	if (vrrp->flags) {

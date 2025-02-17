@@ -95,7 +95,7 @@ typedef struct _vrrphdr {			/* rfc2338.5.1 */
 			uint8_t adver_int;	/* advertisement interval (in sec) */
 		} v2;
 		struct {
-			uint16_t adver_int;	/* advertisement interval (in centi-sec (100ms)) */
+			uint16_t adver_int;	/* advertisement interval (in centi-sec (10ms)) */
 		} v3;
 	};
 	uint16_t		chksum;		/* checksum (ip-like one) */
@@ -333,6 +333,10 @@ typedef struct _vrrp_t {
 	timeval_t		last_advert_sent;	/* Time of sending last advert */
 	size_t			kernel_rx_buf_size;	/* Socket receive buffer size */
 
+	unsigned		rogue_counter;		/* Used if we are address owner and another */
+	thread_ref_t		rogue_timer_thread;	/* system advertises it is the address owner */
+	unsigned		rogue_adver_int;
+
 #ifdef _WITH_FIREWALL_
 	unsigned		accept;			/* Allow the non-master owner to process
 							 * the packets destined to VIP. */
@@ -434,7 +438,7 @@ typedef struct _vrrp_t {
 
 /* We have to do some reduction of the calculation for VRRPv3 in order not to overflow a uint32; 625 / 16 == TIMER_CENTI_HZ / 256 */
 #define VRRP_TIMER_SKEW_CALC(svr, pri_val) ((svr)->version == VRRP_VERSION_3 ? (((pri_val) * ((svr)->master_adver_int / TIMER_CENTI_HZ) * 625U) / 16U) : ((pri_val) * TIMER_HZ/256U))
-#define VRRP_TIMER_SKEW(svr)		VRRP_TIMER_SKEW_CALC(svr, 256U - (svr)->effective_priority)
+#define VRRP_TIMER_SKEW(svr)		VRRP_TIMER_SKEW_CALC(svr, 256U - ((svr)->base_priority == VRRP_PRIO_OWNER ? VRRP_PRIO_OWNER : (svr)->effective_priority))
 #define VRRP_TIMER_SKEW_MIN(svr)	VRRP_TIMER_SKEW_CALC(svr, 1)
 #define VRRP_MS_DOWN_TIMER(XX)		((XX)->down_timer_adverts * (XX)->master_adver_int + VRRP_TIMER_SKEW(XX))
 

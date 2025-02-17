@@ -808,29 +808,24 @@ inet_inaddrcmp(const int family, const void *a, const void *b)
 {
 	int64_t addr_diff;
 
-	if (family == AF_INET) {
+	if (family == AF_INET)
 		addr_diff = (int64_t)ntohl(*PTR_CAST_CONST(uint32_t, a)) - (int64_t)ntohl(*PTR_CAST_CONST(uint32_t, b));
-		if (addr_diff > 0)
-			return 1;
-		if (addr_diff < 0)
-			return -1;
-		return 0;
-	}
-
-	if (family == AF_INET6) {
+	else if (family == AF_INET6) {
 		int i;
 
 		for (i = 0; i < 4; i++ ) {
-			addr_diff = (int64_t)ntohl(PTR_CAST_CONST(uint32_t, (a))[i]) - (int64_t)ntohl(PTR_CAST_CONST(uint32_t, (b))[i]);
-			if (addr_diff > 0)
-				return 1;
-			if (addr_diff < 0)
-				return -1;
+			if ((addr_diff = (int64_t)ntohl(PTR_CAST_CONST(uint32_t, (a))[i]) - (int64_t)ntohl(PTR_CAST_CONST(uint32_t, (b))[i])))
+				break;
 		}
-		return 0;
-	}
+	} else
+		return -2;
 
-	return -2;
+	if (addr_diff > 0)
+		return 1;
+	if (addr_diff < 0)
+		return -1;
+
+	return 0;
 }
 
 /* inet_sockaddcmp is similar to sockstorage_equal except the latter also compares the port */
