@@ -2097,6 +2097,8 @@ vrrp_rogue_timer_thread(thread_ref_t thread)
 	vrrp_t *vrrp = THREAD_ARG(thread);
 
 	/* We have not received a further advert, so we continue as master */
+	log_message(LOG_INFO, "(%s): rogue address owner appears to have stopped advertising", vrrp->iname);
+
 	vrrp->rogue_timer_thread = NULL;
 }
 
@@ -2214,9 +2216,9 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 		else if (vrrp->effective_priority == VRRP_PRIO_OWNER) {
 			/* If we are configured as the address owner (priority == 255), and we receive an advertisement
 			 * from another system indicating it is also the address owner, then there is a clear conflict. */
-			if (addr_cmp < 0) {
+			if (addr_cmp > 0) {
 				/* Report a configuration error, and drop our priority as a workaround. */
-				log_message(LOG_INFO, "(%s) CONFIGURATION ERROR: local instance and a remote instance are both configured as address owner, please fix - reducing local priority", vrrp->iname);
+				log_message(LOG_INFO, "(%s) CONFIGURATION ERROR: local instance and %s are both configured as address owner, please resolve - reducing our priority", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
 				vrrp->effective_priority = VRRP_PRIO_OWNER - 1;
 				vrrp->total_priority = VRRP_PRIO_OWNER - 1;
 			} else if (vrrp->rogue_timer_thread) {
@@ -2224,6 +2226,8 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 				 * if it implements keepalived's rogue handling.
 				 * We must fall back now to stop there being two masters.
 				 */
+				log_message(LOG_INFO, "(%s) %s is still advertising as address owner, please resolve - reducing our priority", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
+
 				thread_cancel(vrrp->rogue_timer_thread);
 				vrrp->rogue_timer_thread = NULL;
 				vrrp->effective_priority = VRRP_PRIO_OWNER - 1;
@@ -2240,8 +2244,10 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 					vrrp->rogue_adver_int = hd->v2.adver_int;
 				else
 					vrrp->rogue_adver_int = ntohs(hd->v3.adver_int) & 0xfff;
-				if (!vrrp->rogue_counter)
+				if (!vrrp->rogue_counter) {
+					log_message(LOG_INFO, "(%s) CONFIGURATION ERROR: local instance and %s are both configured as address owner, please resolve", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
 					vrrp->rogue_counter = 2;
+				}
 			}
 		}
 	}
