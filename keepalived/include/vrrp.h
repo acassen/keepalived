@@ -156,6 +156,9 @@ typedef struct {
 #define VRRP_GARP_REFRESH	0		/* Default interval for refresh gratuitous arp (0 = none) */
 #define VRRP_GARP_REFRESH_REP	1		/* Default repeat value for refresh gratuitous arp */
 
+#define V3_PKT_ADVER_INT_NTOH(ai)	(ntohs(ai) & 0xFFF)
+#define V3_PKT_ADVER_INT_HTON(ai)	(htons(ai & 0xFFF))
+
 /*
  * parameters per vrrp sync group. A vrrp_sync_group is a set
  * of VRRP instances that need to be state sync together.

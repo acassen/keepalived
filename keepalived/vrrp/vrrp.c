@@ -1354,7 +1354,7 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer, struct iphdr *ip)
 	hd->vrid = vrrp->vrid;
 	hd->priority = vrrp->effective_priority;
 	hd->naddr = (uint8_t)((!list_empty(&vrrp->vip)) ? vrrp->vip_cnt : 0);
-	hd->v3.adver_int  = htons((vrrp->adver_int / TIMER_CENTI_HZ) & 0x0FFF); /* interval in centiseconds, reserved bits zero */
+	hd->v3.adver_int = V3_PKT_ADVER_INT_HTON((vrrp->adver_int / TIMER_CENTI_HZ)); /* interval in centiseconds, reserved bits zero */
 
 	/* For IPv4 to calculate the checksum, the value must start as 0.
 	 * For IPv6, the kernel will update checksum field. */
@@ -2047,7 +2047,7 @@ vrrp_state_backup(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buf, ssize_t bu
 			     timercmp(&vrrp->preempt_time, &time_now, >)))) {
 			/* We are accepting the advert */
 			if (vrrp->version == VRRP_VERSION_3) {
-				master_adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
+				master_adver_int = V3_PKT_ADVER_INT_NTOH(hd->v3.adver_int) * TIMER_CENTI_HZ;
 				/* As per RFC5798, set Master_Adver_Interval to Adver Interval contained
 				 * in the ADVERTISEMENT
 				 */
@@ -2252,7 +2252,8 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 				if (vrrp->version == VRRP_VERSION_2)
 					vrrp->rogue_adver_int = hd->v2.adver_int * TIMER_HZ;
 				else
-					vrrp->rogue_adver_int = (ntohs(hd->v3.adver_int) & 0xfff) * TIMER_CENTI_HZ;
+					vrrp->rogue_adver_int = V3_PKT_ADVER_INT_NTOH(hd->v3.adver_int) * TIMER_CENTI_HZ;
+
 				if (!vrrp->rogue_counter) {
 					log_message(LOG_INFO, "(%s) CONFIGURATION ERROR: local instance and %s are both configured as address owner, please resolve", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
 					vrrp->rogue_counter = 2;
@@ -2345,7 +2346,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 #endif
 
 		if (vrrp->version == VRRP_VERSION_3) {
-			master_adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
+			master_adver_int = V3_PKT_ADVER_INT_NTOH(hd->v3.adver_int) * TIMER_CENTI_HZ;
 			/* As per RFC5798, set Master_Adver_Interval to Adver Interval contained
 			 * in the ADVERTISEMENT
 			 */
