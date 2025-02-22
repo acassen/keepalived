@@ -607,18 +607,22 @@ vrrp_in_chk_ipsecah(vrrp_t *vrrp, const struct iphdr *ip, const ipsec_ah_t *ah, 
 
 /* check if ipaddr is present in VIP buffer */
 static bool __attribute__((pure))
-vrrp_in_chk_vips(const vrrp_t *vrrp, const ip_address_t *ipaddress, const unsigned char *buffer)
+vrrp_in_chk_vips(const vrrp_t *vrrp, const ip_address_t *ipaddress, const void *buffer, unsigned naddr)
 {
 	size_t i;
+	const struct in_addr *addr4_buf;
+	const struct in6_addr *addr6_buf;
 
 	if (vrrp->family == AF_INET) {
-		for (i = 0; i < vrrp->vip_cnt; i++) {
-			if (!memcmp(&ipaddress->u.sin.sin_addr.s_addr, buffer + i * sizeof(struct in_addr), sizeof (struct in_addr)))
+		addr4_buf = buffer;
+		for (i = 0; i < naddr; i++) {
+			if (!memcmp(&ipaddress->u.sin.sin_addr.s_addr, &addr4_buf[i], sizeof (struct in_addr)))
 				return true;
 		}
 	} else if (vrrp->family == AF_INET6) {
-		for (i = 0; i < vrrp->vip_cnt; i++) {
-			if (!memcmp(&ipaddress->u.sin6_addr, buffer + i * sizeof(struct in6_addr), sizeof (struct in6_addr)))
+		addr6_buf = buffer;
+		for (i = 0; i < naddr; i++) {
+			if (!memcmp(&ipaddress->u.sin6_addr, &addr6_buf[i], sizeof (struct in6_addr)))
 				return true;
 		}
 	}
@@ -1150,7 +1154,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 			++vrrp->stats->addr_list_err;
 		} else {
 			list_for_each_entry(ipaddress, &vrrp->vip, e_list) {
-				if (!vrrp_in_chk_vips(vrrp, ipaddress, vips)) {
+				if (!vrrp_in_chk_vips(vrrp, ipaddress, vips, hd->naddr)) {
 					log_rate_limited_error(vrrp, VRRP_RLFLAG_VIPS_MISMATCH, "(%s) ip address associated with VRID %d"
 							      " not present in MASTER advert from %s: %s"
 							    , vrrp->iname, vrrp->vrid, inet_sockaddrtos(&vrrp->pkt_saddr)
