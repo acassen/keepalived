@@ -1041,7 +1041,7 @@ alloc_vrrp_unicast_peer(const vector_t *strvec)
 
 	for (i = 1; i < vector_size(strvec); i += 2) {
 		if (i + 1 >= vector_size(strvec)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s is missing a value", current_vrrp->iname, strvec_slot(strvec, i));
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s - %s is missing a value", current_vrrp->iname, strvec_slot(strvec, 0), strvec_slot(strvec, i));
 			break;
 		}
 		if (read_unsigned(strvec_slot(strvec, i + 1), &ttl, 0, 255, false)) {
@@ -1050,7 +1050,7 @@ alloc_vrrp_unicast_peer(const vector_t *strvec)
 			else if (!strcmp(strvec_slot(strvec, i), "max_ttl"))
 				peer->max_ttl = ttl;
 			else {
-				report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown unicast_peer option %s", current_vrrp->iname, strvec_slot(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s - unknown unicast_peer option %s", current_vrrp->iname, strvec_slot(strvec, 0), strvec_slot(strvec, i));
 				break;
 			}
 			__set_bit(VRRP_FLAG_CHECK_UNICAST_SRC, &current_vrrp->flags);
@@ -1058,7 +1058,7 @@ alloc_vrrp_unicast_peer(const vector_t *strvec)
 	}
 
 	if (peer->min_ttl > peer->max_ttl)
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) min_ttl %u > max_ttl %u - all packets will be discarded", current_vrrp->iname, peer->min_ttl, peer->max_ttl);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s - min_ttl %u > max_ttl %u - all packets will be discarded", current_vrrp->iname, strvec_slot(strvec, 0), peer->min_ttl, peer->max_ttl);
 
 	list_add_tail(&peer->e_list, &current_vrrp->unicast_peer);
 }
