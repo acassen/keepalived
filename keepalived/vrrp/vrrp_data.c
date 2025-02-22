@@ -636,6 +636,9 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 	} else
 		conf_write(fp, "   Flags: none");
 
+	if (vrrp->rlflags)
+		conf_write(fp, "   Rate-limit flags = 0x%x", vrrp->rlflags);
+
 	conf_write(fp, "   Wantstate = %s", get_state_str(vrrp->wantstate));
 	conf_write(fp, "   Number of config faults = %u", vrrp->num_config_faults);
 	if (fp) {
@@ -1012,6 +1015,7 @@ alloc_vrrp_unicast_peer(const vector_t *strvec)
 	unicast_peer_t *peer;
 	unsigned ttl;
 	unsigned i;
+	unicast_peer_t *existing_peer;
 
 	/* Allocate new unicast peer */
 	PMALLOC(peer);
@@ -1038,7 +1042,7 @@ alloc_vrrp_unicast_peer(const vector_t *strvec)
 
 	for (i = 1; i < vector_size(strvec); i += 2) {
 		if (i + 1 >= vector_size(strvec)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s is missing a value", current_vrrp->iname, strvec_slot(strvec, i));
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s - %s is missing a value", current_vrrp->iname, strvec_slot(strvec, 0), strvec_slot(strvec, i));
 			break;
 		}
 		if (read_unsigned(strvec_slot(strvec, i + 1), &ttl, 0, 255, false)) {
@@ -1047,15 +1051,28 @@ alloc_vrrp_unicast_peer(const vector_t *strvec)
 			else if (!strcmp(strvec_slot(strvec, i), "max_ttl"))
 				peer->max_ttl = ttl;
 			else {
-				report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown unicast_peer option %s", current_vrrp->iname, strvec_slot(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s - unknown unicast_peer option %s", current_vrrp->iname, strvec_slot(strvec, 0), strvec_slot(strvec, i));
 				break;
 			}
 			__set_bit(VRRP_FLAG_CHECK_UNICAST_SRC, &current_vrrp->flags);
 		}
 	}
 
+	/* Check this unicast peer is not already configured */
+	list_for_each_entry(existing_peer, &current_vrrp->unicast_peer, e_list) {
+		if ((current_vrrp->family == AF_INET && ((struct sockaddr_in *)&peer->address)->sin_addr.s_addr == ((struct sockaddr_in *)&existing_peer->address)->sin_addr.s_addr) ||
+		    (current_vrrp->family == AF_INET6 &&
+		     !memcmp(&((struct sockaddr_in6 *)&peer->address)->sin6_addr,
+			     &((struct sockaddr_in6 *)&existing_peer->address)->sin6_addr,
+			     sizeof(((struct sockaddr_in6 *)&peer->address)->sin6_addr)))) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s - duplicate unicast_peer", current_vrrp->iname, strvec_slot(strvec, 0));
+			FREE(peer);
+			return;
+		}
+	}
+
 	if (peer->min_ttl > peer->max_ttl)
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) min_ttl %u > max_ttl %u - all packets will be discarded", current_vrrp->iname, peer->min_ttl, peer->max_ttl);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s - min_ttl %u > max_ttl %u - all packets will be discarded", current_vrrp->iname, strvec_slot(strvec, 0), peer->min_ttl, peer->max_ttl);
 
 	list_add_tail(&peer->e_list, &current_vrrp->unicast_peer);
 }
@@ -1128,6 +1145,43 @@ alloc_vrrp_group_track_bfd(const vector_t *strvec)
 }
 #endif
 
+static bool
+vip_is_duplicate(const ip_address_t *new_ipaddr, const char *vip_str, bool excluded_vip)
+{
+	ip_address_t *vip;
+
+	list_for_each_entry(vip, &current_vrrp->vip, e_list) {
+		/* We can have a VIP and an eVIP the same if they are on
+		 * different interfaces. */
+		if (excluded_vip && new_ipaddr->ifp != vip->ifp)
+			continue;
+
+		if ((IP_FAMILY(new_ipaddr) == AF_INET && new_ipaddr->u.sin.sin_addr.s_addr == vip->u.sin.sin_addr.s_addr) ||
+		    (IP_FAMILY(new_ipaddr) == AF_INET6 && !memcmp(&new_ipaddr->u.sin6_addr, &vip->u.sin6_addr, sizeof(new_ipaddr->u.sin6_addr)))) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s): %sVIP duplicates a VIP %s - ignoring",
+					    current_vrrp->iname, excluded_vip ? "Excluded " : "", vip_str);
+			return true;
+		}
+	}
+
+	list_for_each_entry(vip, &current_vrrp->evip, e_list) {
+		if (IP_FAMILY(new_ipaddr) != IP_FAMILY(vip))
+			continue;
+
+		if (new_ipaddr->ifp != vip->ifp)
+			continue;
+
+		if ((IP_FAMILY(new_ipaddr) == AF_INET && new_ipaddr->u.sin.sin_addr.s_addr == vip->u.sin.sin_addr.s_addr) ||
+		    (IP_FAMILY(new_ipaddr) == AF_INET6 && !memcmp(&new_ipaddr->u.sin6_addr, &vip->u.sin6_addr, sizeof(new_ipaddr->u.sin6_addr)))) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s): %sVIP duplicates an excluded VIP %s - ignoring",
+					    current_vrrp->iname, excluded_vip ? "Excluded " : "", vip_str);
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void
 alloc_vrrp_vip(const vector_t *strvec)
 {
@@ -1147,6 +1201,12 @@ alloc_vrrp_vip(const vector_t *strvec)
 		return;
 	}
 
+	/* Check we don't already have this address */
+	if (vip_is_duplicate(new_ipaddr, strvec_slot(strvec, 0), false)) {
+		free_ipaddress(new_ipaddr);
+		return;
+	}
+
 	list_add_tail(&new_ipaddr->e_list, &current_vrrp->vip);
 	current_vrrp->vip_cnt++;
 }
@@ -1156,8 +1216,16 @@ alloc_vrrp_evip(const vector_t *strvec)
 {
 	ip_address_t *new_ipaddr;
 
-	if ((new_ipaddr = alloc_ipaddress(strvec, false)))
-		list_add_tail(&new_ipaddr->e_list, &current_vrrp->evip);
+	if (!(new_ipaddr = alloc_ipaddress(strvec, false)))
+		return;
+
+	/* Check we don't already have this address */
+	if (vip_is_duplicate(new_ipaddr, strvec_slot(strvec, 0), true)) {
+		free_ipaddress(new_ipaddr);
+		return;
+	}
+
+	list_add_tail(&new_ipaddr->e_list, &current_vrrp->evip);
 }
 
 void

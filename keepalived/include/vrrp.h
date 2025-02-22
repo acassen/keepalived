@@ -84,6 +84,27 @@ enum vrrp_flags_bits {
 #endif
 };
 
+typedef enum vrrp_rlflags {
+	VRRP_RLFLAG_INVALID_TTL		=     0x1,
+	VRRP_RLFLAG_WRONG_VERSION	=     0x2,
+	VRRP_RLFLAG_NOT_ADVERTISEMENT	=     0x4,
+	VRRP_RLFLAG_INCOMPLETE_PACKET	=     0x8,
+	VRRP_RLFLAG_NO_VIPS		=    0x10,
+	VRRP_RLFLAG_WRONG_ADDR_COUNT	=    0x20,
+	VRRP_RLFLAG_VIPS_MISMATCH	=    0x40,
+	VRRP_RLFLAG_WRONG_AUTH		=    0x80,
+	VRRP_RLFLAG_BAD_AUTH		=   0x100,
+	VRRP_RLFLAG_BAD_AH_HEADER	=   0x200,
+	VRRP_RLFLAG_BAD_IP_VERSION	=   0x400,
+	VRRP_RLFLAG_BAD_LENGTH		=   0x800,
+	VRRP_RLFLAG_WRONG_AUTH_PASSWD	=  0x1000,
+	VRRP_RLFLAG_ADV_INTVL_MISMATCH	=  0x2000,
+	VRRP_RLFLAG_BAD_CHECKSUM	=  0x4000,
+	VRRP_RLFLAG_UNI_MULTICAST_ERR	=  0x8000,
+	VRRP_RLFLAG_UNKNOWN_UNICAST_SRC	= 0x10000,
+	VRRP_RLFLAG_TTL_NOT_IN_RANGE	= 0x20000,
+} vrrp_rlflags_t;
+
 typedef struct _vrrphdr {			/* rfc2338.5.1 */
 	uint8_t			vers_type;	/* 0-3=type, 4-7=version */
 	uint8_t			vrid;		/* virtual router id */
@@ -134,6 +155,9 @@ typedef struct {
 #define VRRP_GARP_REP		5		/* Default repeat value for MASTER state gratuitous arp */
 #define VRRP_GARP_REFRESH	0		/* Default interval for refresh gratuitous arp (0 = none) */
 #define VRRP_GARP_REFRESH_REP	1		/* Default repeat value for refresh gratuitous arp */
+
+#define V3_PKT_ADVER_INT_NTOH(ai)	(ntohs(ai) & 0xFFF)
+#define V3_PKT_ADVER_INT_HTON(ai)	(htons(ai & 0xFFF))
 
 /*
  * parameters per vrrp sync group. A vrrp_sync_group is a set
@@ -258,6 +282,7 @@ typedef struct _vrrp_t {
 #endif
 	unsigned		strict_mode;		/* Enforces strict VRRP compliance */
 	unsigned long		flags;
+	vrrp_rlflags_t		rlflags;		/* Flags for rate-limiting log messages */
 #ifdef _HAVE_VRRP_VMAC_
 	char			vmac_ifname[IFNAMSIZ];	/* Name of VRRP VMAC interface */
 	u_char			ll_addr[ETH_ALEN];	/* Override MAC address */
@@ -285,7 +310,7 @@ typedef struct _vrrp_t {
 	sockaddr_t		saddr;			/* Src IP address to use in VRRP IP header */
 	sockaddr_t		pkt_saddr;		/* Src IP address received in VRRP IP header */
 	sockaddr_t		mcast_daddr;		/* Multicast destination address */
-	int			rx_ttl_hop_limit;	/* Received TTL/hop limit returned */
+	int			rx_ttl_hl;		/* Received TTL/hop limit returned */
 	list_head_t		unicast_peer;		/* unicast_peer_t - peers to send unicast advert to */
 	int			ttl;			/* TTL to send packet with if unicasting */
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
@@ -425,11 +450,13 @@ typedef struct _vrrp_t {
 #define VRRP_EVENT_BACKUP_PRIORITY_CHANGE 1002	/* Dummy state for sending event notify */
 
 /* VRRP packet handling */
-#define VRRP_PACKET_OK       0
-#define VRRP_PACKET_KO       1
-#define VRRP_PACKET_DROP     2
-#define VRRP_PACKET_NULL     3
-#define VRRP_PACKET_OTHER    4	/* Multiple VRRP on LAN, Identify "other" VRRP */
+enum vrrp_packet_status {
+	VRRP_PACKET_OK,
+	VRRP_PACKET_KO,
+	VRRP_PACKET_DROP,
+	VRRP_PACKET_NULL,
+	VRRP_PACKET_OTHER	/* Multiple VRRP on LAN, Identify "other" VRRP */
+};
 
 /* VRRP Packet fixed length */
 #define VRRP_AUTH_LEN		8
