@@ -1088,11 +1088,11 @@ vrrp_dispatcher_read(sock_t *sock)
 
 		/* Save non packet data */
 		vrrp->pkt_saddr = src_addr;
-		vrrp->rx_ttl_hop_limit = -1;           /* Default to not received */
+		vrrp->rx_ttl_hl = -1;           /* Default to not received */
 		if (sock->family == AF_INET) {
 			iph = PTR_CAST_CONST(struct iphdr, vrrp_buffer);
 			vrrp->multicast_pkt = IN_MULTICAST(htonl(iph->daddr));
-			vrrp->rx_ttl_hop_limit = iph->ttl;
+			vrrp->rx_ttl_hl = iph->ttl;
 		} else
 			vrrp->multicast_pkt = false;
 		for (cmsg = CMSG_FIRSTHDR(&msghdr); cmsg; cmsg = CMSG_NXTHDR(&msghdr, cmsg)) {
@@ -1102,7 +1102,7 @@ vrrp_dispatcher_read(sock_t *sock)
 
 				if (cmsg->cmsg_type == IPV6_HOPLIMIT &&
 				    cmsg->cmsg_len - sizeof(struct cmsghdr) == sizeof(unsigned int))
-					vrrp->rx_ttl_hop_limit = *PTR_CAST(unsigned int, CMSG_DATA(cmsg));
+					vrrp->rx_ttl_hl = *PTR_CAST(unsigned int, CMSG_DATA(cmsg));
 				else
 				if (cmsg->cmsg_type == IPV6_PKTINFO &&
 				    cmsg->cmsg_len - sizeof(struct cmsghdr) == sizeof(struct in6_pktinfo))

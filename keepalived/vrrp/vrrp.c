@@ -796,16 +796,18 @@ log_rate_limited_error(vrrp_t *vrrp, vrrp_rlflags_t rlflag, const char *format, 
 static inline bool
 check_ttl_hl(vrrp_t *vrrp, const unicast_peer_t *up_addr)
 {
-	if (vrrp->rx_ttl_hop_limit != -1 &&
-	    (vrrp->rx_ttl_hop_limit < up_addr->min_ttl ||
-	     vrrp->rx_ttl_hop_limit > up_addr->max_ttl)) {
+	if (vrrp->rx_ttl_hl != -1 &&
+	    (vrrp->rx_ttl_hl < up_addr->min_ttl ||
+	     vrrp->rx_ttl_hl > up_addr->max_ttl)) {
 		++vrrp->stats->ip_ttl_err;
 #ifdef _WITH_SNMP_RFCV3_
 		vrrp->stats->proto_err_reason = ipTtlError;
 		vrrp_rfcv3_snmp_proto_err_notify(vrrp);
 #endif
+
 		log_rate_limited_error(vrrp, VRRP_RLFLAG_TTL_NOT_IN_RANGE, "(%s) TTL/HL %d from %s not in range [%d, %d]",
-			vrrp->iname, vrrp->rx_ttl_hop_limit, inet_sockaddrtos(&vrrp->pkt_saddr), up_addr->min_ttl, up_addr->max_ttl);
+			vrrp->iname, vrrp->rx_ttl_hl, inet_sockaddrtos(&vrrp->pkt_saddr), up_addr->min_ttl, up_addr->max_ttl);
+
 		return false;
 	}
 
@@ -915,9 +917,9 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 
 	/* MUST verify that the IPv4 TTL/IPv6 HL is 255 (but not if unicast) */
 	if (!__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) &&
-	    vrrp->rx_ttl_hop_limit != -1 && vrrp->rx_ttl_hop_limit != VRRP_IP_TTL) {
+	    vrrp->rx_ttl_hl != -1 && vrrp->rx_ttl_hl != VRRP_IP_TTL) {
 		log_rate_limited_error(vrrp, VRRP_RLFLAG_INVALID_TTL, "(%s) invalid TTL/HL from %s. Received %d and expect %d",
-			vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr), vrrp->rx_ttl_hop_limit, VRRP_IP_TTL);
+			vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr), vrrp->rx_ttl_hl, VRRP_IP_TTL);
 		++vrrp->stats->ip_ttl_err;
 #ifdef _WITH_SNMP_RFCV3_
 		vrrp->stats->proto_err_reason = ipTtlError;
