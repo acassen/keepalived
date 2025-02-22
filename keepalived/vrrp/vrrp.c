@@ -1709,9 +1709,11 @@ vrrp_state_become_master(vrrp_t * vrrp)
 
 	/* If both us and another system claim to be the address owner then
 	 * we may have reduced our priority to 254 to ensure there are not
-	 * 2 (or more) masters. */
+	 * 2 (or more) masters. The other system must have gone away now,
+	 * so restore our priority. */
 	if (vrrp->base_priority == VRRP_PRIO_OWNER &&
 	    vrrp->effective_priority != VRRP_PRIO_OWNER) {
+		log_message(LOG_INFO, "(%s) Restoring our priority to %d since other address owner has disappeared", vrrp->iname, VRRP_PRIO_OWNER);
 		vrrp->effective_priority = VRRP_PRIO_OWNER;
 		vrrp->total_priority = VRRP_PRIO_OWNER;
 	}
@@ -1979,30 +1981,22 @@ vrrp_state_backup(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buf, ssize_t bu
 {
 	ssize_t ret = 0;
 	unsigned master_adver_int;
-	bool check_addr = false;
 	timeval_t new_ms_down_timer;
 	bool ignore_advert = false;
 	bool master_change = false;
 
 	/* Process the incoming packet */
-	if (!__test_bit(VRRP_FLAG_SKIP_CHECK_ADV_ADDR, &vrrp->flags) ||
-	    vrrp->master_saddr.ss_family != vrrp->pkt_saddr.ss_family)
-		check_addr = true;
-	else {
-		/* Check if the addresses are different */
-		if (vrrp->pkt_saddr.ss_family == AF_INET) {
-			if (PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr.s_addr != PTR_CAST(struct sockaddr_in, &vrrp->master_saddr)->sin_addr.s_addr) {
-				check_addr = true ;
-				master_change = true;
-			}
-		} else {
-			if (!IN6_ARE_ADDR_EQUAL(&PTR_CAST(struct sockaddr_in6, &vrrp->pkt_saddr)->sin6_addr, &PTR_CAST(struct sockaddr_in6, &vrrp->master_saddr)->sin6_addr)) {
-				check_addr = true;
-				master_change = true;
-			}
-		}
-	}
-	ret = vrrp_check_packet(vrrp, hd, buf, buflen, check_addr);
+
+	/* Check if the saddr has changed */
+	if (vrrp->master_saddr.ss_family != vrrp->pkt_saddr.ss_family ||
+	    (vrrp->pkt_saddr.ss_family == AF_INET &&
+	     PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr.s_addr != PTR_CAST(struct sockaddr_in, &vrrp->master_saddr)->sin_addr.s_addr) ||
+	    (vrrp->pkt_saddr.ss_family == AF_INET6 &&
+	     !IN6_ARE_ADDR_EQUAL(&PTR_CAST(struct sockaddr_in6, &vrrp->pkt_saddr)->sin6_addr, &PTR_CAST(struct sockaddr_in6, &vrrp->master_saddr)->sin6_addr)))
+		master_change = true;
+
+	ret = vrrp_check_packet(vrrp, hd, buf, buflen, master_change ||
+				!__test_bit(VRRP_FLAG_SKIP_CHECK_ADV_ADDR, &vrrp->flags));
 
 	if (ret != VRRP_PACKET_OK)
 		ignore_advert = true;
@@ -2012,11 +2006,11 @@ vrrp_state_backup(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buf, ssize_t bu
 		 * We are now no longer receiving priority 255 adverts from the same
 		 * remote system, so set our priority back to 255. */
 		if (vrrp->base_priority == VRRP_PRIO_OWNER &&
-		    vrrp->master_priority == VRRP_PRIO_OWNER &&
+		    vrrp->effective_priority == VRRP_PRIO_OWNER - 1 &&
 		    (master_change || hd->priority != VRRP_PRIO_OWNER)) {
+			log_message(LOG_INFO, "(%s) Restoring our priority to %d since received advert with lower priority", vrrp->iname, VRRP_PRIO_OWNER);
 			vrrp->effective_priority = VRRP_PRIO_OWNER;
 			vrrp->total_priority = VRRP_PRIO_OWNER;
-log_message(LOG_INFO, "Backup restoring prio_owner");
 		}
 
 		if (hd->priority == 0) {
@@ -2031,6 +2025,7 @@ log_message(LOG_INFO, "Backup restoring prio_owner");
 			   (vrrp->preempt_delay &&
 			    (!vrrp->preempt_time.tv_sec ||
 			     timercmp(&vrrp->preempt_time, &time_now, >)))) {
+			/* We are accepting the advert */
 			if (vrrp->version == VRRP_VERSION_3) {
 				master_adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
 				/* As per RFC5798, set Master_Adver_Interval to Adver Interval contained
@@ -2065,7 +2060,7 @@ log_message(LOG_INFO, "Backup restoring prio_owner");
 
 			/* We might have been held in backup by a sync group, but if
 			 * ms_down_timer had expired, we would have wanted MASTER state.
-			 * Now we have received a backup, we want to be in BACKUP state. */
+			 * Now we have received a higher priority advert, we want to be in BACKUP state. */
 			vrrp->wantstate = VRRP_STATE_BACK;
 		} else {
 			/* !nopreempt and lower priority advert and any preempt delay timer has expired */
@@ -2122,10 +2117,6 @@ vrrp_state_master_tx(vrrp_t * vrrp)
 			 * vrrp_state_master_rx(). */
 			unsigned long timer = max(vrrp->rogue_adver_int, vrrp->adver_int);
 
-			if (vrrp->version == VRRP_VERSION_3)
-				timer *= TIMER_CENTI_HZ;
-			else
-				timer *= TIMER_HZ;
 			timer = (timer * 12) / 10;	// Apply the "a bit more than" - 1.2 here
 			vrrp->rogue_timer_thread = thread_add_timer(master, vrrp_rogue_timer_thread, vrrp, timer);
 		}
@@ -2217,10 +2208,8 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 			/* If we are configured as the address owner (priority == 255), and we receive an advertisement
 			 * from another system indicating it is also the address owner, then there is a clear conflict. */
 			if (addr_cmp > 0) {
-				/* Report a configuration error, and drop our priority as a workaround. */
-				log_message(LOG_INFO, "(%s) CONFIGURATION ERROR: local instance and %s are both configured as address owner, please resolve - reducing our priority", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
-				vrrp->effective_priority = VRRP_PRIO_OWNER - 1;
-				vrrp->total_priority = VRRP_PRIO_OWNER - 1;
+				/* Report a configuration error, but since our primary IP address is lower, we will revert to backup. */
+				log_message(LOG_INFO, "(%s) CONFIGURATION ERROR: local instance and %s are both configured as address owner, please resolve", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
 			} else if (vrrp->rogue_timer_thread) {
 				/* We are still receiving adverts when the rogue should have stopped
 				 * if it implements keepalived's rogue handling.
@@ -2241,9 +2230,9 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 				 * and before the timer expires, then we assume that the rogue
 				 * will not back off and we back off ourself. */
 				if (vrrp->version == VRRP_VERSION_2)
-					vrrp->rogue_adver_int = hd->v2.adver_int;
+					vrrp->rogue_adver_int = hd->v2.adver_int * TIMER_HZ;
 				else
-					vrrp->rogue_adver_int = ntohs(hd->v3.adver_int) & 0xfff;
+					vrrp->rogue_adver_int = (ntohs(hd->v3.adver_int) & 0xfff) * TIMER_CENTI_HZ;
 				if (!vrrp->rogue_counter) {
 					log_message(LOG_INFO, "(%s) CONFIGURATION ERROR: local instance and %s are both configured as address owner, please resolve", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
 					vrrp->rogue_counter = 2;
@@ -2253,8 +2242,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 	}
 
 	if (hd->priority < vrrp->effective_priority ||
-	    (hd->priority == vrrp->effective_priority &&
-	     addr_cmp < 0)) {
+	    (hd->priority == vrrp->effective_priority && addr_cmp < 0)) {
 		/* We receive a lower prio adv we just refresh remote ARP cache */
 		log_message(LOG_INFO, "(%s) Received advert from %s with lower priority %d, ours %d%s",
 					vrrp->iname,
@@ -2320,7 +2308,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 
 	if (hd->priority > vrrp->effective_priority ||
 	    (hd->priority == vrrp->effective_priority && addr_cmp > 0)) {
-		if (hd->priority > vrrp->effective_priority)
+		if (hd->priority > vrrp->effective_priority && vrrp->base_priority != VRRP_PRIO_OWNER)
 			log_message(LOG_INFO, "(%s) Master received advert from %s with higher priority %d, ours %d",
 						vrrp->iname,
 						inet_sockaddrtos(&vrrp->pkt_saddr),
@@ -2350,6 +2338,8 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 		vrrp->state = VRRP_STATE_BACK;
 		return true;
 	}
+
+	/* We have received an equal priority advert from our own primary IP address */
 
 	return false;
 }
