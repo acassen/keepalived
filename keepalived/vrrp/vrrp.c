@@ -838,9 +838,9 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		/* Check we have an AH header if expect AH, and don't have it if not */
 		if ((ip->protocol == IPPROTO_AH) != (vrrp->auth_type == VRRP_AUTH_AH)) {
 			if (ip->protocol == IPPROTO_AH)
-				log_rate_limited_error(vrrp, VRRP_RLFLAG_BAD_AH_HEADER, "(%s) Received AH header but auth type not AH", vrrp->iname);
+				log_rate_limited_error(vrrp, VRRP_RLFLAG_BAD_AH_HEADER, "(%s) Received AH header but auth type not AH from %s", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
 			else
-				log_rate_limited_error(vrrp, VRRP_RLFLAG_BAD_AH_HEADER, "(%s) No AH header but auth type is AH", vrrp->iname);
+				log_rate_limited_error(vrrp, VRRP_RLFLAG_BAD_AH_HEADER, "(%s) No AH header but auth type is AH from %s", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
 			++vrrp->stats->authtype_mismatch;
 #ifdef _WITH_SNMP_RFCV2_
 			vrrp_rfcv2_snmp_auth_err_trap(vrrp, PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr, authTypeMismatch);
@@ -880,8 +880,9 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		    (buflen - expected_len) % VLAN_TAG_SIZE == (VLAN_TAG_SIZE - (ETH_ZLEN - ETH_HLEN) % VLAN_TAG_SIZE) % VLAN_TAG_SIZE) {
 			/* This is OK, there is some padding */
 		} else {
-			log_rate_limited_error(vrrp, VRRP_RLFLAG_INCOMPLETE_PACKET, "(%s) vrrp packet too %s, length %zu and expect %zu",
+			log_rate_limited_error(vrrp, VRRP_RLFLAG_INCOMPLETE_PACKET, "(%s) vrrp packet from %s too %s, length %zu and expect %zu",
 				      vrrp->iname,
+				      inet_sockaddrtos(&vrrp->pkt_saddr),
 				      buflen > expected_len ? "long" : "short",
 				      buflen, expected_len);
 			++vrrp->stats->packet_len_err;
@@ -892,8 +893,8 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 	/* MUST verify that the IPv4 TTL/IPv6 HL is 255 (but not if unicast) */
 	if (!__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) &&
 	    vrrp->rx_ttl_hop_limit != -1 && vrrp->rx_ttl_hop_limit != VRRP_IP_TTL) {
-		log_rate_limited_error(vrrp, VRRP_RLFLAG_INVALID_TTL, "(%s) invalid TTL/HL. Received %d and expect %d",
-			vrrp->iname, vrrp->rx_ttl_hop_limit, VRRP_IP_TTL);
+		log_rate_limited_error(vrrp, VRRP_RLFLAG_INVALID_TTL, "(%s) invalid TTL/HL from %s. Received %d and expect %d",
+			vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr), vrrp->rx_ttl_hop_limit, VRRP_IP_TTL);
 		++vrrp->stats->ip_ttl_err;
 #ifdef _WITH_SNMP_RFCV3_
 		vrrp->stats->proto_err_reason = ipTtlError;
@@ -904,8 +905,8 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 
 	/* MUST verify the VRRP version */
 	if ((hd->vers_type >> 4) != vrrp->version) {
-		log_rate_limited_error(vrrp, VRRP_RLFLAG_WRONG_VERSION, "(%s) wrong version. Received %d and expect %d",
-		       vrrp->iname, (hd->vers_type >> 4), vrrp->version);
+		log_rate_limited_error(vrrp, VRRP_RLFLAG_WRONG_VERSION, "(%s) wrong VRRP version from %s. Received %d and expect %d",
+		       vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr), (hd->vers_type >> 4), vrrp->version);
 #ifdef _WITH_SNMP_RFC_
 		vrrp->stats->vers_err++;
 #ifdef _WITH_SNMP_RFCV3_
@@ -924,7 +925,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		    hd->v2.auth_type != VRRP_AUTH_PASS &&
 #endif
 		    hd->v2.auth_type != VRRP_AUTH_NONE) {
-			log_rate_limited_error(vrrp, VRRP_RLFLAG_BAD_AUTH, "(%s) Invalid auth type: %d", vrrp->iname, hd->v2.auth_type);
+			log_rate_limited_error(vrrp, VRRP_RLFLAG_BAD_AUTH, "(%s) Invalid auth type from %s: %d", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr), hd->v2.auth_type);
 			++vrrp->stats->invalid_authtype;
 #ifdef _WITH_SNMP_RFCV2_
 			vrrp_rfcv2_snmp_auth_err_trap(vrrp, PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr, invalidAuthType);
@@ -938,8 +939,8 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		 * check the authentication type
 		 */
 		if (vrrp->auth_type != hd->v2.auth_type) {
-			log_rate_limited_error(vrrp, VRRP_RLFLAG_WRONG_AUTH, "(%s) received a %d auth, expecting %d!",
-			       vrrp->iname, hd->v2.auth_type, vrrp->auth_type);
+			log_rate_limited_error(vrrp, VRRP_RLFLAG_WRONG_AUTH, "(%s) received a %d auth from %s, expecting %d!",
+			       vrrp->iname, hd->v2.auth_type, inet_sockaddrtos(&vrrp->pkt_saddr), vrrp->auth_type);
 			++vrrp->stats->authtype_mismatch;
 #ifdef _WITH_SNMP_RFCV2_
 			vrrp_rfcv2_snmp_auth_err_trap(vrrp, PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr, authTypeMismatch);
@@ -951,7 +952,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 			/* check the authentication if it is a passwd */
 			const char *pw = (const char *)ip + ntohs(ip->tot_len) - sizeof (vrrp->auth_data);
 			if (memcmp_constant_time(pw, vrrp->auth_data, sizeof(vrrp->auth_data)) != 0) {
-				log_rate_limited_error(vrrp, VRRP_RLFLAG_WRONG_AUTH_PASSWD, "(%s) received an invalid passwd!", vrrp->iname);
+				log_rate_limited_error(vrrp, VRRP_RLFLAG_WRONG_AUTH_PASSWD, "(%s) received an invalid passwd from %s!", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
 				++vrrp->stats->auth_failure;
 #ifdef _WITH_SNMP_RFCV2_
 				vrrp_rfcv2_snmp_auth_err_trap(vrrp, PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr, authFailure);
@@ -988,8 +989,8 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		 * the locally configured for this virtual router if VRRPv2
 		 */
 		if (vrrp->adver_int != hd->v2.adver_int * TIMER_HZ) {
-			log_rate_limited_error(vrrp, VRRP_RLFLAG_ADV_INTVL_MISMATCH, "(%s) advertisement interval mismatch mine=%u sec rcv'd=%d sec",
-				vrrp->iname, vrrp->adver_int / TIMER_HZ, hd->v2.adver_int);
+			log_rate_limited_error(vrrp, VRRP_RLFLAG_ADV_INTVL_MISMATCH, "(%s) advertisement interval mismatch with %s mine=%u sec rcv'd=%d sec",
+				vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr), vrrp->adver_int / TIMER_HZ, hd->v2.adver_int);
 			/* to prevent concurent VRID running => multiple master in 1 VRID */
 			return VRRP_PACKET_DROP;
 		}
@@ -998,8 +999,8 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 
 	/* verify packet type */
 	if ((hd->vers_type & 0x0f) != VRRP_PKT_ADVERT) {
-		log_rate_limited_error(vrrp, VRRP_RLFLAG_NOT_ADVERTISEMENT, "(%s) Invalid packet type. %d and expect %d",
-			vrrp->iname, (hd->vers_type & 0x0f), VRRP_PKT_ADVERT);
+		log_rate_limited_error(vrrp, VRRP_RLFLAG_NOT_ADVERTISEMENT, "(%s) Invalid packet type from %s. %d and expect %d",
+			vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr), (hd->vers_type & 0x0f), VRRP_PKT_ADVERT);
 		++vrrp->stats->invalid_type_rcvd;
 		return VRRP_PACKET_KO;
 	}
@@ -1014,8 +1015,8 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 			/* This is OK, there is some padding */
 		} else {
 			log_rate_limited_error(vrrp, VRRP_RLFLAG_BAD_LENGTH,
-			       "(%s) ip_tot_len mismatch against received length. %d and received %zu",
-			       vrrp->iname, ntohs(ip->tot_len), buflen);
+			       "(%s) ip_tot_len mismatch against received length from %s. %d and received %zu",
+			       vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr), ntohs(ip->tot_len), buflen);
 			++vrrp->stats->packet_len_err;
 			return VRRP_PACKET_KO;
 		}
@@ -1077,7 +1078,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 				if (chksum_error)
 #endif
 				{
-					log_rate_limited_error(vrrp, VRRP_RLFLAG_BAD_CHECKSUM, "(%s) Invalid VRRPv3 checksum", vrrp->iname);
+					log_rate_limited_error(vrrp, VRRP_RLFLAG_BAD_CHECKSUM, "(%s) Invalid VRRPv3 checksum from %s", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
 #ifdef _WITH_SNMP_RFC_
 					vrrp->stats->chk_err++;
 #ifdef _WITH_SNMP_RFCV3_
@@ -1103,7 +1104,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 #endif
 
 			if (csum_calc) {
-				log_rate_limited_error(vrrp, VRRP_RLFLAG_BAD_CHECKSUM, "(%s) Invalid VRRPv2 checksum", vrrp->iname);
+				log_rate_limited_error(vrrp, VRRP_RLFLAG_BAD_CHECKSUM, "(%s) Invalid VRRPv2 checksum from %s", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
 #ifdef _WITH_SNMP_RFC_
 				vrrp->stats->chk_err++;
 #ifdef _WITH_SNMP_RFCV3_
@@ -1124,8 +1125,8 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		 * on a socket even if we haven't registered the multicast address on the socket.
 		 * If anyone knows how to stop receiving them, please raise a github issue with the details.
 		 */
-		log_rate_limited_error(vrrp, VRRP_RLFLAG_UNI_MULTICAST_ERR, "(%s) Expected %sicast packet but received %sicast packet",
-				vrrp->iname,
+		log_rate_limited_error(vrrp, VRRP_RLFLAG_UNI_MULTICAST_ERR, "(%s) Expected %sicast packet but received %sicast packet from %s",
+				vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr),
 				__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) ? "un" : "mult",
 				__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) ? "mult" : "un");
 		++vrrp->stats->addr_list_err;
@@ -1144,15 +1145,15 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		 * VRID are valid
 		 */
 		if (hd->naddr != vrrp->vip_cnt) {
-			log_rate_limited_error(vrrp, VRRP_RLFLAG_WRONG_ADDR_COUNT, "(%s) expected %u VIPs but received %u",
-					       vrrp->iname, vrrp->vip_cnt, hd->naddr);
+			log_rate_limited_error(vrrp, VRRP_RLFLAG_WRONG_ADDR_COUNT, "(%s) expected %u VIPs but received %u from %s",
+					       vrrp->iname, vrrp->vip_cnt, hd->naddr, inet_sockaddrtos(&vrrp->pkt_saddr));
 			++vrrp->stats->addr_list_err;
 		} else {
 			list_for_each_entry(ipaddress, &vrrp->vip, e_list) {
 				if (!vrrp_in_chk_vips(vrrp, ipaddress, vips)) {
 					log_rate_limited_error(vrrp, VRRP_RLFLAG_VIPS_MISMATCH, "(%s) ip address associated with VRID %d"
-							      " not present in MASTER advert: %s"
-							    , vrrp->iname, vrrp->vrid
+							      " not present in MASTER advert from %s: %s"
+							    , vrrp->iname, vrrp->vrid, inet_sockaddrtos(&vrrp->pkt_saddr)
 							    , inet_ntop(vrrp->family, vrrp->family == AF_INET6 ? &ipaddress->u.sin6_addr : (void *)&ipaddress->u.sin.sin_addr.s_addr,
 							      addr_str, sizeof(addr_str)));
 					++vrrp->stats->addr_list_err;
@@ -1188,10 +1189,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 
 			if (!found_match) {
 				log_rate_limited_error(vrrp, VRRP_RLFLAG_UNKNOWN_UNICAST_SRC, "(%s) unicast source address %s not a unicast peer",
-					vrrp->iname,
-					inet_ntop(vrrp->family,
-						  vrrp->family == AF_INET6 ? (void *)saddr6 : (void *)saddr4,
-						  addr_str, sizeof(addr_str)));
+					vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
 				return VRRP_PACKET_KO;
 			}
 
@@ -1203,8 +1201,8 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 				vrrp->stats->proto_err_reason = ipTtlError;
 				vrrp_rfcv3_snmp_proto_err_notify(vrrp);
 #endif
-				log_rate_limited_error(vrrp, VRRP_RLFLAG_TTL_NOT_IN_RANGE, "(%s) TTL/HL %d not in range %d - %d",
-					vrrp->iname, vrrp->rx_ttl_hop_limit, up_addr->min_ttl, up_addr->max_ttl);
+				log_rate_limited_error(vrrp, VRRP_RLFLAG_TTL_NOT_IN_RANGE, "(%s) TTL/HL %d from %s not in range %d - %d",
+					vrrp->iname, vrrp->rx_ttl_hop_limit, inet_sockaddrtos(&vrrp->pkt_saddr), up_addr->min_ttl, up_addr->max_ttl);
 				return VRRP_PACKET_KO;
 			}
 		}
