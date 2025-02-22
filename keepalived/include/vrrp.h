@@ -84,6 +84,27 @@ enum vrrp_flags_bits {
 #endif
 };
 
+typedef enum vrrp_rlflags {
+	VRRP_RLFLAG_INVALID_TTL		=     0x1,
+	VRRP_RLFLAG_WRONG_VERSION	=     0x2,
+	VRRP_RLFLAG_NOT_ADVERTISEMENT	=     0x4,
+	VRRP_RLFLAG_INCOMPLETE_PACKET	=     0x8,
+	VRRP_RLFLAG_NO_VIPS		=    0x10,
+	VRRP_RLFLAG_WRONG_ADDR_COUNT	=    0x20,
+	VRRP_RLFLAG_VIPS_MISMATCH	=    0x40,
+	VRRP_RLFLAG_WRONG_AUTH		=    0x80,
+	VRRP_RLFLAG_BAD_AUTH		=   0x100,
+	VRRP_RLFLAG_BAD_AH_HEADER	=   0x200,
+	VRRP_RLFLAG_BAD_IP_VERSION	=   0x400,
+	VRRP_RLFLAG_BAD_LENGTH		=   0x800,
+	VRRP_RLFLAG_WRONG_AUTH_PASSWD	=  0x1000,
+	VRRP_RLFLAG_ADV_INTVL_MISMATCH	=  0x2000,
+	VRRP_RLFLAG_BAD_CHECKSUM	=  0x4000,
+	VRRP_RLFLAG_UNI_MULTICAST_ERR	=  0x8000,
+	VRRP_RLFLAG_UNKNOWN_UNICAST_SRC	= 0x10000,
+	VRRP_RLFLAG_TTL_NOT_IN_RANGE	= 0x20000,
+} vrrp_rlflags_t;
+
 typedef struct _vrrphdr {			/* rfc2338.5.1 */
 	uint8_t			vers_type;	/* 0-3=type, 4-7=version */
 	uint8_t			vrid;		/* virtual router id */
@@ -258,6 +279,7 @@ typedef struct _vrrp_t {
 #endif
 	unsigned		strict_mode;		/* Enforces strict VRRP compliance */
 	unsigned long		flags;
+	vrrp_rlflags_t		rlflags;		/* Flags for rate-limiting log messages */
 #ifdef _HAVE_VRRP_VMAC_
 	char			vmac_ifname[IFNAMSIZ];	/* Name of VRRP VMAC interface */
 	u_char			ll_addr[ETH_ALEN];	/* Override MAC address */

@@ -636,6 +636,9 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 	} else
 		conf_write(fp, "   Flags: none");
 
+	if (vrrp->rlflags)
+		conf_write(fp, "   Rate-limit flags = 0x%x", vrrp->rlflags);
+
 	conf_write(fp, "   Wantstate = %s", get_state_str(vrrp->wantstate));
 	conf_write(fp, "   Number of config faults = %u", vrrp->num_config_faults);
 	if (fp) {
