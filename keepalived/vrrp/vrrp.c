@@ -1021,6 +1021,15 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		}
 	}
 
+	if (vrrp->version == VRRP_VERSION_3) {
+		/* VRRP version 3. SHOULD check advert intervals match */
+		if (!(vrrp->rlflags & VRRP_RLFLAG_ADV_INTVL_MISMATCH) &&
+		    vrrp->adver_int != (V3_PKT_ADVER_INT_NTOH(hd->v3.adver_int)) * TIMER_CENTI_HZ) {
+			log_rate_limited_error(vrrp, VRRP_RLFLAG_ADV_INTVL_MISMATCH, "(%s) advertisement interval mismatch ours = %u centi-sec rcv'd=%d centi-sec",
+				vrrp->iname, vrrp->adver_int / TIMER_CENTI_HZ, V3_PKT_ADVER_INT_NTOH(hd->v3.adver_int));
+		}
+	}
+
 	/* MUST verify the VRRP checksum. Kernel takes care of checksum mismatch incase of IPv6. */
 	if (vrrp->family == AF_INET) {
 		vrrppkt_len = sizeof(vrrphdr_t) + hd->naddr * sizeof(struct in_addr);
