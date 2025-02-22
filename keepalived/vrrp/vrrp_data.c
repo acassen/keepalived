@@ -1131,6 +1131,43 @@ alloc_vrrp_group_track_bfd(const vector_t *strvec)
 }
 #endif
 
+static bool
+vip_is_duplicate(const ip_address_t *new_ipaddr, const char *vip_str, bool excluded_vip)
+{
+	ip_address_t *vip;
+
+	list_for_each_entry(vip, &current_vrrp->vip, e_list) {
+		/* We can have a VIP and an eVIP the same if they are on
+		 * different interfaces. */
+		if (excluded_vip && new_ipaddr->ifp != vip->ifp)
+			continue;
+
+		if ((IP_FAMILY(new_ipaddr) == AF_INET && new_ipaddr->u.sin.sin_addr.s_addr == vip->u.sin.sin_addr.s_addr) ||
+		    (IP_FAMILY(new_ipaddr) == AF_INET6 && !memcmp(&new_ipaddr->u.sin6_addr, &vip->u.sin6_addr, sizeof(new_ipaddr->u.sin6_addr)))) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s): %sVIP duplicates a VIP %s - ignoring",
+					    current_vrrp->iname, excluded_vip ? "Excluded " : "", vip_str);
+			return true;
+		}
+	}
+
+	list_for_each_entry(vip, &current_vrrp->evip, e_list) {
+		if (IP_FAMILY(new_ipaddr) != IP_FAMILY(vip))
+			continue;
+
+		if (new_ipaddr->ifp != vip->ifp)
+			continue;
+
+		if ((IP_FAMILY(new_ipaddr) == AF_INET && new_ipaddr->u.sin.sin_addr.s_addr == vip->u.sin.sin_addr.s_addr) ||
+		    (IP_FAMILY(new_ipaddr) == AF_INET6 && !memcmp(&new_ipaddr->u.sin6_addr, &vip->u.sin6_addr, sizeof(new_ipaddr->u.sin6_addr)))) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s): %sVIP duplicates an excluded VIP %s - ignoring",
+					    current_vrrp->iname, excluded_vip ? "Excluded " : "", vip_str);
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void
 alloc_vrrp_vip(const vector_t *strvec)
 {
@@ -1150,6 +1187,12 @@ alloc_vrrp_vip(const vector_t *strvec)
 		return;
 	}
 
+	/* Check we don't already have this address */
+	if (vip_is_duplicate(new_ipaddr, strvec_slot(strvec, 0), false)) {
+		free_ipaddress(new_ipaddr);
+		return;
+	}
+
 	list_add_tail(&new_ipaddr->e_list, &current_vrrp->vip);
 	current_vrrp->vip_cnt++;
 }
@@ -1159,8 +1202,16 @@ alloc_vrrp_evip(const vector_t *strvec)
 {
 	ip_address_t *new_ipaddr;
 
-	if ((new_ipaddr = alloc_ipaddress(strvec, false)))
-		list_add_tail(&new_ipaddr->e_list, &current_vrrp->evip);
+	if (!(new_ipaddr = alloc_ipaddress(strvec, false)))
+		return;
+
+	/* Check we don't already have this address */
+	if (vip_is_duplicate(new_ipaddr, strvec_slot(strvec, 0), true)) {
+		free_ipaddress(new_ipaddr);
+		return;
+	}
+
+	list_add_tail(&new_ipaddr->e_list, &current_vrrp->evip);
 }
 
 void
