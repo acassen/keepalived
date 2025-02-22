@@ -1015,6 +1015,7 @@ alloc_vrrp_unicast_peer(const vector_t *strvec)
 	unicast_peer_t *peer;
 	unsigned ttl;
 	unsigned i;
+	unicast_peer_t *existing_peer;
 
 	/* Allocate new unicast peer */
 	PMALLOC(peer);
@@ -1054,6 +1055,16 @@ alloc_vrrp_unicast_peer(const vector_t *strvec)
 				break;
 			}
 			__set_bit(VRRP_FLAG_CHECK_UNICAST_SRC, &current_vrrp->flags);
+		}
+	}
+
+	/* Check this unicast peer is not already configured */
+	list_for_each_entry(existing_peer, &current_vrrp->unicast_peer, e_list) {
+		if ((current_vrrp->family == AF_INET && peer->address.in.sin_addr.s_addr == existing_peer->address.in.sin_addr.s_addr) ||
+		    (current_vrrp->family == AF_INET6 && !memcmp(&peer->address.in6.sin6_addr, &existing_peer->address.in6.sin6_addr, sizeof(peer->address.in6.sin6_addr)))) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s - duplicate unicast_peer", current_vrrp->iname, strvec_slot(strvec, 0));
+			FREE(peer);
+			return;
 		}
 	}
 
