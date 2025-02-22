@@ -1210,6 +1210,9 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 				return VRRP_PACKET_KO;
 			}
 		}
+	} else if (!__test_bit(VRRP_FLAG_ALLOW_NO_VIPS, &vrrp->flags) && !hd->naddr) {
+		log_rate_limited_error(vrrp, VRRP_RLFLAG_NO_VIPS, "(%s) invalid advert - no VIPs - discarding", vrrp->iname);
+		return VRRP_PACKET_KO;
 	}
 
 	if (hd->priority == 0)
