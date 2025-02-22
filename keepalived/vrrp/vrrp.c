@@ -1147,18 +1147,16 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 			log_rate_limited_error(vrrp, VRRP_RLFLAG_WRONG_ADDR_COUNT, "(%s) expected %u VIPs but received %u",
 					       vrrp->iname, vrrp->vip_cnt, hd->naddr);
 			++vrrp->stats->addr_list_err;
-			return VRRP_PACKET_KO;
-		}
-
-		list_for_each_entry(ipaddress, &vrrp->vip, e_list) {
-			if (!vrrp_in_chk_vips(vrrp, ipaddress, vips)) {
-				log_rate_limited_error(vrrp, VRRP_RLFLAG_VIPS_MISMATCH, "(%s) ip address associated with VRID %d"
-						      " not present in MASTER advert: %s"
-						    , vrrp->iname, vrrp->vrid
-						    , inet_ntop(vrrp->family, vrrp->family == AF_INET6 ? &ipaddress->u.sin6_addr : (void *)&ipaddress->u.sin.sin_addr.s_addr,
-						      addr_str, sizeof(addr_str)));
-				++vrrp->stats->addr_list_err;
-				return VRRP_PACKET_KO;
+		} else {
+			list_for_each_entry(ipaddress, &vrrp->vip, e_list) {
+				if (!vrrp_in_chk_vips(vrrp, ipaddress, vips)) {
+					log_rate_limited_error(vrrp, VRRP_RLFLAG_VIPS_MISMATCH, "(%s) ip address associated with VRID %d"
+							      " not present in MASTER advert: %s"
+							    , vrrp->iname, vrrp->vrid
+							    , inet_ntop(vrrp->family, vrrp->family == AF_INET6 ? &ipaddress->u.sin6_addr : (void *)&ipaddress->u.sin.sin_addr.s_addr,
+							      addr_str, sizeof(addr_str)));
+					++vrrp->stats->addr_list_err;
+				}
 			}
 		}
 
