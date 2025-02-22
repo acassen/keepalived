@@ -2364,9 +2364,11 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 				update_master_adver_int(vrrp, master_adver_int);
 		}
 		vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
+		vrrp->master_saddr = vrrp->pkt_saddr;
 		vrrp->master_priority = hd->priority;
 		vrrp->wantstate = VRRP_STATE_BACK;
 		vrrp->state = VRRP_STATE_BACK;
+
 		return true;
 	}
 
