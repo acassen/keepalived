@@ -793,6 +793,25 @@ log_rate_limited_error(vrrp_t *vrrp, vrrp_rlflags_t rlflag, const char *format, 
 	va_end(args);
 }
 
+static inline bool
+check_ttl_hl(vrrp_t *vrrp, const unicast_peer_t *up_addr)
+{
+	if (vrrp->rx_ttl_hop_limit != -1 &&
+	    (vrrp->rx_ttl_hop_limit < up_addr->min_ttl ||
+	     vrrp->rx_ttl_hop_limit > up_addr->max_ttl)) {
+		++vrrp->stats->ip_ttl_err;
+#ifdef _WITH_SNMP_RFCV3_
+		vrrp->stats->proto_err_reason = ipTtlError;
+		vrrp_rfcv3_snmp_proto_err_notify(vrrp);
+#endif
+		log_rate_limited_error(vrrp, VRRP_RLFLAG_TTL_NOT_IN_RANGE, "(%s) TTL/HL %d from %s not in range [%d, %d]",
+			vrrp->iname, vrrp->rx_ttl_hop_limit, inet_sockaddrtos(&vrrp->pkt_saddr), up_addr->min_ttl, up_addr->max_ttl);
+		return false;
+	}
+
+	return true;
+}
+
 /*
  * VRRP incoming packet check.
  * return VRRP_PACKET_OK if the pkt is valid, or
@@ -817,7 +836,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 #ifdef _WITH_VRRP_AUTH_
 	const ipsec_ah_t *ah;
 #endif
-	const unsigned char *vips;
+	const void *vips;
 	ip_address_t *ipaddress;
 	char addr_str[INET6_ADDRSTRLEN];
 	ipv4_phdr_t ipv4_phdr;
@@ -1141,78 +1160,77 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 	++vrrp->stats->advert_rcvd;
 
 	/* pointer to vrrp vips pkt zone */
-	vips = PTR_CAST_CONST(unsigned char, ((const char *) hd + sizeof(vrrphdr_t)));
+	vips = (const char *)hd + sizeof(vrrphdr_t);
 
-	if (check_vip_addr) {
+	if (hd->naddr != vrrp->vip_cnt) {
+		log_rate_limited_error(vrrp, VRRP_RLFLAG_WRONG_ADDR_COUNT, "(%s) expected %u VIPs but received %u",
+				       vrrp->iname, vrrp->vip_cnt, hd->naddr);
+		++vrrp->stats->addr_list_err;
+	} else if (check_vip_addr) {
 		/*
 		 * MAY verify that the IP address(es) associated with the
 		 * VRID are valid
 		 */
-		if (hd->naddr != vrrp->vip_cnt) {
-			log_rate_limited_error(vrrp, VRRP_RLFLAG_WRONG_ADDR_COUNT, "(%s) expected %u VIPs but received %u from %s",
-					       vrrp->iname, vrrp->vip_cnt, hd->naddr, inet_sockaddrtos(&vrrp->pkt_saddr));
-			++vrrp->stats->addr_list_err;
-		} else {
-			list_for_each_entry(ipaddress, &vrrp->vip, e_list) {
-				if (!vrrp_in_chk_vips(vrrp, ipaddress, vips, hd->naddr)) {
-					log_rate_limited_error(vrrp, VRRP_RLFLAG_VIPS_MISMATCH, "(%s) ip address associated with VRID %d"
-							      " not present in MASTER advert from %s: %s"
-							    , vrrp->iname, vrrp->vrid, inet_sockaddrtos(&vrrp->pkt_saddr)
-							    , inet_ntop(vrrp->family, vrrp->family == AF_INET6 ? &ipaddress->u.sin6_addr : (void *)&ipaddress->u.sin.sin_addr.s_addr,
-							      addr_str, sizeof(addr_str)));
+		bool addr_ok = true;
+
+		/* We have checked that the number of VIPs match, and since
+		 * all VIPs are different, if every VIP is in the advert, then
+		 * the two lists must have exactly the same entries. */
+		list_for_each_entry(ipaddress, &vrrp->vip, e_list) {
+			if (!vrrp_in_chk_vips(vrrp, ipaddress, vips, hd->naddr)) {
+				log_rate_limited_error(vrrp, VRRP_RLFLAG_VIPS_MISMATCH, "(%s) ip address associated with VRID %d"
+						      " not present in advert from %s: %s"
+						    , vrrp->iname, vrrp->vrid, inet_sockaddrtos(&vrrp->pkt_saddr)
+						    , inet_ntop(vrrp->family, vrrp->family == AF_INET6 ? &ipaddress->u.sin6_addr : (void *)&ipaddress->u.sin.sin_addr.s_addr,
+						      addr_str, sizeof(addr_str)));
+				if (addr_ok) {
 					++vrrp->stats->addr_list_err;
+					addr_ok = false;
+				}
+			}
+			if (!addr_ok)
+				break;
+		}
+	}
+
+	/* check a unicast source address is in the unicast_peer list */
+	if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) &&
+	    (global_data->vrrp_check_unicast_src ||
+	     __test_bit(VRRP_FLAG_CHECK_UNICAST_SRC, &vrrp->flags))) {
+		struct in_addr *saddr4 = NULL;	/* Avoid compiler warnings */
+		struct in6_addr *saddr6 = NULL;
+		bool found_match = false;
+
+		if (vrrp->family == AF_INET6) {
+			saddr6 = &PTR_CAST(struct sockaddr_in6, &vrrp->pkt_saddr)->sin6_addr;
+			list_for_each_entry(up_addr, &vrrp->unicast_peer, e_list) {
+				if (IN6_ARE_ADDR_EQUAL(saddr6, &PTR_CAST(struct sockaddr_in6, &up_addr->address)->sin6_addr)) {
+					if (!check_ttl_hl(vrrp, up_addr))
+						return VRRP_PACKET_DROP;
+					found_match = true;
+					break;
+				}
+			}
+		} else {
+			saddr4 = &PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr;
+			list_for_each_entry(up_addr, &vrrp->unicast_peer, e_list) {
+				if (saddr4->s_addr == PTR_CAST(struct sockaddr_in, &up_addr->address)->sin_addr.s_addr) {
+					if (!check_ttl_hl(vrrp, up_addr))
+						return VRRP_PACKET_DROP;
+					found_match = true;
+					break;
 				}
 			}
 		}
 
-		/* check a unicast source address is in the unicast_peer list */
-		if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) &&
-		    (global_data->vrrp_check_unicast_src ||
-		     __test_bit(VRRP_FLAG_CHECK_UNICAST_SRC, &vrrp->flags))) {
-			struct in_addr *saddr4 = NULL;	/* Avoid compiler warnings */
-			struct in6_addr *saddr6 = NULL;
-			bool found_match = false;
-
-			if (vrrp->family == AF_INET6) {
-				saddr6 = &PTR_CAST(struct sockaddr_in6, &vrrp->pkt_saddr)->sin6_addr;
-				list_for_each_entry(up_addr, &vrrp->unicast_peer, e_list) {
-					if (IN6_ARE_ADDR_EQUAL(saddr6, &PTR_CAST(struct sockaddr_in6, &up_addr->address)->sin6_addr)) {
-						found_match = true;
-						break;
-					}
-				}
-			} else {
-				saddr4 = &PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr;
-				list_for_each_entry(up_addr, &vrrp->unicast_peer, e_list) {
-					if (saddr4->s_addr == PTR_CAST(struct sockaddr_in, &up_addr->address)->sin_addr.s_addr) {
-						found_match = true;
-						break;
-					}
-				}
-			}
-
-			if (!found_match) {
-				log_rate_limited_error(vrrp, VRRP_RLFLAG_UNKNOWN_UNICAST_SRC, "(%s) unicast source address %s not a unicast peer",
-					vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
-				return VRRP_PACKET_KO;
-			}
-
-			if (vrrp->rx_ttl_hop_limit != -1 &&
-			    (vrrp->rx_ttl_hop_limit < up_addr->min_ttl ||
-			     vrrp->rx_ttl_hop_limit > up_addr->max_ttl)) {
-				++vrrp->stats->ip_ttl_err;
-#ifdef _WITH_SNMP_RFCV3_
-				vrrp->stats->proto_err_reason = ipTtlError;
-				vrrp_rfcv3_snmp_proto_err_notify(vrrp);
-#endif
-				log_rate_limited_error(vrrp, VRRP_RLFLAG_TTL_NOT_IN_RANGE, "(%s) TTL/HL %d from %s not in range %d - %d",
-					vrrp->iname, vrrp->rx_ttl_hop_limit, inet_sockaddrtos(&vrrp->pkt_saddr), up_addr->min_ttl, up_addr->max_ttl);
-				return VRRP_PACKET_KO;
-			}
+		if (!found_match) {
+			log_rate_limited_error(vrrp, VRRP_RLFLAG_UNKNOWN_UNICAST_SRC, "(%s) unicast source address %s not a unicast peer",
+				vrrp->iname,
+				inet_ntop(vrrp->family,
+					  vrrp->family == AF_INET6 ? (void *)saddr6 : (void *)saddr4,
+					  addr_str, sizeof(addr_str)));
+			return VRRP_PACKET_KO;
 		}
-	} else if (!__test_bit(VRRP_FLAG_ALLOW_NO_VIPS, &vrrp->flags) && !hd->naddr) {
-		log_rate_limited_error(vrrp, VRRP_RLFLAG_NO_VIPS, "(%s) invalid advert - no VIPs - discarding", vrrp->iname);
-		return VRRP_PACKET_KO;
 	}
 
 	if (hd->priority == 0)
