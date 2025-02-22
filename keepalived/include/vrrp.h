@@ -450,11 +450,13 @@ typedef struct _vrrp_t {
 #define VRRP_EVENT_BACKUP_PRIORITY_CHANGE 1002	/* Dummy state for sending event notify */
 
 /* VRRP packet handling */
-#define VRRP_PACKET_OK       0
-#define VRRP_PACKET_KO       1
-#define VRRP_PACKET_DROP     2
-#define VRRP_PACKET_NULL     3
-#define VRRP_PACKET_OTHER    4	/* Multiple VRRP on LAN, Identify "other" VRRP */
+enum vrrp_packet_status {
+	VRRP_PACKET_OK,
+	VRRP_PACKET_KO,
+	VRRP_PACKET_DROP,
+	VRRP_PACKET_NULL,
+	VRRP_PACKET_OTHER	/* Multiple VRRP on LAN, Identify "other" VRRP */
+};
 
 /* VRRP Packet fixed length */
 #define VRRP_AUTH_LEN		8
