@@ -1060,8 +1060,11 @@ alloc_vrrp_unicast_peer(const vector_t *strvec)
 
 	/* Check this unicast peer is not already configured */
 	list_for_each_entry(existing_peer, &current_vrrp->unicast_peer, e_list) {
-		if ((current_vrrp->family == AF_INET && peer->address.in.sin_addr.s_addr == existing_peer->address.in.sin_addr.s_addr) ||
-		    (current_vrrp->family == AF_INET6 && !memcmp(&peer->address.in6.sin6_addr, &existing_peer->address.in6.sin6_addr, sizeof(peer->address.in6.sin6_addr)))) {
+		if ((current_vrrp->family == AF_INET && ((struct sockaddr_in *)&peer->address)->sin_addr.s_addr == ((struct sockaddr_in *)&existing_peer->address)->sin_addr.s_addr) ||
+		    (current_vrrp->family == AF_INET6 &&
+		     !memcmp(&((struct sockaddr_in6 *)&peer->address)->sin6_addr,
+			     &((struct sockaddr_in6 *)&existing_peer->address)->sin6_addr,
+			     sizeof(((struct sockaddr_in6 *)&peer->address)->sin6_addr)))) {
 			report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s - duplicate unicast_peer", current_vrrp->iname, strvec_slot(strvec, 0));
 			FREE(peer);
 			return;
