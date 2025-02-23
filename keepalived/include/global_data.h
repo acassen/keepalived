@@ -286,6 +286,7 @@ typedef struct _data {
 	int				vrrp_rx_bufs_multiples;
 	unsigned			vrrp_startup_delay;
 	bool				log_unknown_vrids;
+	bool				vrrp_owner_ignore_adverts;
 #ifdef _HAVE_VRRP_VMAC_
 	const char			*vmac_prefix;
 	const char			*vmac_addr_prefix;

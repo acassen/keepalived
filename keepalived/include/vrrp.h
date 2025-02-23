@@ -103,6 +103,7 @@ typedef enum vrrp_rlflags {
 	VRRP_RLFLAG_UNI_MULTICAST_ERR	=  0x8000,
 	VRRP_RLFLAG_UNKNOWN_UNICAST_SRC	= 0x10000,
 	VRRP_RLFLAG_TTL_NOT_IN_RANGE	= 0x20000,
+	VRRP_RLFLAG_OWNER_IGNORE_ADVER	= 0x40000,
 } vrrp_rlflags_t;
 
 typedef struct _vrrphdr {			/* rfc2338.5.1 */
@@ -331,6 +332,7 @@ typedef struct _vrrp_t {
 	unsigned		down_timer_adverts;	/* Number of adverts missed before backup takes over as master */
 	unsigned		lower_prio_no_advert;	/* Don't send advert after lower prio advert received */
 	unsigned		higher_prio_send_advert; /* Send advert after higher prio advert received */
+	unsigned		owner_ignore_adverts;	/* Set if an address owner should ignore received adverts */
 #ifdef _HAVE_VRRP_VMAC_
 	timeval_t		vmac_garp_intvl;	/* Interval between GARPs on each VMAC */
 #endif

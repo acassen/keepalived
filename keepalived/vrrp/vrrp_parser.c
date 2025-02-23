@@ -1448,6 +1448,21 @@ vrrp_higher_prio_send_advert_handler(const vector_t *strvec)
 	}
 }
 
+static void
+vrrp_owner_ignore_adverts_handler(const vector_t *strvec)
+{
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res < 0) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) invalid %s %s specified", current_vrrp->iname, strvec_slot(strvec, 0), strvec_slot(strvec, 1));
+			return;
+		}
+	}
+
+	current_vrrp->owner_ignore_adverts = (unsigned)res;
+}
 
 static void
 kernel_rx_buf_size_handler(const vector_t *strvec)
@@ -2224,6 +2239,7 @@ init_vrrp_keywords(bool active)
 #endif
 	install_keyword("lower_prio_no_advert", &vrrp_lower_prio_no_advert_handler);
 	install_keyword("higher_prio_send_advert", &vrrp_higher_prio_send_advert_handler);
+	install_keyword("owner_ignore_adverts", &vrrp_owner_ignore_adverts_handler);
 	install_keyword("kernel_rx_buf_size", &kernel_rx_buf_size_handler);
 #if defined _WITH_VRRP_AUTH_
 	install_keyword("authentication", NULL);

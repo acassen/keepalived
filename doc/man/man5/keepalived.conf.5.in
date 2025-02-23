@@ -582,6 +582,7 @@ possibly following any cleanup actions needed.
     #   Cannot set higher_prio_send_advert
     #   Cannot use vmac_xmit_base
     #   Cannot have no VIPs with VRRPv3
+    #   If priority is 255 ignore received adverts
     \fBvrrp_strict\fR
 
     # Send vrrp instance priority notifications on notify FIFOs.
