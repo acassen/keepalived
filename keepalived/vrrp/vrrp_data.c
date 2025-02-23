@@ -746,6 +746,8 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 #endif
 	conf_write(fp, "   Send advert after receive lower priority advert = %s", vrrp->lower_prio_no_advert ? "false" : "true");
 	conf_write(fp, "   Send advert after receive higher priority advert = %s", vrrp->higher_prio_send_advert ? "true" : "false");
+	if (vrrp->base_priority == VRRP_PRIO_OWNER)
+		conf_write(fp, "   Address owner ignores received adverts = %s", vrrp->owner_ignore_adverts ? "true" : "false");
 	conf_write(fp, "   Virtual Router ID = %d", vrrp->vrid);
 	conf_write(fp, "   Priority = %d", vrrp->base_priority);
 	if (fp) {
@@ -996,6 +998,7 @@ alloc_vrrp(const char *iname)
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 	new->unicast_chksum_compat = CHKSUM_COMPATIBILITY_NONE;
 #endif
+	new->owner_ignore_adverts = PARAMETER_UNSET;
 	if (global_data->v3_checksum_as_v2)
 	        __set_bit(VRRP_FLAG_V3_CHECKSUM_AS_V2, &new->flags);
 	new->smtp_alert = -1;

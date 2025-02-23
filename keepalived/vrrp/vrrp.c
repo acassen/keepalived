@@ -1151,11 +1151,18 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		 * If anyone knows how to stop receiving them, please raise a github issue with the details.
 		 */
 		log_rate_limited_error(vrrp, VRRP_RLFLAG_UNI_MULTICAST_ERR, "(%s) Expected %sicast packet but received %sicast packet from %s",
-				vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr),
+				vrrp->iname,
 				__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) ? "un" : "mult",
-				__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) ? "mult" : "un");
+				__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) ? "mult" : "un",
+				inet_sockaddrtos(&vrrp->pkt_saddr));
 		++vrrp->stats->addr_list_err;
 		return VRRP_PACKET_KO;
+	}
+
+	if (vrrp->owner_ignore_adverts && vrrp->effective_priority == VRRP_PRIO_OWNER) {
+		log_rate_limited_error(vrrp, VRRP_RLFLAG_OWNER_IGNORE_ADVER, "(%s) Dropping packet(s) from %s since we are address owner",
+				       vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
+		return VRRP_PACKET_DROP;
 	}
 
 	/* Correct type, version, and length. Count as VRRP advertisement */
@@ -3461,6 +3468,25 @@ vrrp_complete_instance(vrrp_t * vrrp)
 							  " to be clear. resetting"
 							, vrrp->iname);
 		vrrp->higher_prio_send_advert = false;
+	}
+
+	if (vrrp->owner_ignore_adverts == true && vrrp->base_priority != VRRP_PRIO_OWNER) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring owner_ignore_adverts since priority is not %d",
+							  vrrp->iname, VRRP_PRIO_OWNER);
+		vrrp->owner_ignore_adverts = false;
+	} else if (vrrp->owner_ignore_adverts == PARAMETER_UNSET) {
+		if (vrrp->base_priority == VRRP_PRIO_OWNER) {
+			if (vrrp->strict_mode)
+				vrrp->owner_ignore_adverts = true;
+			else
+				vrrp->owner_ignore_adverts = global_data->vrrp_owner_ignore_adverts;
+		} else
+			vrrp->owner_ignore_adverts = false;
+	} else if (vrrp->base_priority == VRRP_PRIO_OWNER &&
+		   !vrrp->owner_ignore_adverts) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) strict_mode with priority %d requires owner_ignore_adverts",
+				    vrrp->iname, VRRP_PRIO_OWNER);
+		vrrp->owner_ignore_adverts = true;
 	}
 
 	if (vrrp->smtp_alert == -1) {

@@ -955,6 +955,8 @@ dump_global_data(FILE *fp, data_t * data)
 		conf_write(fp, " vrrp_startup_delay = %g", global_data->vrrp_startup_delay / TIMER_HZ_DOUBLE);
 	if (global_data->log_unknown_vrids)
 		conf_write(fp, " log_unknown_vrids");
+	if (global_data->vrrp_owner_ignore_adverts)
+		conf_write(fp, " vrrp_owner_ignore_adverts");
 #ifdef _HAVE_VRRP_VMAC_
 	if (global_data->vmac_prefix)
 		conf_write(fp, " VMAC prefix = %s", global_data->vmac_prefix);

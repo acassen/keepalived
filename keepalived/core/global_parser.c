@@ -2250,6 +2250,21 @@ vrrp_log_unknown_vrids_handler(__attribute__((unused)) const vector_t *strvec)
 	global_data->log_unknown_vrids = true;
 }
 
+static void
+vrrp_owner_ignore_adverts_handler(__attribute__((unused)) const vector_t *strvec)
+{
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global %s specified", strvec_slot(strvec, 0), strvec_slot(strvec, 1));
+			return;
+		}
+	}
+	global_data->vrrp_owner_ignore_adverts = res;
+}
+
 #ifdef _HAVE_VRRP_VMAC_
 static void
 vrrp_vmac_prefix_handler(const vector_t *strvec)
@@ -2700,6 +2715,7 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_rx_bufs_multiplier", &vrrp_rx_bufs_multiplier_handler);
 	install_keyword("vrrp_startup_delay", &vrrp_startup_delay_handler);
 	install_keyword("log_unknown_vrids", &vrrp_log_unknown_vrids_handler);
+	install_keyword("vrrp_owner_ignore_adverts", &vrrp_owner_ignore_adverts_handler);
 #ifdef _HAVE_VRRP_VMAC_
 	install_keyword("vmac_prefix", &vrrp_vmac_prefix_handler);
 	install_keyword("vmac_addr_prefix", &vrrp_vmac_addr_prefix_handler);
