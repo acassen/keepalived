@@ -2052,6 +2052,12 @@ vrrp_state_backup(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buf, ssize_t bu
 
 		/* We want to reset the rate-limit flags since the master has changed */
 		vrrp->rlflags = 0 ;
+
+		if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+			char old_master[INET6_ADDRSTRLEN];
+			strcpy(old_master, inet_sockaddrtos(&vrrp->master_saddr));
+			log_message(LOG_INFO, "(%s) master changed from %s to %s", vrrp->iname, old_master, inet_sockaddrtos(&vrrp->pkt_saddr));
+		}
 	}
 
 	ret = vrrp_check_packet(vrrp, hd, buf, buflen, master_change ||
