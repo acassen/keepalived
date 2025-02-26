@@ -2210,7 +2210,6 @@ process_child_termination(pid_t pid, int status)
 		 * and it is still on the thread->ready queue. Since we have now got
 		 * the termination, just handle the termination instead. */
 		thread->type = THREAD_CHILD_TERMINATED;
-		rb_erase(&thread->rb_data, &master->child_pid);
 	}
 	else
 		thread_move_ready(m, &m->child, thread, THREAD_CHILD_TERMINATED);
