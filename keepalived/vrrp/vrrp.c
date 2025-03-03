@@ -1973,6 +1973,16 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 	/* Set the down timer */
 	vrrp->master_adver_int = vrrp->adver_int;
 	vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
+	if (vrrp->state == VRRP_STATE_BACK && vrrp->route_propagation_delay > 0)
+	{
+		vrrp->apply_route_propagation = true;
+		vrrp->route_propagated_time = timer_add_long(time_now, vrrp->route_propagation_delay);
+	}
+	if (vrrp->state == VRRP_STATE_FAULT)
+	{
+		vrrp->apply_route_propagation = false;
+		vrrp->route_propagated_time = time_now;
+	}
 	vrrp_init_instance_sands(vrrp);
 	vrrp->last_transition = timer_now();
 }
@@ -3355,6 +3365,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 								, vrrp->iname);
 			vrrp->preempt_delay = false;
 		}
+		if (vrrp->route_propagation_delay) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Warning - route propagation delay will not work with initial state MASTER - clearing", vrrp->iname);
+			vrrp->route_propagation_delay = 0;
+		}
 	}
 	if (vrrp->preempt_delay) {
 		if (vrrp->strict_mode) {
@@ -3368,6 +3382,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 								  " nopreempt mode - resetting"
 								, vrrp->iname);
 			vrrp->preempt_delay = 0;
+		}
+	}
+	if (vrrp->route_propagation_delay) {
+		if (vrrp->strict_mode) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) route_propagation_delay is incompatible with strict mode - resetting", vrrp->iname);
+			vrrp->route_propagation_delay = 0;
 		}
 	}
 

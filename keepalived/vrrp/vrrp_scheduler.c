@@ -239,6 +239,12 @@ vrrp_init_state(list_head_t *l)
 				 * very quickly (1usec) */
 				vrrp->state = VRRP_STATE_BACK;
 				vrrp->ms_down_timer = 1;
+				if (vrrp->route_propagation_delay > 0)
+				{
+					vrrp->apply_route_propagation = true;
+					vrrp->route_propagated_time = timer_add_long(time_now, vrrp->route_propagation_delay);
+				}
+
 			}
 
 // TODO Do we need ->	vrrp_restore_interface(vrrp, false, false);
@@ -249,6 +255,12 @@ vrrp_init_state(list_head_t *l)
 				vrrp->ms_down_timer = vrrp->master_adver_int + VRRP_TIMER_SKEW_MIN(vrrp);
 			} else
 				vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
+
+			if (vrrp->route_propagation_delay > 0)
+			{
+				vrrp->apply_route_propagation = true;
+				vrrp->route_propagated_time = timer_add_long(time_now, vrrp->route_propagation_delay);
+			}
 
 #ifdef _WITH_SNMP_RFCV3_
 			vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_MASTER_NO_RESPONSE;
@@ -323,6 +335,14 @@ vrrp_init_instance_sands(vrrp_t *vrrp)
 			vrrp->sands = timer_add_long(vrrp_delayed_start_time, vrrp->ms_down_timer);
 		else
 			vrrp->sands = timer_add_long(time_now, vrrp->ms_down_timer);
+		if (vrrp->apply_route_propagation)
+		{
+			log_message(LOG_INFO, "Applied vrrp route propagation delay of %lu on instance (%s)",
+				    vrrp->route_propagation_delay, vrrp->iname);
+			vrrp->sands = timer_add_long(vrrp->sands, vrrp->route_propagation_delay);
+			vrrp->apply_route_propagation = false;
+			vrrp->route_propagated_time = vrrp->sands;
+		}
 	}
 	else if (vrrp->state == VRRP_STATE_FAULT || vrrp->state == VRRP_STATE_INIT)
 		vrrp->sands.tv_sec = TIMER_DISABLED;
@@ -1086,6 +1106,15 @@ vrrp_dispatcher_read(sock_t *sock)
 			continue;
 		}
 
+		if (vrrp->route_propagation_delay > 0)
+		{
+			/* Ignore the message if it is received before all the routes are
+			 * propagated */
+			set_time_now();
+			if (timercmp(&time_now, &vrrp->route_propagated_time, <)) {
+				return sock->fd_in;
+			}
+		}
 		/* Save non packet data */
 		vrrp->pkt_saddr = src_addr;
 		vrrp->rx_ttl_hl = -1;           /* Default to not received */
