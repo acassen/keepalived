@@ -1144,6 +1144,18 @@ vrrp_preempt_delay_handler(const vector_t *strvec)
 		current_vrrp->preempt_delay = preempt_delay;
 }
 static void
+vrrp_route_propagation_delay_handler(const vector_t *strvec)
+{
+	unsigned route_propagation_delay;
+
+	if (!read_decimal_unsigned_strvec(strvec, 1, &route_propagation_delay, 0, TIMER_MAX_SEC * TIMER_HZ, TIMER_HZ_DIGITS, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) route_propagation_delay not valid! must be between 0-%u", current_vrrp->iname, TIMER_MAX_SEC);
+		current_vrrp->route_propagation_delay = 0;
+	}
+	else
+		current_vrrp->route_propagation_delay = route_propagation_delay;
+}
+static void
 vrrp_notify_backup_handler(const vector_t *strvec)
 {
 	if (current_vrrp->script_backup) {
@@ -2211,6 +2223,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("preempt", &vrrp_preempt_handler);
 	install_keyword("nopreempt", &vrrp_nopreempt_handler);
 	install_keyword("preempt_delay", &vrrp_preempt_delay_handler);
+	install_keyword("route_propagation_delay", &vrrp_route_propagation_delay_handler);
 	install_keyword("debug", &vrrp_debug_handler);
 	install_keyword_quoted("notify_backup", &vrrp_notify_backup_handler);
 	install_keyword_quoted("notify_master", &vrrp_notify_master_handler);
