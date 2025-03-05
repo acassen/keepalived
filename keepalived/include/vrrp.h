@@ -373,7 +373,17 @@ typedef struct _vrrp_t {
 							 * preemption based on higher prio over lower
 							 * prio is allowed.  0 means no delay.
 							 */
+	unsigned long		route_propagation_delay;/* Seconds*TIMER_HZ to wait at startup until
+							 * MDT timer can start.  0 means no delay.
+							 */
 	timeval_t		preempt_time;		/* Time after which preemption can happen */
+	timeval_t		route_propagated_time;	/* Time at which all routes are propagated.
+							 * VRRP packets to this interface are dropped before
+							 * all routes are propagated.
+							 */
+	bool			apply_route_propagation;/* Apply the route propagation delay the next time when
+							 * instance tries to become master.
+							 */
 	int			state;			/* internal state (init/backup/master/fault) */
 #ifdef _WITH_SNMP_VRRP_
 	int			configured_state;	/* the configured state of the instance */
