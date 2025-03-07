@@ -609,23 +609,24 @@ start_vrrp(data_t *prev_global_data)
 		/* Init & start the VRRP packet dispatcher */
 		thread_add_event(master, vrrp_dispatcher_init, NULL, 0);
 
-		if (global_data->vrrp_startup_delay) {
-			if (!reload) {
+		if (!reload) {
+			if (global_data->vrrp_startup_delay) {
 				vrrp_delayed_start_time = timer_add_long(time_now, global_data->vrrp_startup_delay);
 				thread_add_timer(master, delayed_start_clear_thread, NULL, global_data->vrrp_startup_delay);
 				log_message(LOG_INFO, "Delaying startup for %g seconds", global_data->vrrp_startup_delay / TIMER_HZ_DOUBLE);
-			} else if (vrrp_delayed_start_time.tv_sec) {
-				if (time_now.tv_sec > vrrp_delayed_start_time.tv_sec ||
-				    (time_now.tv_sec == vrrp_delayed_start_time.tv_sec &&
-				     time_now.tv_usec >= vrrp_delayed_start_time.tv_usec))
-					vrrp_delayed_start_time.tv_sec = 0;
-				else {
-					unsigned delay_left;
-					delay_left = (vrrp_delayed_start_time.tv_sec - time_now.tv_sec) * 1000000UL
-							+ vrrp_delayed_start_time.tv_usec - time_now.tv_usec;
-					thread_add_timer(master, delayed_start_clear_thread, NULL, delay_left);
-					log_message(LOG_INFO, "Delaying startup for a further %g seconds", delay_left / TIMER_HZ_DOUBLE);
-				}
+			} else
+				vrrp_delayed_start_time.tv_sec = 0;
+		} else if (vrrp_delayed_start_time.tv_sec) {
+			if (time_now.tv_sec > vrrp_delayed_start_time.tv_sec ||
+				(time_now.tv_sec == vrrp_delayed_start_time.tv_sec &&
+				 time_now.tv_usec >= vrrp_delayed_start_time.tv_usec))
+				vrrp_delayed_start_time.tv_sec = 0;
+			else {
+				unsigned delay_left;
+				delay_left = (vrrp_delayed_start_time.tv_sec - time_now.tv_sec) * 1000000UL
+						+ vrrp_delayed_start_time.tv_usec - time_now.tv_usec;
+				thread_add_timer(master, delayed_start_clear_thread, NULL, delay_left);
+				log_message(LOG_INFO, "Delaying startup for a further %g seconds", delay_left / TIMER_HZ_DOUBLE);
 			}
 		}
 
