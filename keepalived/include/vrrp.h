@@ -378,6 +378,15 @@ typedef struct _vrrp_t {
 							 * remain in Fault or Init state before transitioning to
 							 * another state. 0 means no delay.
 							 */
+	timeval_t		fault_init_exit_time;	/* Time after which transitioning from INIT or
+							 * FAULT state can happen.
+							 */
+	thread_ref_t		fault_init_exit_thread; /* Thread to schedule the end of the
+											   * fault_init_exit_delay timer
+											   */
+	bool			fault_exit_delay_apply; /* Apply fault_init_exit_delay before
+											 * transitioning from the FAULT state
+											 */
 	int			state;			/* internal state (init/backup/master/fault) */
 #ifdef _WITH_SNMP_VRRP_
 	int			configured_state;	/* the configured state of the instance */

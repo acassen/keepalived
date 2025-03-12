@@ -1926,6 +1926,12 @@ vrrp_state_leave_master(vrrp_t * vrrp, bool advF)
 		/* If there is no address on the interface we cannot sent an IPv6 advert */
 		if (vrrp->family == AF_INET || vrrp->saddr.ss_family != AF_UNSPEC)
 			vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
+
+		if (vrrp->fault_init_exit_delay && !vrrp_delayed_start_time.tv_sec)
+			/* Mark the VRRP instance for fault_init_exit_delay application
+			 * before transitioning from the FAULT state
+			 */
+			vrrp->fault_exit_delay_apply = true;
 	}
 	else {
 		log_message(LOG_INFO, "(%s) vrrp_state_leave_master called with invalid wantstate %d", vrrp->iname, vrrp->wantstate);
@@ -1959,6 +1965,16 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 	else {
 		if (vrrp->state != vrrp->wantstate)
 			log_message(LOG_INFO, "(%s) Entering %s STATE", vrrp->iname, vrrp->wantstate == VRRP_STATE_BACK ? "BACKUP" : "FAULT");
+
+		if (vrrp->fault_init_exit_delay
+				&& !vrrp_delayed_start_time.tv_sec
+				&& vrrp->wantstate == VRRP_STATE_FAULT
+				&& vrrp->state != VRRP_STATE_FAULT)
+			/* Mark the VRRP instance for fault_init_exit_delay application
+			 * before transitioning from the FAULT state
+			 */
+			vrrp->fault_exit_delay_apply = true;
+
 		if (vrrp->wantstate == VRRP_STATE_FAULT && vrrp->state == VRRP_STATE_MAST) {
 			vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 			vrrp_restore_interface(vrrp, false, false);
@@ -5032,6 +5048,16 @@ vrrp_complete_init(void)
 
 				vrrp->state = old_vrrp->state;
 				vrrp->wantstate = old_vrrp->state;
+
+				if (!old_vrrp->fault_init_exit_time.tv_sec)
+					/* fault_init_exit_time is not set */
+					continue;
+
+				/* Copy the previous timer */
+				vrrp->fault_init_exit_time = old_vrrp->fault_init_exit_time;
+
+				vrrp->fault_init_exit_thread = thread_add_timer_sands(master, fault_init_exit_thread, vrrp,
+						&vrrp->fault_init_exit_time);
 			}
 		}
 
@@ -5457,5 +5483,6 @@ register_vrrp_fifo_addresses(void)
 {
 	register_thread_address("vrrp_notify_fifo_script_exit", vrrp_notify_fifo_script_exit);
 	register_thread_address("vrrp_rogue_timer_thread", vrrp_rogue_timer_thread);
+	register_thread_address("fault_init_exit_thread", fault_init_exit_thread);
 }
 #endif

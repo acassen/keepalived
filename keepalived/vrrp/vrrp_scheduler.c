@@ -301,6 +301,22 @@ vrrp_init_state(list_head_t *l)
 /* Declare vrrp_timer_less() rbtree compare function */
 RB_TIMER_LESS(vrrp, rb_sands);
 
+void fault_init_exit_thread(thread_ref_t thread)
+{
+	vrrp_t *vrrp = THREAD_ARG(thread);
+
+	log_message(LOG_INFO,
+			"(%s) Delay for transitioning from FAULT state completed.",
+			vrrp->iname);
+
+	vrrp->fault_init_exit_time.tv_sec = 0;
+
+	vrrp->fault_exit_delay_apply = false;
+	try_up_instance(vrrp, false);
+
+	vrrp->fault_init_exit_thread = NULL;
+}
+
 /* Compute the new instance sands */
 void
 vrrp_init_instance_sands(vrrp_t *vrrp)
@@ -705,6 +721,30 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init)
 			}
 			vrrp->wantstate = VRRP_STATE_BACK;
 		}
+
+		return;
+	}
+
+	if (vrrp->fault_exit_delay_apply && !vrrp->fault_init_exit_time.tv_sec) {
+		/* Attempting to transition from the FAULT state, but fault_init_exit_delay
+		 * is configured and has not yet been applied.
+		 *
+		 * Remain in the FAULT state for the duration of the fault-init-exit delay.
+		 *
+		 * To achieve this, increment the fault counter to stay in the FAULT state.
+		 * Schedule a thread to reattempt the transition by calling this function again
+		 * once the fault_init_exit_delay has elapsed. This function decrements
+		 * the fault counter.
+		 */
+
+		vrrp->num_script_if_fault++;
+
+		log_message(LOG_INFO, "(%s) Applied vrrp fault init exit delay of %g seconds.",
+				vrrp->iname, vrrp->fault_init_exit_delay / TIMER_HZ_DOUBLE);
+
+		vrrp->fault_init_exit_time = timer_add_long(time_now, vrrp->fault_init_exit_delay);
+		vrrp->fault_init_exit_thread = thread_add_timer_sands(master, fault_init_exit_thread, vrrp,
+				  &vrrp->fault_init_exit_time);
 
 		return;
 	}
