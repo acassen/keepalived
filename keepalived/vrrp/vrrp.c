@@ -5053,11 +5053,34 @@ vrrp_complete_init(void)
 					/* fault_init_exit_time is not set */
 					continue;
 
-				/* Copy the previous timer */
-				vrrp->fault_init_exit_time = old_vrrp->fault_init_exit_time;
+				set_time_now();
+
+				if (timercmp(&time_now, &old_vrrp->fault_init_exit_time, >=))
+					/* fault_init_exit_time is over */
+					continue;
+
+				if (vrrp->fault_init_exit_delay == old_vrrp->fault_init_exit_delay)
+					/* fault_init_exit_delay has not changed. Copy the previous timer */
+					vrrp->fault_init_exit_time = old_vrrp->fault_init_exit_time;
+				else if (vrrp->fault_init_exit_delay > old_vrrp->fault_init_exit_delay)
+					/* fault_init_exit_delay has been extended.
+					 * Update the timer to include the additional time
+					 */
+					vrrp->fault_init_exit_time = timer_add_long(old_vrrp->fault_init_exit_time,
+										     vrrp->fault_init_exit_delay - old_vrrp->fault_init_exit_delay);
+				else if (!timercmp(&vrrp->fault_init_exit_time, &time_now, <))
+					/* fault_init_exit_delay has decreased.
+					 * Update the timer to exclude the difference in time.
+					 */
+					vrrp->fault_init_exit_time = timer_sub_long(old_vrrp->fault_init_exit_time,
+											 old_vrrp->fault_init_exit_delay - vrrp->fault_init_exit_delay);
 
 				vrrp->fault_init_exit_thread = thread_add_timer_sands(master, fault_init_exit_thread, vrrp,
 						&vrrp->fault_init_exit_time);
+
+				if (vrrp->fault_init_exit_delay != old_vrrp->fault_init_exit_delay)
+					log_message(LOG_INFO, "(%s) changing route_propagated_time as propagation delay is changed from %g seconds to %g seconds", vrrp->iname,
+							old_vrrp->fault_init_exit_delay / TIMER_HZ_DOUBLE, vrrp->fault_init_exit_delay / TIMER_HZ_DOUBLE);
 			}
 		}
 
