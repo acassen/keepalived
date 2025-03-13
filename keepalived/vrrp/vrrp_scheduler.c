@@ -714,7 +714,37 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init)
 			return;
 	}
 	else if (--vrrp->num_script_if_fault || vrrp->num_script_init) {
-		if (!vrrp->num_script_if_fault) {
+		if (vrrp->fault_init_exit_delay
+				&& vrrp->num_script_if_fault == 1
+				&& !vrrp_delayed_start_time.tv_sec) {
+			/* Handle cases where a second fault occurs during fault_init_exit_delay
+			 * keeping the instance in the FAULT state.
+			 */
+			if (vrrp->fault_exit_delay_apply) {
+				/* A fault was detected and recovered, with fault_init_exit_delay
+				 * keeping the instance in the FAULT state. During this delay,
+				 * another fault occurred and was also recovered.
+				 *
+				 * Re-arm the fault_init_exit_thread to prevent the instance
+				 * from leaving the FAULT state too soon. Without this, it
+				 * would transition out of FAULT after the first recovery time
+				 * plus the fault_init_exit_delay.
+				 */
+				thread_cancel(vrrp->fault_init_exit_thread);
+				vrrp->fault_init_exit_time = timer_add_long(time_now, vrrp->fault_init_exit_delay);
+				vrrp->fault_init_exit_thread = thread_add_timer_sands(master, fault_init_exit_thread, vrrp,
+						  &vrrp->fault_init_exit_time);
+			} else
+				/* A fault was detected and recovered, with fault_init_exit_delay
+				 * keeping the instance in the FAULT state. During this delay,
+				 * another fault occurred. When the fault_init_exit_delay times out,
+				 * this function is called.
+				 *
+				 * Request the application of fault_init_exit_delay when the second
+				 * recovers.
+				 */
+				vrrp->fault_exit_delay_apply = true;
+		} else if (!vrrp->num_script_if_fault) {
 			if (vrrp->sync) {
 				vrrp->sync->num_member_fault--;
 				vrrp->sync->state = VRRP_STATE_INIT;
