@@ -378,6 +378,12 @@ typedef struct _vrrp_t {
 							 * remain in Fault or Init state before transitioning to
 							 * another state. 0 means no delay.
 							 */
+	thread_ref_t		fault_exit_timer_thread; /* Fault exit timer thread, that starts a timer. */
+	timeval_t		fault_exit_time;	 /* Time after which the instance moves from fault state.
+							  * used when instance is reloaded while the timer is
+							  * running */
+	void			(*fault_exit_timer_cb)(struct _vrrp_t*);
+							/* Callback that is executed at the expiry of fault_exit_timer */
 	int			state;			/* internal state (init/backup/master/fault) */
 #ifdef _WITH_SNMP_VRRP_
 	int			configured_state;	/* the configured state of the instance */

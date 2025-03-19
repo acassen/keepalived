@@ -176,6 +176,28 @@ static struct {
 /* FAULT  */	{ {NULL}, {NULL},			{vrrp_sync_master}, {NULL} }
 };
 
+static void
+vrrp_state_set_backup(vrrp_t *vrrp)
+{
+	log_message(LOG_INFO, "(%s) VRRP moving state to backup", vrrp->iname);
+	vrrp->state = VRRP_STATE_BACK;
+}
+
+static void
+vrrp_fault_exit_timer_thread(thread_ref_t thread)
+{
+	vrrp_t *vrrp = THREAD_ARG(thread);
+
+	log_message(LOG_INFO, "(%s) VRRP fault_init_exit_delay of %g seconds complete.",
+		    vrrp->iname, vrrp->fault_init_exit_delay/TIMER_HZ_DOUBLE);
+
+	if (vrrp->fault_exit_timer_cb)
+		vrrp->fault_exit_timer_cb(vrrp);
+	vrrp->fault_exit_timer_thread = NULL;
+	vrrp->fault_exit_timer_cb = NULL;
+	vrrp->fault_exit_time.tv_sec = 0;
+}
+
 /*
  * Initialize state handling
  * --rfc2338.6.4.1
@@ -274,8 +296,15 @@ vrrp_init_state(list_head_t *l)
 			    !vrrp->num_script_init &&
 			    (!vrrp->sync || !vrrp->sync->num_member_init)) {
 				if (vrrp->state != VRRP_STATE_BACK) {
-					log_message(LOG_INFO, "(%s) Entering BACKUP STATE (init)", vrrp->iname);
-					vrrp->state = VRRP_STATE_BACK;
+					if (vrrp->state == VRRP_STATE_FAULT && timercmp(&time_now, &vrrp->fault_exit_time, <)) {
+						log_message(LOG_INFO, "(%s) Entering FAULT STATE due to exit delay time", vrrp->iname);
+						vrrp->fault_exit_timer_cb = vrrp_state_set_backup;
+						vrrp->fault_exit_timer_thread = thread_add_timer_sands(master,
+								vrrp_fault_exit_timer_thread, vrrp, &vrrp->fault_exit_time);
+					} else {
+						log_message(LOG_INFO, "(%s) Entering BACKUP STATE (init)", vrrp->iname);
+						vrrp->state = VRRP_STATE_BACK;
+					}
 				}
 			} else {
 				/* Note: if we have alpha mode scripts, we enter fault state, but don't want
@@ -324,8 +353,12 @@ vrrp_init_instance_sands(vrrp_t *vrrp)
 		else
 			vrrp->sands = timer_add_long(time_now, vrrp->ms_down_timer);
 	}
-	else if (vrrp->state == VRRP_STATE_FAULT || vrrp->state == VRRP_STATE_INIT)
-		vrrp->sands.tv_sec = TIMER_DISABLED;
+	else if (vrrp->state == VRRP_STATE_FAULT || vrrp->state == VRRP_STATE_INIT) {
+		if (timercmp(&time_now, &vrrp->fault_exit_time, <)) {
+			vrrp->sands = vrrp->fault_exit_time;
+		} else
+			vrrp->sands.tv_sec = TIMER_DISABLED;
+	}
 
 	rb_move_cached(&vrrp->rb_sands, &vrrp->sockets->rb_sands, vrrp_timer_less);
 }
@@ -688,52 +721,10 @@ vrrp_gratuitous_arp_vmac_update_thread(thread_ref_t thread)
 #endif
 
 void
-try_up_instance(vrrp_t *vrrp, bool leaving_init)
+up_instance(vrrp_t *vrrp)
 {
 	int wantstate;
 	ip_address_t ip_addr = {0};
-
-	if (leaving_init) {
-		if (vrrp->num_script_if_fault)
-			return;
-	}
-	else if (--vrrp->num_script_if_fault || vrrp->num_script_init) {
-		if (!vrrp->num_script_if_fault) {
-			if (vrrp->sync) {
-				vrrp->sync->num_member_fault--;
-				vrrp->sync->state = VRRP_STATE_INIT;
-			}
-			vrrp->wantstate = VRRP_STATE_BACK;
-		}
-
-		return;
-	}
-
-	if (vrrp->wantstate == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER) {
-#ifdef _WITH_SNMP_RFCV3_
-		vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
-#endif
-	} else {
-		vrrp->wantstate = VRRP_STATE_BACK;
-#ifdef _WITH_SNMP_RFCV3_
-		vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_MASTER_NO_RESPONSE;
-#endif
-	}
-
-	vrrp->master_adver_int = vrrp->adver_int;
-	if (vrrp->wantstate == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER)
-		vrrp->ms_down_timer = vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
-	else
-		vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
-
-	if (vrrp->sync) {
-		if (leaving_init) {
-			if (vrrp->sync->num_member_fault)
-				return;
-		}
-		else if (--vrrp->sync->num_member_fault || vrrp->sync->num_member_init)
-			return;
-	}
 
 	/* If the sync group can't go to master, we must go to backup state */
 	wantstate = vrrp->wantstate;
@@ -778,6 +769,63 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init)
 		else
 			vrrp_sync_backup(vrrp);
 	}
+}
+
+void
+try_up_instance(vrrp_t *vrrp, bool leaving_init)
+{
+	if (leaving_init) {
+		if (vrrp->num_script_if_fault)
+			return;
+	}
+	else if (--vrrp->num_script_if_fault || vrrp->num_script_init) {
+		if (!vrrp->num_script_if_fault) {
+			if (vrrp->sync) {
+				vrrp->sync->num_member_fault--;
+				vrrp->sync->state = VRRP_STATE_INIT;
+			}
+			vrrp->wantstate = VRRP_STATE_BACK;
+		}
+
+		return;
+	}
+
+	if (vrrp->wantstate == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER) {
+#ifdef _WITH_SNMP_RFCV3_
+		vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
+#endif
+	} else {
+		vrrp->wantstate = VRRP_STATE_BACK;
+#ifdef _WITH_SNMP_RFCV3_
+		vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_MASTER_NO_RESPONSE;
+#endif
+	}
+
+	vrrp->master_adver_int = vrrp->adver_int;
+	if (vrrp->wantstate == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER)
+		vrrp->ms_down_timer = vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+	else
+		vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
+
+	if (vrrp->sync) {
+		if (leaving_init) {
+			if (vrrp->sync->num_member_fault)
+				return;
+		}
+		else if (--vrrp->sync->num_member_fault || vrrp->sync->num_member_init)
+			return;
+	}
+
+	if (vrrp->fault_init_exit_delay) {
+		vrrp->fault_exit_time = timer_add_long(time_now, vrrp->fault_init_exit_delay);
+		vrrp->fault_exit_timer_thread =
+			thread_add_timer_sands(master, vrrp_fault_exit_timer_thread,
+					       vrrp, &vrrp->fault_exit_time);
+		vrrp->fault_exit_timer_cb = up_instance;
+		return;
+	}
+
+	up_instance(vrrp);
 }
 
 #ifdef _WITH_BFD_
