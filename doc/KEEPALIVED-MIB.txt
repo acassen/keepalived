@@ -946,6 +946,7 @@ VrrpInstanceEntry ::= SEQUENCE {
     vrrpInstanceMulticastAddressType InetAddressType,
     vrrpInstanceMulticastAddress InetAddress,
     vrrpInstanceV3ChecksumAsV2 INTEGER
+    vrrpInstanceFaultInitExitDelay Unsigned32
 }
 
 vrrpInstanceIndex OBJECT-TYPE
@@ -1250,6 +1251,15 @@ vrrpInstanceV3ChecksumAsV2 OBJECT-TYPE
     DESCRIPTION
         "True if VRRPv3 IPv4 checksum excludes pseudo-header."
     ::= { vrrpInstanceEntry 36 }
+
+vrrpInstanceFaultInitExitDelay OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Delay after a fault after which the instance participates in master election. 0 means that there is no delay."
+    ::= { vrrpInstanceEntry 37 }
 
 vrrpTrackedInterfaceTable OBJECT-TYPE
     SYNTAX SEQUENCE OF VrrpTrackedInterfaceEntry
@@ -5102,6 +5112,7 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpInstanceMulticastAddressType,
     vrrpInstanceMulticastAddress,
     vrrpInstanceV3ChecksumAsV2,
+    vrrpInstanceFaultInitExitDelay,
     vrrpTrackedInterfaceName,
     vrrpTrackedInterfaceWeight,
     vrrpTrackedInterfaceWgtRev,
