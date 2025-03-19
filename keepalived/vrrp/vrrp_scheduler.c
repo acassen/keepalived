@@ -1220,6 +1220,7 @@ vrrp_script_thread(thread_ref_t thread)
 		/* We don't want the system to be overloaded with scripts that we are executing */
 		log_message(LOG_INFO, "Track script %s is %s, expect idle - skipping run",
 			    vscript->sname, vscript->state == SCRIPT_STATE_RUNNING ? "already running" : "being timed out");
+		return;
 	}
 
 	/* Execute the script in a child process. Parent returns, child doesn't */
