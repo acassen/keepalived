@@ -3378,6 +3378,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 								, vrrp->iname);
 			vrrp->preempt_delay = false;
 		}
+		if (vrrp->fault_init_exit_delay) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Warning - fault init exit delay will not work with initial state MASTER - clearing", vrrp->iname);
+			vrrp->fault_init_exit_delay = false;
+		}
 	}
 	if (vrrp->preempt_delay) {
 		if (vrrp->strict_mode) {
@@ -3391,6 +3395,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 								  " nopreempt mode - resetting"
 								, vrrp->iname);
 			vrrp->preempt_delay = 0;
+		}
+	}
+	if (vrrp->fault_init_exit_delay) {
+		if (vrrp->strict_mode) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) fault_init_exit_delay is incompatible with strict mode - resetting", vrrp->iname);
+			vrrp->fault_init_exit_delay = 0;
 		}
 	}
 

@@ -386,6 +386,11 @@ typedef struct _vrrp_t {
 							 * prio is allowed.  0 means no delay.
 							 */
 	timeval_t		preempt_time;		/* Time after which preemption can happen */
+	unsigned long		fault_init_exit_delay;  /* Additional seconds*TIMER_HZ that the instance
+							 * remains in BACKUP state after moving out of
+							 * FAULT on INIT state before transitioning to
+							 * MASTER. 0 means no delay.
+							 */
 	int			state;			/* internal state (init/backup/master/fault) */
 #ifdef _WITH_SNMP_VRRP_
 	int			configured_state;	/* the configured state of the instance */
