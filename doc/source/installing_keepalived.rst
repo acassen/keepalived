@@ -44,7 +44,7 @@ On RHEL, Centos, Fedora etc install the following prerequisites
 
     dnf install gcc make autoconf automake openssl-devel libnl3-devel \
         iptables-devel ipset-devel net-snmp-devel libnfnetlink-devel file-devel \
-        glib2-devel pcre2-revel libnftnl-devel libmnl-devel systemd-devel kmod-devel
+        glib2-devel pcre2-devel libnftnl-devel libmnl-devel systemd-devel kmod-devel
 
 For DBUS support::
 
