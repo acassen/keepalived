@@ -3,6 +3,7 @@ name: "CodeQL"
 on:
   push:
     branches: [ "master" ]
+    paths-ignore:
       - 'doc/**'
       - 'test/**'
   pull_request:
