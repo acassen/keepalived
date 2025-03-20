@@ -552,6 +552,12 @@ down_instance(vrrp_t *vrrp)
 		if (vrrp->sync && vrrp->sync->num_member_fault++ == 0)
 			vrrp_sync_fault(vrrp);
 	}
+	if (vrrp->fault_exit_timer_thread) {
+		thread_cancel(vrrp->fault_exit_timer_thread);
+		vrrp->fault_exit_timer_thread = NULL;
+		vrrp->fault_exit_timer_cb = NULL;
+		vrrp->fault_exit_time.tv_sec = 0;
+	}
 }
 
 /* Set effective priorty, issue message on changes */

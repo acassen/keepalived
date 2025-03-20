@@ -3355,6 +3355,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 								, vrrp->iname);
 			vrrp->preempt_delay = false;
 		}
+		if (vrrp->fault_init_exit_delay) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Warning - fault init exit delay will not work with initial state MASTER - clearing", vrrp->iname);
+			vrrp->fault_init_exit_delay = false;
+		}
 	}
 	if (vrrp->preempt_delay) {
 		if (vrrp->strict_mode) {
@@ -3368,6 +3372,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 								  " nopreempt mode - resetting"
 								, vrrp->iname);
 			vrrp->preempt_delay = 0;
+		}
+	}
+	if (vrrp->fault_init_exit_delay) {
+		if (vrrp->strict_mode) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) fault_init_exit_delay is incompatible with strict mode - resetting", vrrp->iname);
+			vrrp->fault_init_exit_delay = 0;
 		}
 	}
 
@@ -4778,6 +4788,7 @@ vrrp_complete_init(void)
 	vrrp_script_t *scr, *scr_tmp;
 	unsigned quickest_takeover;
 	unsigned vrrp_timeout_min = UINT_MAX;
+	timeval_t fault_exit_time;
 
 	/* Set defaults if not specified, depending on strict mode */
 	if (global_data->vrrp_garp_lower_prio_rep == PARAMETER_UNSET)
@@ -5008,20 +5019,33 @@ vrrp_complete_init(void)
 	if (reload) {
 		/* Now step through the old vrrp to set the status on matching new instances */
 		list_for_each_entry(old_vrrp, &old_vrrp_data->vrrp, e_list) {
-			/* We work out for ourselves if the vrrp instance
-			 * should be in fault state, so it doesn't matter
-			 * if it was before */
-			if (old_vrrp->state == VRRP_STATE_FAULT)
-				continue;
-
 			vrrp = vrrp_exist(old_vrrp, &vrrp_data->vrrp);
 			if (vrrp) {
+				if (old_vrrp->fault_exit_timer_thread)
+					thread_cancel(old_vrrp->fault_exit_timer_thread);
+
 				/* If we have detected a fault, don't override it */
 				if (vrrp->state == VRRP_STATE_FAULT || vrrp->num_script_init)
 					continue;
 
+				fault_exit_time = old_vrrp->fault_exit_time;
+				if (vrrp->fault_init_exit_delay >= old_vrrp->fault_init_exit_delay)
+					fault_exit_time = timer_add_long(old_vrrp->fault_exit_time,
+						vrrp->fault_init_exit_delay - old_vrrp->fault_init_exit_delay);
+				else
+					fault_exit_time = timer_sub_long(old_vrrp->fault_exit_time,
+						old_vrrp->fault_init_exit_delay - vrrp->fault_init_exit_delay);
+				/* We work out for ourselves if the vrrp instance
+				 * should be in fault state, except if it is in
+				 * fault state because of fault_init_exit_delay).
+				 * If the fault_exit_time after reload is already in the past, ignore it. */
+				if (old_vrrp->state == VRRP_STATE_FAULT &&
+					timercmp(&time_now, &fault_exit_time, >))
+					    continue;
+
 				vrrp->state = old_vrrp->state;
 				vrrp->wantstate = old_vrrp->state;
+				vrrp->fault_exit_time = fault_exit_time;
 			}
 		}
 
