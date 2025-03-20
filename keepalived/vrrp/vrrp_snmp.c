@@ -226,6 +226,7 @@ enum snmp_vrrp_magic {
 	VRRP_SNMP_INSTANCE_MULTICAST_ADDRESSTYPE,
 	VRRP_SNMP_INSTANCE_MULTICAST_ADDRESS,
 	VRRP_SNMP_INSTANCE_V3_CHECKSUM_AS_V2,
+	VRRP_SNMP_INSTANCE_FAULTINITEXITDELAY,
 	VRRP_SNMP_TRACKEDINTERFACE_NAME,
 	VRRP_SNMP_TRACKEDINTERFACE_WEIGHT,
 	VRRP_SNMP_TRACKEDINTERFACE_WEIGHT_REVERSE,
@@ -2236,6 +2237,9 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_INSTANCE_V3_CHECKSUM_AS_V2:
 		long_ret.u = (__test_bit(VRRP_FLAG_V3_CHECKSUM_AS_V2, &rt->flags)) ? 1 : 2;
 		return PTR_CAST(u_char, &long_ret);
+	case VRRP_SNMP_INSTANCE_FAULTINITEXITDELAY:
+		long_ret.u = rt->fault_init_exit_delay / TIMER_HZ;
+		return PTR_CAST(u_char, &long_ret);
 	default:
 		return NULL;
 	}
@@ -2680,6 +2684,8 @@ static struct variable3 vrrp_vars[] = {
 	 vrrp_snmp_instance, 3, {3, 1, 35}},
 	{VRRP_SNMP_INSTANCE_V3_CHECKSUM_AS_V2, ASN_INTEGER, RONLY,
 	 vrrp_snmp_instance, 3, {3, 1, 36}},
+	{VRRP_SNMP_INSTANCE_FAULTINITEXITDELAY, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_instance, 3, {3, 1, 37}},
 
 	/* vrrpTrackedInterfaceTable */
 	{VRRP_SNMP_TRACKEDINTERFACE_NAME, ASN_OCTET_STR, RONLY,

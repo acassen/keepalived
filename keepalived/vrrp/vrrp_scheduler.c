@@ -212,6 +212,16 @@ vrrp_init_state(list_head_t *l)
 
 		new_state = vrrp->sync ? vrrp->sync->state : vrrp->wantstate;
 
+		if (!reload && vrrp->fault_init_exit_delay) {
+			log_message(LOG_INFO, "(%s) Applied vrrp fault init exit delay of %g seconds.",
+					vrrp->iname, vrrp->fault_init_exit_delay / TIMER_HZ_DOUBLE);
+			vrrp->fault_init_exit_time = timer_add_long(
+				vrrp_delayed_start_time.tv_sec ? vrrp_delayed_start_time: time_now,
+				vrrp->fault_init_exit_delay);
+			vrrp->fault_init_exit_thread = thread_add_timer_sands(master, fault_init_exit_thread, vrrp,
+					  &vrrp->fault_init_exit_time);
+		}
+
 		is_up = VRRP_ISUP(vrrp);
 
 		if (is_up &&
@@ -301,6 +311,26 @@ vrrp_init_state(list_head_t *l)
 /* Declare vrrp_timer_less() rbtree compare function */
 RB_TIMER_LESS(vrrp, rb_sands);
 
+void fault_init_exit_thread(thread_ref_t thread)
+{
+	vrrp_t *vrrp = THREAD_ARG(thread);
+
+	log_message(LOG_INFO,
+			"(%s) Delay for transitioning from %s state completed.",
+			vrrp->iname,
+			vrrp->fault_exit_delay_apply ? "FAULT" : "INIT");
+
+	vrrp->fault_init_exit_time.tv_sec = 0;
+
+	if (vrrp->fault_exit_delay_apply) {
+		vrrp->fault_exit_delay_apply = false;
+		try_up_instance(vrrp, false);
+	} else
+		try_up_instance(vrrp, true);
+
+	vrrp->fault_init_exit_thread = NULL;
+}
+
 /* Compute the new instance sands */
 void
 vrrp_init_instance_sands(vrrp_t *vrrp)
@@ -323,6 +353,17 @@ vrrp_init_instance_sands(vrrp_t *vrrp)
 			vrrp->sands = timer_add_long(vrrp_delayed_start_time, vrrp->ms_down_timer);
 		else
 			vrrp->sands = timer_add_long(time_now, vrrp->ms_down_timer);
+
+		if (vrrp->fault_init_exit_time.tv_sec && !vrrp->fault_exit_delay_apply)
+			/* If fault_init_exit_delay is active and VRRP is in INIT state,
+			 * add fault_init_exit_delay to the sands timeval. It prevents
+			 * vrrp_dispatcher_read_timeout() to be called too early.
+			 *
+			 * It is similar to what is done when adding vrrp_delayed_start_time
+			 * to sands just above.
+			 */
+			vrrp->sands = timer_add_long(vrrp->sands, vrrp->fault_init_exit_delay);
+
 	}
 	else if (vrrp->state == VRRP_STATE_FAULT || vrrp->state == VRRP_STATE_INIT)
 		vrrp->sands.tv_sec = TIMER_DISABLED;
@@ -698,13 +739,67 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init)
 			return;
 	}
 	else if (--vrrp->num_script_if_fault || vrrp->num_script_init) {
-		if (!vrrp->num_script_if_fault) {
+		if (vrrp->fault_init_exit_delay
+				&& vrrp->num_script_if_fault == 1
+				&& !vrrp_delayed_start_time.tv_sec) {
+			/* Handle cases where a second fault occurs during fault_init_exit_delay
+			 * keeping the instance in the FAULT state.
+			 */
+			if (vrrp->fault_exit_delay_apply) {
+				/* A fault was detected and recovered, with fault_init_exit_delay
+				 * keeping the instance in the FAULT state. During this delay,
+				 * another fault occurred and was also recovered.
+				 *
+				 * Re-arm the fault_init_exit_thread to prevent the instance
+				 * from leaving the FAULT state too soon. Without this, it
+				 * would transition out of FAULT after the first recovery time
+				 * plus the fault_init_exit_delay.
+				 */
+				thread_cancel(vrrp->fault_init_exit_thread);
+				vrrp->fault_init_exit_time = timer_add_long(time_now, vrrp->fault_init_exit_delay);
+				vrrp->fault_init_exit_thread = thread_add_timer_sands(master, fault_init_exit_thread, vrrp,
+						  &vrrp->fault_init_exit_time);
+			} else
+				/* A fault was detected and recovered, with fault_init_exit_delay
+				 * keeping the instance in the FAULT state. During this delay,
+				 * another fault occurred. When the fault_init_exit_delay times out,
+				 * this function is called.
+				 *
+				 * Request the application of fault_init_exit_delay when the second
+				 * recovers.
+				 */
+				vrrp->fault_exit_delay_apply = true;
+		} else if (!vrrp->num_script_if_fault) {
 			if (vrrp->sync) {
 				vrrp->sync->num_member_fault--;
 				vrrp->sync->state = VRRP_STATE_INIT;
 			}
 			vrrp->wantstate = VRRP_STATE_BACK;
 		}
+
+		return;
+	}
+
+	if (vrrp->fault_exit_delay_apply && !vrrp->fault_init_exit_time.tv_sec) {
+		/* Attempting to transition from the FAULT state, but fault_init_exit_delay
+		 * is configured and has not yet been applied.
+		 *
+		 * Remain in the FAULT state for the duration of the fault-init-exit delay.
+		 *
+		 * To achieve this, increment the fault counter to stay in the FAULT state.
+		 * Schedule a thread to reattempt the transition by calling this function again
+		 * once the fault_init_exit_delay has elapsed. This function decrements
+		 * the fault counter.
+		 */
+
+		vrrp->num_script_if_fault++;
+
+		log_message(LOG_INFO, "(%s) Applied vrrp fault init exit delay of %g seconds.",
+				vrrp->iname, vrrp->fault_init_exit_delay / TIMER_HZ_DOUBLE);
+
+		vrrp->fault_init_exit_time = timer_add_long(time_now, vrrp->fault_init_exit_delay);
+		vrrp->fault_init_exit_thread = thread_add_timer_sands(master, fault_init_exit_thread, vrrp,
+				  &vrrp->fault_init_exit_time);
 
 		return;
 	}
@@ -874,6 +969,12 @@ vrrp_dispatcher_read_timeout(sock_t *sock)
 		prev_state = vrrp->state;
 
 		if (vrrp->state == VRRP_STATE_BACK) {
+			if (vrrp->fault_init_exit_time.tv_sec) {
+				/* Fault Init Exit delay is active. Do not transition to master state */
+				vrrp_init_instance_sands(vrrp);
+				break;
+			}
+
 			if (__test_bit(LOG_DETAIL_BIT, &debug))
 				log_message(LOG_INFO, "(%s) Receive advertisement timeout", vrrp->iname);
 			vrrp_goto_master(vrrp);
@@ -1085,6 +1186,11 @@ vrrp_dispatcher_read(sock_t *sock)
 			 * not yet fully initialised */
 			continue;
 		}
+
+		if (vrrp->fault_init_exit_time.tv_sec)
+			/* We just ignore a message received when fault_init_exit_delay is
+			 * active */
+			continue;
 
 		/* Save non packet data */
 		vrrp->pkt_saddr = src_addr;
