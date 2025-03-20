@@ -667,7 +667,10 @@ write_addrproto_config(const char *name, uint32_t val)
 
 	/* If IPROUTE_ETC_DIR doesn't exist, create it */
 	if (stat(IPROUTE_ETC_DIR, &statbuf)) {
-		if (stat(IPROUTE_USR_DIR, &statbuf)) {
+#ifdef IPROUTE_USR_DIR
+		if (stat(IPROUTE_USR_DIR, &statbuf))
+#endif
+		{
 			/* Use sensible defaults for directory permission */
 			statbuf.st_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 		}
