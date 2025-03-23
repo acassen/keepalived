@@ -41,6 +41,9 @@
 #include <stdint.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
+#if !defined ETH_HLEN || !defined ETH_ZLEN
+#include <linux/if_ether.h>		/* This may not be needed at all - try removing and see if any issues raised */
+#endif
 #ifdef _NETWORK_TIMESTAMP_
 #include <linux/net_tstamp.h>
 #endif
@@ -89,6 +92,11 @@
 #ifdef _WITH_LVS_
 #include "ipvswrapper.h"
 #endif
+
+/* Ideally we would use a struct from a system header to determine the
+ * size of a vlan tag, but there doesn't seem to be one exposed to
+ * user space. */
+#define VLAN_TAG_SIZE	4
 
 /* If we don't have certain configuration, then we can optimise the
  * resources that keepalived uses. These are cleared by start_vrrp()
@@ -598,24 +606,28 @@ vrrp_in_chk_ipsecah(vrrp_t *vrrp, const struct iphdr *ip, const ipsec_ah_t *ah, 
 #endif
 
 /* check if ipaddr is present in VIP buffer */
-static int
-vrrp_in_chk_vips(const vrrp_t *vrrp, const ip_address_t *ipaddress, const unsigned char *buffer)
+static bool __attribute__((pure))
+vrrp_in_chk_vips(const vrrp_t *vrrp, const ip_address_t *ipaddress, const void *buffer, unsigned naddr)
 {
 	size_t i;
+	const struct in_addr *addr4_buf;
+	const struct in6_addr *addr6_buf;
 
 	if (vrrp->family == AF_INET) {
-		for (i = 0; i < vrrp->vip_cnt; i++) {
-			if (!memcmp(&ipaddress->u.sin.sin_addr.s_addr, buffer + i * sizeof(struct in_addr), sizeof (struct in_addr)))
-				return 1;
+		addr4_buf = buffer;
+		for (i = 0; i < naddr; i++) {
+			if (!memcmp(&ipaddress->u.sin.sin_addr.s_addr, &addr4_buf[i], sizeof (struct in_addr)))
+				return true;
 		}
 	} else if (vrrp->family == AF_INET6) {
-		for (i = 0; i < vrrp->vip_cnt; i++) {
-			if (!memcmp(&ipaddress->u.sin6_addr, buffer + i * sizeof(struct in6_addr), sizeof (struct in6_addr)))
-				return 1;
+		addr6_buf = buffer;
+		for (i = 0; i < naddr; i++) {
+			if (!memcmp(&ipaddress->u.sin6_addr, &addr6_buf[i], sizeof (struct in6_addr)))
+				return true;
 		}
 	}
 
-	return 0;
+	return false;
 }
 
 #ifdef _CHECKSUM_DEBUG_
@@ -764,6 +776,44 @@ check_rx_checksum(vrrp_t *vrrp, const ipv4_phdr_t *ipv4_phdr, const struct iphdr
 }
 #endif
 
+static void __attribute__ ((format (printf, 3, 4)))
+log_rate_limited_error(vrrp_t *vrrp, vrrp_rlflags_t rlflag, const char *format, ...)
+{
+	va_list args;
+
+	/* If this error has already been logged, skip message */
+	if (vrrp->rlflags & rlflag)
+		return;
+
+	/* Record that this error has been logged */
+	vrrp->rlflags |= rlflag;
+
+	va_start(args, format);
+	vlog_message(LOG_INFO, format, args);
+	va_end(args);
+}
+
+static inline bool
+check_ttl_hl(vrrp_t *vrrp, const unicast_peer_t *up_addr)
+{
+	if (vrrp->rx_ttl_hl != -1 &&
+	    (vrrp->rx_ttl_hl < up_addr->min_ttl ||
+	     vrrp->rx_ttl_hl > up_addr->max_ttl)) {
+		++vrrp->stats->ip_ttl_err;
+#ifdef _WITH_SNMP_RFCV3_
+		vrrp->stats->proto_err_reason = ipTtlError;
+		vrrp_rfcv3_snmp_proto_err_notify(vrrp);
+#endif
+
+		log_rate_limited_error(vrrp, VRRP_RLFLAG_TTL_NOT_IN_RANGE, "(%s) TTL/HL %d from %s not in range [%d, %d]",
+			vrrp->iname, vrrp->rx_ttl_hl, inet_sockaddrtos(&vrrp->pkt_saddr), up_addr->min_ttl, up_addr->max_ttl);
+
+		return false;
+	}
+
+	return true;
+}
+
 /*
  * VRRP incoming packet check.
  * return VRRP_PACKET_OK if the pkt is valid, or
@@ -788,7 +838,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 #ifdef _WITH_VRRP_AUTH_
 	const ipsec_ah_t *ah;
 #endif
-	const unsigned char *vips;
+	const void *vips;
 	ip_address_t *ipaddress;
 	char addr_str[INET6_ADDRSTRLEN];
 	ipv4_phdr_t ipv4_phdr;
@@ -813,9 +863,9 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		/* Check we have an AH header if expect AH, and don't have it if not */
 		if ((ip->protocol == IPPROTO_AH) != (vrrp->auth_type == VRRP_AUTH_AH)) {
 			if (ip->protocol == IPPROTO_AH)
-				log_message(LOG_INFO, "(%s) Received AH header but auth type not AH", vrrp->iname);
+				log_rate_limited_error(vrrp, VRRP_RLFLAG_BAD_AH_HEADER, "(%s) Received AH header but auth type not AH from %s", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
 			else
-				log_message(LOG_INFO, "(%s) No AH header but auth type is AH", vrrp->iname);
+				log_rate_limited_error(vrrp, VRRP_RLFLAG_BAD_AH_HEADER, "(%s) No AH header but auth type is AH from %s", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
 			++vrrp->stats->authtype_mismatch;
 #ifdef _WITH_SNMP_RFCV2_
 			vrrp_rfcv2_snmp_auth_err_trap(vrrp, PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr, authTypeMismatch);
@@ -829,7 +879,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 	} else if (vrrp->family == AF_INET6) {
 		expected_len = 0;
 	} else {
-		log_message(LOG_INFO, "(%s) configured address family is %d, which is neither AF_INET or AF_INET6. This is probably a bug - please report", vrrp->iname, vrrp->family);
+		log_rate_limited_error(vrrp, VRRP_RLFLAG_BAD_IP_VERSION, "(%s) configured address family is %d, which is neither AF_INET or AF_INET6. This is probably a bug - please report", vrrp->iname, vrrp->family);
 		return VRRP_PACKET_KO;
 	}
 
@@ -841,19 +891,35 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 	 * packet (including fixed fields, and IPvX address(es)).
 	 */
 	if (buflen != expected_len) {
-		log_message(LOG_INFO, "(%s) vrrp packet too %s, length %zu and expect %zu",
-			      vrrp->iname,
-			      buflen > expected_len ? "long" : "short",
-			      buflen, expected_len);
-		++vrrp->stats->packet_len_err;
-		return VRRP_PACKET_KO;
+		/* Allow for Ethernet frame padding. If there is padding, the
+		 * frame length (excluding FCS) is 60 octets (ETH_ZLEN).
+		 * The Ethernet header (14 bytes - ETH_HLEN) and any Vlan
+		 * headers (4 bytes each) are removed before we receive the
+		 * packet.
+		 * Padding added is ETH_ZLEN - ETH_HLEN - expected_len, or
+		 * multiples of 4 (Vlan header) less than that. Checking the
+		 * amount of padding added can therefore only be done modulo 4.
+		 */
+		if (expected_len < ETH_ZLEN - ETH_HLEN &&
+		    expected_len < buflen &&
+		    (buflen - expected_len) % VLAN_TAG_SIZE == (VLAN_TAG_SIZE - (ETH_ZLEN - ETH_HLEN) % VLAN_TAG_SIZE) % VLAN_TAG_SIZE) {
+			/* This is OK, there is some padding */
+		} else {
+			log_rate_limited_error(vrrp, VRRP_RLFLAG_INCOMPLETE_PACKET, "(%s) vrrp packet from %s too %s, length %zu and expect %zu",
+				      vrrp->iname,
+				      inet_sockaddrtos(&vrrp->pkt_saddr),
+				      buflen > expected_len ? "long" : "short",
+				      buflen, expected_len);
+			++vrrp->stats->packet_len_err;
+			return VRRP_PACKET_KO;
+		}
 	}
 
 	/* MUST verify that the IPv4 TTL/IPv6 HL is 255 (but not if unicast) */
 	if (!__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) &&
-	    vrrp->rx_ttl_hop_limit != -1 && vrrp->rx_ttl_hop_limit != VRRP_IP_TTL) {
-		log_message(LOG_INFO, "(%s) invalid TTL/HL. Received %d and expect %d",
-			vrrp->iname, vrrp->rx_ttl_hop_limit, VRRP_IP_TTL);
+	    vrrp->rx_ttl_hl != -1 && vrrp->rx_ttl_hl != VRRP_IP_TTL) {
+		log_rate_limited_error(vrrp, VRRP_RLFLAG_INVALID_TTL, "(%s) invalid TTL/HL from %s. Received %d and expect %d",
+			vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr), vrrp->rx_ttl_hl, VRRP_IP_TTL);
 		++vrrp->stats->ip_ttl_err;
 #ifdef _WITH_SNMP_RFCV3_
 		vrrp->stats->proto_err_reason = ipTtlError;
@@ -864,8 +930,8 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 
 	/* MUST verify the VRRP version */
 	if ((hd->vers_type >> 4) != vrrp->version) {
-		log_message(LOG_INFO, "(%s) wrong version. Received %d and expect %d",
-		       vrrp->iname, (hd->vers_type >> 4), vrrp->version);
+		log_rate_limited_error(vrrp, VRRP_RLFLAG_WRONG_VERSION, "(%s) wrong VRRP version from %s. Received %d and expect %d",
+		       vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr), (hd->vers_type >> 4), vrrp->version);
 #ifdef _WITH_SNMP_RFC_
 		vrrp->stats->vers_err++;
 #ifdef _WITH_SNMP_RFCV3_
@@ -884,7 +950,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		    hd->v2.auth_type != VRRP_AUTH_PASS &&
 #endif
 		    hd->v2.auth_type != VRRP_AUTH_NONE) {
-			log_message(LOG_INFO, "(%s) Invalid auth type: %d", vrrp->iname, hd->v2.auth_type);
+			log_rate_limited_error(vrrp, VRRP_RLFLAG_BAD_AUTH, "(%s) Invalid auth type from %s: %d", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr), hd->v2.auth_type);
 			++vrrp->stats->invalid_authtype;
 #ifdef _WITH_SNMP_RFCV2_
 			vrrp_rfcv2_snmp_auth_err_trap(vrrp, PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr, invalidAuthType);
@@ -898,8 +964,8 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		 * check the authentication type
 		 */
 		if (vrrp->auth_type != hd->v2.auth_type) {
-			log_message(LOG_INFO, "(%s) received a %d auth, expecting %d!",
-			       vrrp->iname, hd->v2.auth_type, vrrp->auth_type);
+			log_rate_limited_error(vrrp, VRRP_RLFLAG_WRONG_AUTH, "(%s) received a %d auth from %s, expecting %d!",
+			       vrrp->iname, hd->v2.auth_type, inet_sockaddrtos(&vrrp->pkt_saddr), vrrp->auth_type);
 			++vrrp->stats->authtype_mismatch;
 #ifdef _WITH_SNMP_RFCV2_
 			vrrp_rfcv2_snmp_auth_err_trap(vrrp, PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr, authTypeMismatch);
@@ -911,7 +977,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 			/* check the authentication if it is a passwd */
 			const char *pw = (const char *)ip + ntohs(ip->tot_len) - sizeof (vrrp->auth_data);
 			if (memcmp_constant_time(pw, vrrp->auth_data, sizeof(vrrp->auth_data)) != 0) {
-				log_message(LOG_INFO, "(%s) received an invalid passwd!", vrrp->iname);
+				log_rate_limited_error(vrrp, VRRP_RLFLAG_WRONG_AUTH_PASSWD, "(%s) received an invalid passwd from %s!", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
 				++vrrp->stats->auth_failure;
 #ifdef _WITH_SNMP_RFCV2_
 				vrrp_rfcv2_snmp_auth_err_trap(vrrp, PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr, authFailure);
@@ -948,8 +1014,8 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		 * the locally configured for this virtual router if VRRPv2
 		 */
 		if (vrrp->adver_int != hd->v2.adver_int * TIMER_HZ) {
-			log_message(LOG_INFO, "(%s) advertisement interval mismatch mine=%u sec rcv'd=%d sec",
-				vrrp->iname, vrrp->adver_int / TIMER_HZ, hd->v2.adver_int);
+			log_rate_limited_error(vrrp, VRRP_RLFLAG_ADV_INTVL_MISMATCH, "(%s) advertisement interval mismatch with %s mine=%u sec rcv'd=%d sec",
+				vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr), vrrp->adver_int / TIMER_HZ, hd->v2.adver_int);
 			/* to prevent concurent VRID running => multiple master in 1 VRID */
 			return VRRP_PACKET_DROP;
 		}
@@ -958,27 +1024,36 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 
 	/* verify packet type */
 	if ((hd->vers_type & 0x0f) != VRRP_PKT_ADVERT) {
-		log_message(LOG_INFO, "(%s) Invalid packet type. %d and expect %d",
-			vrrp->iname, (hd->vers_type & 0x0f), VRRP_PKT_ADVERT);
+		log_rate_limited_error(vrrp, VRRP_RLFLAG_NOT_ADVERTISEMENT, "(%s) Invalid packet type from %s. %d and expect %d",
+			vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr), (hd->vers_type & 0x0f), VRRP_PKT_ADVERT);
 		++vrrp->stats->invalid_type_rcvd;
-		return VRRP_PACKET_KO;
-	}
-
-	/* Check the number of VIPs matches what we expect */
-	if (check_vip_addr && hd->naddr != vrrp->vip_cnt) {
-		log_message(LOG_INFO, "(%s) received an unexpected ip number count %u, expected %u!",
-			vrrp->iname, hd->naddr, vrrp->vip_cnt);
-		++vrrp->stats->addr_list_err;
 		return VRRP_PACKET_KO;
 	}
 
 	/* Check the IP header total packet length matches what we received */
 	if (vrrp->family == AF_INET && ntohs(ip->tot_len) != buflen) {
-		log_message(LOG_INFO,
-		       "(%s) ip_tot_len mismatch against received length. %d and received %zu",
-		       vrrp->iname, ntohs(ip->tot_len), buflen);
-		++vrrp->stats->packet_len_err;
-		return VRRP_PACKET_KO;
+		/* Allow for Ethernet frame padding. See earlier comment
+		 * for details. */
+		if (buflen <= ETH_ZLEN - ETH_HLEN &&
+		    ntohs(ip->tot_len) < buflen &&
+		    (buflen - ntohs(ip->tot_len)) % VLAN_TAG_SIZE == (VLAN_TAG_SIZE - (ETH_ZLEN - ETH_HLEN) % VLAN_TAG_SIZE) % VLAN_TAG_SIZE) {
+			/* This is OK, there is some padding */
+		} else {
+			log_rate_limited_error(vrrp, VRRP_RLFLAG_BAD_LENGTH,
+			       "(%s) ip_tot_len mismatch against received length from %s. %d and received %zu",
+			       vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr), ntohs(ip->tot_len), buflen);
+			++vrrp->stats->packet_len_err;
+			return VRRP_PACKET_KO;
+		}
+	}
+
+	if (vrrp->version == VRRP_VERSION_3) {
+		/* VRRP version 3. SHOULD check advert intervals match */
+		if (!(vrrp->rlflags & VRRP_RLFLAG_ADV_INTVL_MISMATCH) &&
+		    vrrp->adver_int != (V3_PKT_ADVER_INT_NTOH(hd->v3.adver_int)) * TIMER_CENTI_HZ) {
+			log_rate_limited_error(vrrp, VRRP_RLFLAG_ADV_INTVL_MISMATCH, "(%s) advertisement interval mismatch ours = %u centi-sec rcv'd=%d centi-sec",
+				vrrp->iname, vrrp->adver_int / TIMER_CENTI_HZ, V3_PKT_ADVER_INT_NTOH(hd->v3.adver_int));
+		}
 	}
 
 	/* MUST verify the VRRP checksum. Kernel takes care of checksum mismatch incase of IPv6. */
@@ -1028,7 +1103,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 				if (chksum_error)
 #endif
 				{
-					log_message(LOG_INFO, "(%s) Invalid VRRPv3 checksum", vrrp->iname);
+					log_rate_limited_error(vrrp, VRRP_RLFLAG_BAD_CHECKSUM, "(%s) Invalid VRRPv3 checksum from %s", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
 #ifdef _WITH_SNMP_RFC_
 					vrrp->stats->chk_err++;
 #ifdef _WITH_SNMP_RFCV3_
@@ -1054,7 +1129,7 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 #endif
 
 			if (csum_calc) {
-				log_message(LOG_INFO, "(%s) Invalid VRRPv2 checksum", vrrp->iname);
+				log_rate_limited_error(vrrp, VRRP_RLFLAG_BAD_CHECKSUM, "(%s) Invalid VRRPv2 checksum from %s", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
 #ifdef _WITH_SNMP_RFC_
 				vrrp->stats->chk_err++;
 #ifdef _WITH_SNMP_RFCV3_
@@ -1073,92 +1148,97 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 	     (vrrp->family == AF_INET6 && vrrp->multicast_pkt)) == __test_bit(VRRP_FLAG_UNICAST, &vrrp->flags)) {
 		/* So far as I can see, with IPv6 if multicasts are enabled on an interface, we will receive them
 		 * on a socket even if we haven't registered the multicast address on the socket.
-		 * If anyone know how to stop receiving them, please raise a github issue with the details.
+		 * If anyone knows how to stop receiving them, please raise a github issue with the details.
 		 */
-		log_message(LOG_INFO, "(%s) Expected %sicast packet but received %sicast packet",
+		log_rate_limited_error(vrrp, VRRP_RLFLAG_UNI_MULTICAST_ERR, "(%s) Expected %sicast packet but received %sicast packet from %s",
 				vrrp->iname,
 				__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) ? "un" : "mult",
-				__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) ? "mult" : "un");
+				__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) ? "mult" : "un",
+				inet_sockaddrtos(&vrrp->pkt_saddr));
 		++vrrp->stats->addr_list_err;
 		return VRRP_PACKET_KO;
+	}
+
+	if (vrrp->owner_ignore_adverts && vrrp->effective_priority == VRRP_PRIO_OWNER) {
+		log_rate_limited_error(vrrp, VRRP_RLFLAG_OWNER_IGNORE_ADVER, "(%s) Dropping packet(s) from %s since we are address owner",
+				       vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
+		return VRRP_PACKET_DROP;
 	}
 
 	/* Correct type, version, and length. Count as VRRP advertisement */
 	++vrrp->stats->advert_rcvd;
 
 	/* pointer to vrrp vips pkt zone */
-	vips = PTR_CAST_CONST(unsigned char, ((const char *) hd + sizeof(vrrphdr_t)));
+	vips = (const char *)hd + sizeof(vrrphdr_t);
 
-	if (check_vip_addr) {
+	if (hd->naddr != vrrp->vip_cnt) {
+		log_rate_limited_error(vrrp, VRRP_RLFLAG_WRONG_ADDR_COUNT, "(%s) expected %u VIPs but received %u",
+				       vrrp->iname, vrrp->vip_cnt, hd->naddr);
+		++vrrp->stats->addr_list_err;
+	} else if (check_vip_addr) {
 		/*
 		 * MAY verify that the IP address(es) associated with the
 		 * VRID are valid
 		 */
-		if (hd->naddr != vrrp->vip_cnt) {
-			log_message(LOG_INFO, "(%s) expected %u VIPs but received %u"
-					    , vrrp->iname, vrrp->vip_cnt, hd->naddr);
-			return VRRP_PACKET_KO;
-		}
+		bool addr_ok = true;
 
+		/* We have checked that the number of VIPs match, and since
+		 * all VIPs are different, if every VIP is in the advert, then
+		 * the two lists must have exactly the same entries. */
 		list_for_each_entry(ipaddress, &vrrp->vip, e_list) {
-			if (!vrrp_in_chk_vips(vrrp, ipaddress, vips)) {
-				log_message(LOG_INFO, "(%s) ip address associated with VRID %d"
-						      " not present in MASTER advert: %s"
-						    , vrrp->iname, vrrp->vrid
+			if (!vrrp_in_chk_vips(vrrp, ipaddress, vips, hd->naddr)) {
+				log_rate_limited_error(vrrp, VRRP_RLFLAG_VIPS_MISMATCH, "(%s) ip address associated with VRID %d"
+						      " not present in advert from %s: %s"
+						    , vrrp->iname, vrrp->vrid, inet_sockaddrtos(&vrrp->pkt_saddr)
 						    , inet_ntop(vrrp->family, vrrp->family == AF_INET6 ? &ipaddress->u.sin6_addr : (void *)&ipaddress->u.sin.sin_addr.s_addr,
 						      addr_str, sizeof(addr_str)));
-				++vrrp->stats->addr_list_err;
-				return VRRP_PACKET_KO;
+				if (addr_ok) {
+					++vrrp->stats->addr_list_err;
+					addr_ok = false;
+				}
+			}
+			if (!addr_ok)
+				break;
+		}
+	}
+
+	/* check a unicast source address is in the unicast_peer list */
+	if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) &&
+	    (global_data->vrrp_check_unicast_src ||
+	     __test_bit(VRRP_FLAG_CHECK_UNICAST_SRC, &vrrp->flags))) {
+		struct in_addr *saddr4 = NULL;	/* Avoid compiler warnings */
+		struct in6_addr *saddr6 = NULL;
+		bool found_match = false;
+
+		if (vrrp->family == AF_INET6) {
+			saddr6 = &PTR_CAST(struct sockaddr_in6, &vrrp->pkt_saddr)->sin6_addr;
+			list_for_each_entry(up_addr, &vrrp->unicast_peer, e_list) {
+				if (IN6_ARE_ADDR_EQUAL(saddr6, &PTR_CAST(struct sockaddr_in6, &up_addr->address)->sin6_addr)) {
+					if (!check_ttl_hl(vrrp, up_addr))
+						return VRRP_PACKET_DROP;
+					found_match = true;
+					break;
+				}
+			}
+		} else {
+			saddr4 = &PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr;
+			list_for_each_entry(up_addr, &vrrp->unicast_peer, e_list) {
+				if (saddr4->s_addr == PTR_CAST(struct sockaddr_in, &up_addr->address)->sin_addr.s_addr) {
+					if (!check_ttl_hl(vrrp, up_addr))
+						return VRRP_PACKET_DROP;
+					found_match = true;
+					break;
+				}
 			}
 		}
 
-		/* check a unicast source address is in the unicast_peer list */
-		if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) &&
-		    (global_data->vrrp_check_unicast_src ||
-		     __test_bit(VRRP_FLAG_CHECK_UNICAST_SRC, &vrrp->flags))) {
-			struct in_addr *saddr4 = NULL;	/* Avoid compiler warnings */
-			struct in6_addr *saddr6 = NULL;
-			bool found_match = false;
-
-			if (vrrp->family == AF_INET6) {
-				saddr6 = &PTR_CAST(struct sockaddr_in6, &vrrp->pkt_saddr)->sin6_addr;
-				list_for_each_entry(up_addr, &vrrp->unicast_peer, e_list) {
-					if (IN6_ARE_ADDR_EQUAL(saddr6, &PTR_CAST(struct sockaddr_in6, &up_addr->address)->sin6_addr)) {
-						found_match = true;
-						break;
-					}
-				}
-			} else {
-				saddr4 = &PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr;
-				list_for_each_entry(up_addr, &vrrp->unicast_peer, e_list) {
-					if (saddr4->s_addr == PTR_CAST(struct sockaddr_in, &up_addr->address)->sin_addr.s_addr) {
-						found_match = true;
-						break;
-					}
-				}
-			}
-
-			if (!found_match) {
-				log_message(LOG_INFO, "(%s) unicast source address %s not a unicast peer",
-					vrrp->iname,
-					inet_ntop(vrrp->family,
-						  vrrp->family == AF_INET6 ? (void *)saddr6 : (void *)saddr4,
-						  addr_str, sizeof(addr_str)));
-				return VRRP_PACKET_KO;
-			}
-
-			if (vrrp->rx_ttl_hop_limit != -1 &&
-			    (vrrp->rx_ttl_hop_limit < up_addr->min_ttl ||
-			     vrrp->rx_ttl_hop_limit > up_addr->max_ttl)) {
-				++vrrp->stats->ip_ttl_err;
-#ifdef _WITH_SNMP_RFCV3_
-				vrrp->stats->proto_err_reason = ipTtlError;
-				vrrp_rfcv3_snmp_proto_err_notify(vrrp);
-#endif
-				log_message(LOG_INFO, "(%s) TTL/HL %d not in range %d - %d",
-					vrrp->iname, vrrp->rx_ttl_hop_limit, up_addr->min_ttl, up_addr->max_ttl);
-				return VRRP_PACKET_KO;
-			}
+		if (!found_match) {
+			log_rate_limited_error(vrrp, VRRP_RLFLAG_UNKNOWN_UNICAST_SRC, "(%s) unicast source address %s not a unicast peer",
+				vrrp->iname,
+				inet_ntop(vrrp->family,
+					  vrrp->family == AF_INET6 ? (void *)saddr6 : (void *)saddr4,
+					  addr_str, sizeof(addr_str)));
+			return VRRP_PACKET_KO;
 		}
 	}
 
@@ -1313,7 +1393,7 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer, struct iphdr *ip)
 	hd->vrid = vrrp->vrid;
 	hd->priority = vrrp->effective_priority;
 	hd->naddr = (uint8_t)((!list_empty(&vrrp->vip)) ? vrrp->vip_cnt : 0);
-	hd->v3.adver_int  = htons((vrrp->adver_int / TIMER_CENTI_HZ) & 0x0FFF); /* interval in centiseconds, reserved bits zero */
+	hd->v3.adver_int = V3_PKT_ADVER_INT_HTON((vrrp->adver_int / TIMER_CENTI_HZ)); /* interval in centiseconds, reserved bits zero */
 
 	/* For IPv4 to calculate the checksum, the value must start as 0.
 	 * For IPv6, the kernel will update checksum field. */
@@ -1505,6 +1585,9 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 {
 	unicast_peer_t *peer;
 
+	if (!vrrp->sockets)
+		return;
+
 #ifdef _HAVE_VRRP_VMAC_
 	if (vrrp->saddr.ss_family == AF_UNSPEC &&
 	    vrrp->family == AF_INET6 &&
@@ -1548,7 +1631,7 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 
 /* Gratuitous ARP on each VIP */
 static void
-vrrp_send_update(vrrp_t * vrrp, ip_address_t * ipaddress, bool log_msg)
+vrrp_send_update(vrrp_t * vrrp, ip_address_t * ipaddress, bool log_msg, unsigned rep)
 {
 	const char *msg;
 	char addr_str[INET6_ADDRSTRLEN];
@@ -1567,9 +1650,9 @@ vrrp_send_update(vrrp_t * vrrp, ip_address_t * ipaddress, bool log_msg)
 	}
 
 	if (!IP_IS6(ipaddress))
-		send_gratuitous_arp(vrrp, ipaddress);
+		send_gratuitous_arp(ipaddress, rep);
 	else
-		ndisc_send_unsolicited_na(vrrp, ipaddress);
+		ndisc_send_unsolicited_na(ipaddress, rep);
 }
 
 void
@@ -1582,18 +1665,21 @@ vrrp_send_link_update(vrrp_t * vrrp, unsigned rep)
 	if (!VRRP_VIP_ISSET(vrrp))
 		return;
 
-	/* send gratuitous arp for each virtual ip */
+	/* send gratuitous arp for each virtual ip.
+	 * Looping rep times through all VIPs of the vrrp instance doesn't
+	 * seem very efficient, but I haven't thought of a better way when
+	 * the GARP/NA may either be sent or queued. */
 	for (j = 0; j < rep; j++) {
 		list_for_each_entry(ip_addr, &vrrp->vip, e_list)
-			vrrp_send_update(vrrp, ip_addr, !j);
+			vrrp_send_update(vrrp, ip_addr, !j, rep);
 
 		list_for_each_entry(ip_addr, &vrrp->evip, e_list)
-			vrrp_send_update(vrrp, ip_addr, !j);
+			vrrp_send_update(vrrp, ip_addr, !j, rep);
 	}
 }
 
 #ifdef _HAVE_VRRP_VMAC_
-static void
+void
 vrrp_send_vmac_update(vrrp_t *vrrp)
 {
 	struct ifs {
@@ -1632,9 +1718,9 @@ vrrp_send_vmac_update(vrrp_t *vrrp)
 			if (already_done)
 				continue;
 
-			vrrp_send_update(vrrp, ip_addr, true);
+			vrrp_send_update(vrrp, ip_addr, true, 1);
 
-			/* Save if ifindex to avoid sending on that interface again */
+			/* Save interface ifindex to avoid sending on that interface again */
 			PMALLOC(if_entry);
 			INIT_LIST_HEAD(&if_entry->e_list);
 			if_entry->ifindex = ip_addr->ifp->ifindex;
@@ -1642,7 +1728,7 @@ vrrp_send_vmac_update(vrrp_t *vrrp)
 		}
 	}
 
-	/* Free the list of ifindices we have sent on */
+	/* Free the list of interface indices we have sent on */
 	list_for_each_entry_safe(if_entry, next_if_entry, &if_list, e_list)
 		FREE(if_entry);
 }
@@ -1654,14 +1740,14 @@ vrrp_remove_delayed_arp(vrrp_t *vrrp)
 	ip_address_t *ip_addr;
 
 	list_for_each_entry(ip_addr, &vrrp->vip, e_list) {
-		ip_addr->garp_gna_pending = false;
+		ip_addr->garp_gna_pending = 0;
+		list_del_init(&ip_addr->garp_gna_list);
 	}
 
 	list_for_each_entry(ip_addr, &vrrp->evip, e_list) {
-		ip_addr->garp_gna_pending = false;
+		ip_addr->garp_gna_pending = 0;
+		list_del_init(&ip_addr->garp_gna_list);
 	}
-	vrrp->garp_pending = false;
-	vrrp->gna_pending = false;
 }
 
 /* becoming master */
@@ -1669,6 +1755,17 @@ static void
 vrrp_state_become_master(vrrp_t * vrrp)
 {
 	++vrrp->stats->become_master;
+
+	/* If both us and another system claim to be the address owner then
+	 * we may have reduced our priority to 254 to ensure there are not
+	 * 2 (or more) masters. The other system must have gone away now,
+	 * so restore our priority. */
+	if (vrrp->base_priority == VRRP_PRIO_OWNER &&
+	    vrrp->effective_priority != VRRP_PRIO_OWNER) {
+		log_message(LOG_INFO, "(%s) Restoring our priority to %d since other address owner has disappeared", vrrp->iname, VRRP_PRIO_OWNER);
+		vrrp->effective_priority = VRRP_PRIO_OWNER;
+		vrrp->total_priority = VRRP_PRIO_OWNER;
+	}
 
 	if (vrrp->version == VRRP_VERSION_3 &&
 	    __test_bit(LOG_DETAIL_BIT, &debug) &&
@@ -1700,13 +1797,18 @@ vrrp_state_become_master(vrrp_t * vrrp)
 
 	vrrp_send_link_update(vrrp, vrrp->garp_rep);
 
-	/* set GARP/NA refresh timer */
+	if (vrrp->garp_delay)
+		thread_add_timer(master, vrrp_gratuitous_arp_thread,
+				 vrrp, vrrp->garp_delay);
+
 	if (timerisset(&vrrp->garp_refresh))
-		vrrp->garp_refresh_timer = timer_add_now(vrrp->garp_refresh);
+		thread_add_timer(master, vrrp_gratuitous_arp_refresh_thread,
+				 vrrp, vrrp->garp_delay + timer_long(vrrp->garp_refresh));
 
 #ifdef _HAVE_VRRP_VMAC_
 	if (timerisset(&vrrp->vmac_garp_intvl))
-		vrrp->vmac_garp_timer = timer_add_now(vrrp->vmac_garp_intvl);
+		thread_add_timer(master, vrrp_gratuitous_arp_vmac_update_thread,
+				 vrrp, vrrp->garp_delay + timer_long(vrrp->vmac_garp_intvl));
 #endif
 
 	/* Check if notify is needed */
@@ -1728,6 +1830,9 @@ vrrp_state_goto_master(vrrp_t * vrrp)
 		vrrp->wantstate = VRRP_STATE_MAST;
 		return;
 	}
+
+	/* Clear the rate-limited log error flags */
+	vrrp->rlflags = 0;
 
 #if defined _WITH_VRRP_AUTH_
 	/* If becoming MASTER in IPSEC AH AUTH, we reset the anti-replay */
@@ -1764,7 +1869,7 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 
 	/* remove virtual routes */
 	if (!list_empty(&vrrp->vroutes))
-		vrrp_handle_iproutes(vrrp, IPROUTE_DEL, false);
+		vrrp_handle_iproutes(vrrp, IPROUTE_DEL, force);
 
 	/* empty the delayed arp list */
 	vrrp_remove_delayed_arp(vrrp);
@@ -1807,6 +1912,9 @@ vrrp_state_leave_master(vrrp_t * vrrp, bool advF)
 	}
 #endif
 
+	/* Clear the rate-limited log error flags */
+	vrrp->rlflags = 0;
+
 	/* set the new vrrp state */
 	if (vrrp->wantstate == VRRP_STATE_BACK) {
 		log_message(LOG_INFO, "(%s) Entering BACKUP STATE", vrrp->iname);
@@ -1814,7 +1922,10 @@ vrrp_state_leave_master(vrrp_t * vrrp, bool advF)
 	}
 	else if (vrrp->wantstate == VRRP_STATE_FAULT) {
 		log_message(LOG_INFO, "(%s) Entering FAULT STATE", vrrp->iname);
-		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
+
+		/* If there is no address on the interface we cannot sent an IPv6 advert */
+		if (vrrp->family == AF_INET || vrrp->saddr.ss_family != AF_UNSPEC)
+			vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 	}
 	else {
 		log_message(LOG_INFO, "(%s) vrrp_state_leave_master called with invalid wantstate %d", vrrp->iname, vrrp->wantstate);
@@ -1831,6 +1942,12 @@ vrrp_state_leave_master(vrrp_t * vrrp, bool advF)
 	vrrp_init_instance_sands(vrrp);
 	++vrrp->stats->release_master;
 	vrrp->last_transition = timer_now();
+
+	if (vrrp->rogue_timer_thread) {
+		thread_cancel(vrrp->rogue_timer_thread);
+		vrrp->rogue_timer_thread = NULL;
+	} else
+		vrrp->rogue_counter = 0;
 }
 
 void
@@ -1849,10 +1966,8 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 		vrrp->state = vrrp->wantstate;
 		send_instance_notifies(vrrp);
 
-		if (vrrp->state == VRRP_STATE_BACK) {
+		if (vrrp->state == VRRP_STATE_BACK)
 			vrrp->preempt_time.tv_sec = 0;
-			vrrp->master_adver_int = vrrp->adver_int;
-		}
 	}
 
 	/* Set the down timer */
@@ -1921,88 +2036,110 @@ vrrp_state_backup(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buf, ssize_t bu
 {
 	ssize_t ret = 0;
 	unsigned master_adver_int;
-	bool check_addr = false;
 	timeval_t new_ms_down_timer;
 	bool ignore_advert = false;
+	bool master_change = false;
 
 	/* Process the incoming packet */
-	if (!__test_bit(VRRP_FLAG_SKIP_CHECK_ADV_ADDR, &vrrp->flags) ||
-	    vrrp->master_saddr.ss_family != vrrp->pkt_saddr.ss_family)
-		check_addr = true;
-	else {
-		/* Check if the addresses are different */
-		if (vrrp->pkt_saddr.ss_family == AF_INET) {
-			if (PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr.s_addr != PTR_CAST(struct sockaddr_in, &vrrp->master_saddr)->sin_addr.s_addr)
-				check_addr = true ;
-		} else {
-			if (!IN6_ARE_ADDR_EQUAL(&PTR_CAST(struct sockaddr_in6, &vrrp->pkt_saddr)->sin6_addr, &PTR_CAST(struct sockaddr_in6, &vrrp->master_saddr)->sin6_addr))
-				check_addr = true;
+
+	/* Check if the saddr has changed */
+	if (vrrp->master_saddr.ss_family != vrrp->pkt_saddr.ss_family ||
+	    (vrrp->pkt_saddr.ss_family == AF_INET &&
+	     PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr.s_addr != PTR_CAST(struct sockaddr_in, &vrrp->master_saddr)->sin_addr.s_addr) ||
+	    (vrrp->pkt_saddr.ss_family == AF_INET6 &&
+	     !IN6_ARE_ADDR_EQUAL(&PTR_CAST(struct sockaddr_in6, &vrrp->pkt_saddr)->sin6_addr, &PTR_CAST(struct sockaddr_in6, &vrrp->master_saddr)->sin6_addr))) {
+		master_change = true;
+
+		/* We want to reset the rate-limit flags since the master has changed */
+		vrrp->rlflags = 0 ;
+
+		if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+			char old_master[INET6_ADDRSTRLEN];
+			strcpy(old_master, inet_sockaddrtos(&vrrp->master_saddr));
+			log_message(LOG_INFO, "(%s) master changed from %s to %s", vrrp->iname, old_master, inet_sockaddrtos(&vrrp->pkt_saddr));
 		}
 	}
-	ret = vrrp_check_packet(vrrp, hd, buf, buflen, check_addr);
+
+	ret = vrrp_check_packet(vrrp, hd, buf, buflen, master_change ||
+				!__test_bit(VRRP_FLAG_SKIP_CHECK_ADV_ADDR, &vrrp->flags));
 
 	if (ret != VRRP_PACKET_OK)
 		ignore_advert = true;
-	else if (hd->priority == 0) {
-		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_INFO, "(%s) Backup received priority 0 advertisement", vrrp->iname);
-		vrrp->ms_down_timer = VRRP_TIMER_SKEW(vrrp);
-#ifdef _WITH_SNMP_RFCV3_
-		vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_PRIORITY;
-#endif
-	} else if (__test_bit(VRRP_FLAG_NOPREEMPT, &vrrp->flags) ||
-		   hd->priority >= vrrp->effective_priority ||
-		   (vrrp->preempt_delay &&
-		    (!vrrp->preempt_time.tv_sec ||
-		     timercmp(&vrrp->preempt_time, &time_now, >)))) {
-		if (vrrp->version == VRRP_VERSION_3) {
-			master_adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
-			/* As per RFC5798, set Master_Adver_Interval to Adver Interval contained
-			 * in the ADVERTISEMENT
-			 */
-			if (vrrp->master_adver_int != master_adver_int)
-				update_master_adver_int(vrrp, master_adver_int);
+	else {
+		/* If we and another instance were both configured as priority 255
+		 * we may have reduced our priority to avoid a conflict. 
+		 * We are now no longer receiving priority 255 adverts from the same
+		 * remote system, so set our priority back to 255. */
+		if (vrrp->base_priority == VRRP_PRIO_OWNER &&
+		    vrrp->effective_priority == VRRP_PRIO_OWNER - 1 &&
+		    (master_change || hd->priority != VRRP_PRIO_OWNER)) {
+			log_message(LOG_INFO, "(%s) Restoring our priority to %d since received advert with lower priority", vrrp->iname, VRRP_PRIO_OWNER);
+			vrrp->effective_priority = VRRP_PRIO_OWNER;
+			vrrp->total_priority = VRRP_PRIO_OWNER;
 		}
-		vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
-		vrrp->master_saddr = vrrp->pkt_saddr;
-		vrrp->master_priority = hd->priority;
+
+		if (hd->priority == 0) {
+			if (__test_bit(LOG_DETAIL_BIT, &debug))
+				log_message(LOG_INFO, "(%s) Backup received priority 0 advertisement", vrrp->iname);
+			vrrp->ms_down_timer = VRRP_TIMER_SKEW(vrrp);
+#ifdef _WITH_SNMP_RFCV3_
+			vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_PRIORITY;
+#endif
+		} else if (__test_bit(VRRP_FLAG_NOPREEMPT, &vrrp->flags) ||
+			   hd->priority >= vrrp->effective_priority ||
+			   (vrrp->preempt_delay &&
+			    (!vrrp->preempt_time.tv_sec ||
+			     timercmp(&vrrp->preempt_time, &time_now, >)))) {
+			/* We are accepting the advert */
+			if (vrrp->version == VRRP_VERSION_3) {
+				master_adver_int = V3_PKT_ADVER_INT_NTOH(hd->v3.adver_int) * TIMER_CENTI_HZ;
+				/* As per RFC5798, set Master_Adver_Interval to Adver Interval contained
+				 * in the ADVERTISEMENT
+				 */
+				if (vrrp->master_adver_int != master_adver_int)
+					update_master_adver_int(vrrp, master_adver_int);
+			}
+			vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
+			vrrp->master_saddr = vrrp->pkt_saddr;
+			vrrp->master_priority = hd->priority;
 
 #ifdef _WITH_SNMP_RFCV3_
-		vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_MASTER_NO_RESPONSE;
+			vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_MASTER_NO_RESPONSE;
 #endif
-		if (vrrp->preempt_delay) {
-			if (hd->priority >= vrrp->effective_priority) {
-				if (vrrp->preempt_time.tv_sec) {
+			if (vrrp->preempt_delay) {
+				if (hd->priority >= vrrp->effective_priority) {
+					if (vrrp->preempt_time.tv_sec) {
+						if (__test_bit(LOG_DETAIL_BIT, &debug))
+							log_message(LOG_INFO,
+								"(%s) stop preempt delay", vrrp->iname);
+						vrrp->preempt_time.tv_sec = 0;
+					}
+				} else if (!vrrp->preempt_time.tv_sec) {
 					if (__test_bit(LOG_DETAIL_BIT, &debug))
 						log_message(LOG_INFO,
-							"(%s) stop preempt delay", vrrp->iname);
-					vrrp->preempt_time.tv_sec = 0;
+							"(%s) start preempt delay (%lu.%6.6lu)", vrrp->iname,
+							vrrp->preempt_delay / TIMER_HZ, vrrp->preempt_delay % TIMER_HZ);
+					vrrp->preempt_time = timer_add_long(timer_now(), vrrp->preempt_delay);
 				}
-			} else if (!vrrp->preempt_time.tv_sec) {
-				if (__test_bit(LOG_DETAIL_BIT, &debug))
-					log_message(LOG_INFO,
-						"(%s) start preempt delay (%lu.%6.6lu)", vrrp->iname,
-						vrrp->preempt_delay / TIMER_HZ, vrrp->preempt_delay % TIMER_HZ);
-				vrrp->preempt_time = timer_add_long(timer_now(), vrrp->preempt_delay);
 			}
-		}
 
-		/* We might have been held in backup by a sync group, but if
-		 * ms_down_timer had expired, we would have wanted MASTER state.
-		 * Now we have received a backup, we want to be in BACKUP state. */
-		vrrp->wantstate = VRRP_STATE_BACK;
-	} else {
-		/* !nopreempt and lower priority advert and any preempt delay timer has expired */
-		log_message(LOG_INFO, "(%s) received lower priority (%d) advert from %s - discarding", vrrp->iname, hd->priority, inet_sockaddrtos(&vrrp->pkt_saddr));
+			/* We might have been held in backup by a sync group, but if
+			 * ms_down_timer had expired, we would have wanted MASTER state.
+			 * Now we have received a higher priority advert, we want to be in BACKUP state. */
+			vrrp->wantstate = VRRP_STATE_BACK;
+		} else {
+			/* !nopreempt and lower priority advert and any preempt delay timer has expired */
+			log_message(LOG_INFO, "(%s) received lower priority (%d) advert from %s - discarding", vrrp->iname, hd->priority, inet_sockaddrtos(&vrrp->pkt_saddr));
 
-		ignore_advert = true;
+			ignore_advert = true;
 
 #ifdef _WITH_SNMP_RFCV3_
-		vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
+			vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
 #endif
 
-		/* We still want to record the master's address for SNMP purposes */
-		vrrp->master_saddr = vrrp->pkt_saddr;
+			/* We still want to record the master's address for SNMP purposes */
+			vrrp->master_saddr = vrrp->pkt_saddr;
+		}
 	}
 
 	if (ignore_advert) {
@@ -2011,6 +2148,18 @@ vrrp_state_backup(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buf, ssize_t bu
 		timersub(&vrrp->sands, &time_now, &new_ms_down_timer);
 		vrrp->ms_down_timer = new_ms_down_timer.tv_sec < 0 ? 0 : (uint32_t)(new_ms_down_timer.tv_sec * TIMER_HZ + new_ms_down_timer.tv_usec);
 	}
+}
+
+
+static void
+vrrp_rogue_timer_thread(thread_ref_t thread)
+{
+	vrrp_t *vrrp = THREAD_ARG(thread);
+
+	/* We have not received a further advert, so we continue as master */
+	log_message(LOG_INFO, "(%s): rogue address owner appears to have stopped advertising", vrrp->iname);
+
+	vrrp->rogue_timer_thread = NULL;
 }
 
 /* MASTER state processing */
@@ -2027,27 +2176,15 @@ vrrp_state_master_tx(vrrp_t * vrrp)
 		log_message(LOG_INFO, "(%s) Entering MASTER STATE"
 				    , vrrp->iname);
 		vrrp_state_become_master(vrrp);
-		/*
-		 * If we catch the master transition
-		 * register a gratuitous arp thread delayed to garp_delay secs.
-		 */
-		if (vrrp->garp_delay)
-			thread_add_timer(master, vrrp_gratuitous_arp_thread,
-					 vrrp, vrrp->garp_delay);
-	} else {
-		if (timerisset(&vrrp->garp_refresh) &&
-		    timercmp(&time_now, &vrrp->garp_refresh_timer, >)) {
-			vrrp_send_link_update(vrrp, vrrp->garp_refresh_rep);
-			vrrp->garp_refresh_timer = timer_add_now(vrrp->garp_refresh);
-		}
+	} else if (vrrp->base_priority == VRRP_PRIO_OWNER) {
+		if (vrrp->rogue_counter && !--vrrp->rogue_counter) {
+			/* For an explanation of what is happening here, see
+			 * vrrp_state_master_rx(). */
+			unsigned long timer = max(vrrp->rogue_adver_int, vrrp->adver_int);
 
-#ifdef _HAVE_VRRP_VMAC_
-		if (timerisset(&vrrp->vmac_garp_intvl) &&
-		    timercmp(&time_now, &vrrp->vmac_garp_timer, >)) {
-			vrrp_send_vmac_update(vrrp);
-			vrrp->vmac_garp_timer = timer_add_now(vrrp->vmac_garp_intvl);
+			timer = (timer * 12) / 10;	// Apply the "a bit more than" - 1.2 here
+			vrrp->rogue_timer_thread = thread_add_timer(master, vrrp_rogue_timer_thread, vrrp, timer);
 		}
-#endif
 	}
 }
 
@@ -2134,17 +2271,44 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 			log_message(LOG_INFO, "(%s) WARNING - equal priority advert received from remote host with our IP address.", vrrp->iname);
 		else if (vrrp->effective_priority == VRRP_PRIO_OWNER) {
 			/* If we are configured as the address owner (priority == 255), and we receive an advertisement
-			 * from another system indicating it is also the address owner, then there is a clear conflict.
-			 * Report a configuration error, and drop our priority as a workaround. */
-			log_message(LOG_INFO, "(%s) CONFIGURATION ERROR: local instance and a remote instance are both configured as address owner, please fix - reducing local priority", vrrp->iname);
-			vrrp->effective_priority = VRRP_PRIO_OWNER - 1;
-			vrrp->base_priority = VRRP_PRIO_OWNER - 1;
+			 * from another system indicating it is also the address owner, then there is a clear conflict. */
+			if (addr_cmp > 0) {
+				/* Report a configuration error, but since our primary IP address is lower, we will revert to backup. */
+				log_message(LOG_INFO, "(%s) CONFIGURATION ERROR: local instance and %s are both configured as address owner, please resolve", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
+			} else if (vrrp->rogue_timer_thread) {
+				/* We are still receiving adverts when the rogue should have stopped
+				 * if it implements keepalived's rogue handling.
+				 * We must fall back now to stop there being two masters.
+				 */
+				log_message(LOG_INFO, "(%s) %s is still advertising as address owner, please resolve - reducing our priority", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
+
+				thread_cancel(vrrp->rogue_timer_thread);
+				vrrp->rogue_timer_thread = NULL;
+				vrrp->effective_priority = VRRP_PRIO_OWNER - 1;
+				vrrp->total_priority = VRRP_PRIO_OWNER - 1;
+			} else {
+				/* We have the higher primary IP address.
+				 * We need to see if the remote, rogue, address owner will stop
+				 * sending adverts. We wait for us to send two adverts, and then
+				 * "a bit more than" max(our adver_int, rogue's adver_int). If we
+				 * still receive an advert after we have sent two more adverts,
+				 * and before the timer expires, then we assume that the rogue
+				 * will not back off and we back off ourself. */
+				if (vrrp->version == VRRP_VERSION_2)
+					vrrp->rogue_adver_int = hd->v2.adver_int * TIMER_HZ;
+				else
+					vrrp->rogue_adver_int = V3_PKT_ADVER_INT_NTOH(hd->v3.adver_int) * TIMER_CENTI_HZ;
+
+				if (!vrrp->rogue_counter) {
+					log_message(LOG_INFO, "(%s) CONFIGURATION ERROR: local instance and %s are both configured as address owner, please resolve", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
+					vrrp->rogue_counter = 2;
+				}
+			}
 		}
 	}
 
 	if (hd->priority < vrrp->effective_priority ||
-	    (hd->priority == vrrp->effective_priority &&
-	     addr_cmp < 0)) {
+	    (hd->priority == vrrp->effective_priority && addr_cmp < 0)) {
 		/* We receive a lower prio adv we just refresh remote ARP cache */
 		log_message(LOG_INFO, "(%s) Received advert from %s with lower priority %d, ours %d%s",
 					vrrp->iname,
@@ -2172,9 +2336,15 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 						 vrrp, vrrp->garp_lower_prio_delay);
 		}
 
-		/* If we are a member of a sync group, send GARP messages
-		 * for any other member of the group that has
-		 * garp_lower_prio_rep set */
+		/* If we are a member of a sync group, send GARP messages for any other member
+		 * of the group that has garp_lower_prio_rep set.
+		 * The reason for this is we must have been in some sort of split brain situation,
+		 * or this keepalived process was not scheduled to run for a while, and a lower
+		 * priority instance has become master, causing it to send adverts and GARP
+		 * messages. When we send this advert, all the sync group members on the lower
+		 * priority instance will transition to backup state, and we will not see
+		 * adverts from those members of the sync group. However, the other VRRP
+		 * instances need to refresh ARP caches. */
 		if (vrrp->sync) {
 			list_for_each_entry(isync, &vrrp->sync->vrrp_instances, s_list) {
 				if (isync == vrrp)
@@ -2204,7 +2374,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 
 	if (hd->priority > vrrp->effective_priority ||
 	    (hd->priority == vrrp->effective_priority && addr_cmp > 0)) {
-		if (hd->priority > vrrp->effective_priority)
+		if (hd->priority > vrrp->effective_priority && vrrp->base_priority != VRRP_PRIO_OWNER)
 			log_message(LOG_INFO, "(%s) Master received advert from %s with higher priority %d, ours %d",
 						vrrp->iname,
 						inet_sockaddrtos(&vrrp->pkt_saddr),
@@ -2221,7 +2391,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 #endif
 
 		if (vrrp->version == VRRP_VERSION_3) {
-			master_adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
+			master_adver_int = V3_PKT_ADVER_INT_NTOH(hd->v3.adver_int) * TIMER_CENTI_HZ;
 			/* As per RFC5798, set Master_Adver_Interval to Adver Interval contained
 			 * in the ADVERTISEMENT
 			 */
@@ -2229,11 +2399,15 @@ vrrp_state_master_rx(vrrp_t * vrrp, const vrrphdr_t *hd, const char *buf, ssize_
 				update_master_adver_int(vrrp, master_adver_int);
 		}
 		vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
+		vrrp->master_saddr = vrrp->pkt_saddr;
 		vrrp->master_priority = hd->priority;
 		vrrp->wantstate = VRRP_STATE_BACK;
 		vrrp->state = VRRP_STATE_BACK;
+
 		return true;
 	}
+
+	/* We have received an equal priority advert from our own primary IP address */
 
 	return false;
 }
@@ -2373,9 +2547,17 @@ chk_min_cfg(vrrp_t *vrrp)
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) the virtual router id must be set", vrrp->iname);
 		return false;
 	}
-	if (!vrrp->ifp && !__test_bit(VRRP_FLAG_UNICAST_CONFIGURED, &vrrp->flags)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) Unknown interface!", vrrp->iname);
-		return false;
+	if (!vrrp->ifp) {
+		if (!__test_bit(VRRP_FLAG_UNICAST_CONFIGURED, &vrrp->flags)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) Unknown interface!", vrrp->iname);
+			return false;
+		}
+#ifdef _HAVE_VRRP_VMAC_
+		if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) cannot use VMAC if no interface specified", vrrp->iname);
+			return false;
+		}
+#endif
 	}
 
 	return true;
@@ -2506,6 +2688,16 @@ open_vrrp_read_socket(sa_family_t family, int proto, const interface_t *ifp,
 			return -2;
 		}
 #endif
+
+		/* Allow binding even if the address doesn't exist yet */
+#if !HAVE_DECL_IPV6_FREEBIND
+		if (family == AF_INET6) {
+			if (setsockopt(fd, IPPROTO_IPV6, IPV6_TRANSPARENT, &on, sizeof on))
+				log_message(LOG_INFO, "IPV6_TRANSPARENT failed %d - %m", errno);
+		} else
+#endif
+		if (setsockopt(fd, family == AF_INET ? IPPROTO_IP : IPPROTO_IPV6, family == AF_INET ? IP_FREEBIND : IPV6_FREEBIND, &on, sizeof on))
+			log_message(LOG_INFO, "IP%s_FREEBIND failed %d - %m", family == AF_INET ? "" : "V6", errno);
 
 		/* Bind to the local unicast address */
 		if (bind(fd, PTR_CAST_CONST(struct sockaddr, unicast_src), unicast_src->ss_family == AF_INET ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6))) {
@@ -3291,6 +3483,25 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp->higher_prio_send_advert = false;
 	}
 
+	if (vrrp->owner_ignore_adverts == true && vrrp->base_priority != VRRP_PRIO_OWNER) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) ignoring owner_ignore_adverts since priority is not %d",
+							  vrrp->iname, VRRP_PRIO_OWNER);
+		vrrp->owner_ignore_adverts = false;
+	} else if (vrrp->owner_ignore_adverts == PARAMETER_UNSET) {
+		if (vrrp->base_priority == VRRP_PRIO_OWNER) {
+			if (vrrp->strict_mode)
+				vrrp->owner_ignore_adverts = true;
+			else
+				vrrp->owner_ignore_adverts = global_data->vrrp_owner_ignore_adverts;
+		} else
+			vrrp->owner_ignore_adverts = false;
+	} else if (vrrp->base_priority == VRRP_PRIO_OWNER &&
+		   !vrrp->owner_ignore_adverts) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) strict_mode with priority %d requires owner_ignore_adverts",
+				    vrrp->iname, VRRP_PRIO_OWNER);
+		vrrp->owner_ignore_adverts = true;
+	}
+
 	if (vrrp->smtp_alert == -1) {
 		if (global_data->smtp_alert_vrrp != -1)
 			vrrp->smtp_alert = global_data->smtp_alert_vrrp;
@@ -3350,8 +3561,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			vrrp->adver_int = vrrp->adver_int + (TIMER_CENTI_HZ / 2);
 			vrrp->adver_int -= vrrp->adver_int % TIMER_CENTI_HZ;
 
+			/* Ensure don't round outside [0.01,40.95] */
 			if (vrrp->adver_int == 0)
 				vrrp->adver_int = TIMER_CENTI_HZ;
+			else if (vrrp->adver_int == (1<<12) * TIMER_CENTI_HZ)
+				vrrp->adver_int = ((1<<12) - 1) * TIMER_CENTI_HZ;
 		}
 	}
 	vrrp->master_adver_int = vrrp->adver_int;
@@ -3796,7 +4010,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 							memcpy(addr_vrrp.ll_addr, vrrp->ll_addr, sizeof(vrrp->ll_addr));
 						}
 
-						netlink_link_add_vmac(&addr_vrrp, false);
+						netlink_link_add_vmac(&addr_vrrp, NULL);
 					} else {
 						ifp->is_ours = true;
 						ifp->if_type = IF_TYPE_MACVLAN;
@@ -4299,8 +4513,7 @@ set_vrrp_src_addr(void)
 			if (vrrp->family == AF_INET) {
 				if (!(VRRP_CONFIGURED_IFP(vrrp))->sin_addr.s_addr)
 					addr_missing = true;
-			}
-			else {
+			} else {
 #ifdef _HAVE_VRRP_VMAC_
 				if (!__test_bit(VRRP_VMAC_BIT, &vrrp->flags))
 #endif
@@ -4318,8 +4531,13 @@ set_vrrp_src_addr(void)
 			else if (vrrp->family == AF_INET)
 				inet_ip4tosockaddr(&VRRP_CONFIGURED_IFP(vrrp)->sin_addr, &vrrp->saddr);
 			else if (vrrp->family == AF_INET6) {
+#ifdef _HAVE_VRRP_VMAC_
+				if (!__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags) &&
+				    (
 #ifdef _HAVE_VRRP_IPVLAN_
-				if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->flags)) {
+				     __test_bit(VRRP_IPVLAN_BIT, &vrrp->flags) ||
+#endif
+				     __test_bit(VRRP_VMAC_BIT, &vrrp->flags))) {
 					if (!IN6_IS_ADDR_UNSPECIFIED(&vrrp->ifp->sin6_addr))
 						inet_ip6tosockaddr(&vrrp->ifp->sin6_addr, &vrrp->saddr);
 				} else
@@ -4595,7 +4813,7 @@ vrrp_complete_init(void)
 #endif
 
 #if defined _HAVE_LIBIPSET_
-	if (!global_data->vrrp_iptables_inchain && global_data->using_ipsets == true) {
+	if (!global_data->vrrp_iptables_inchain && global_data->using_ipsets) {
 		log_message(LOG_INFO, "vrrp_ipsets has been specified but not vrrp_iptables - vrrp_ipsets will be ignored");
 		disable_ipsets();
 	}
@@ -4990,6 +5208,7 @@ clear_diff_vrrp(void)
 {
 	vrrp_t *vrrp;
 	vrrp_t *new_vrrp;
+	bool have_new_addr;
 
 	list_for_each_entry(vrrp, &old_vrrp_data->vrrp, e_list) {
 		/*
@@ -5029,12 +5248,15 @@ clear_diff_vrrp(void)
 		 * reloaded.
 		 */
 		new_vrrp = vrrp_exist(vrrp, &vrrp_data->vrrp);
-		if (new_vrrp) {
-			/*
-			 * If this vrrp instance exist in new
-			 * data, then perform a VIP|EVIP diff.
-			 */
+		if (!new_vrrp)
+			continue;
+
+		/*
+		 * If this vrrp instance exist in new
+		 * data, then perform a VIP|EVIP diff.
+		 */
 // !!!! Isn't this only necessary if MASTER ???? TODO
+		if (vrrp->state == VRRP_STATE_MAST) {
 			/* virtual rules diff */
 			clear_diff_vrrp_vrules(vrrp, new_vrrp);
 
@@ -5042,37 +5264,56 @@ clear_diff_vrrp(void)
 			clear_diff_vrrp_vroutes(vrrp, new_vrrp);
 
 			clear_diff_vrrp_vip(vrrp, new_vrrp);
+		}
 
 #ifdef _HAVE_VRRP_VMAC_
-			/*
-			 * Remove VMAC/IPVLAN if it existed in old vrrp instance,
-			 * but not the new one.
-			 */
-			if (vrrp->ifp &&
-			    vrrp->ifp->is_ours &&
-			    ((__test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
-			      !__test_bit(VRRP_VMAC_BIT, &new_vrrp->flags))
+		/*
+		 * Remove VMAC/IPVLAN if it existed in old vrrp instance,
+		 * but not the new one.
+		 */
+		if (vrrp->ifp &&
+		    vrrp->ifp->is_ours &&
+		    ((__test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
+		      !__test_bit(VRRP_VMAC_BIT, &new_vrrp->flags))
 #ifdef _HAVE_VRRP_IPVLAN_
-			     || (__test_bit(VRRP_IPVLAN_BIT, &vrrp->flags) &&
-				 !__test_bit(VRRP_IPVLAN_BIT, &new_vrrp->flags))
+		     || (__test_bit(VRRP_IPVLAN_BIT, &vrrp->flags) &&
+			 !__test_bit(VRRP_IPVLAN_BIT, &new_vrrp->flags))
 #endif
-										     )) {
-				netlink_link_del_vmac(vrrp);
-			}
-#endif
-
-			/* reset the state */
-			if (restore_vrrp_state(vrrp, new_vrrp)) {
-				/* There were addresses added, so set GARP/GNA for them.
-				 * This is a bit over the top since it will send GARPs/GNAs for
-				 * all the addresses, but at least we will do so for the new addresses. */
-				vrrp_send_link_update(new_vrrp, new_vrrp->garp_rep);
-
-				/* set refresh timer */
-				if (timerisset(&new_vrrp->garp_refresh))
-					new_vrrp->garp_refresh_timer = timer_add_now(new_vrrp->garp_refresh);
-			}
+									     )) {
+			netlink_link_del_vmac(vrrp);
 		}
+// What about VMACs for addresses?
+#endif
+
+		/* reset the state */
+		have_new_addr = restore_vrrp_state(vrrp, new_vrrp);
+
+		if (new_vrrp->state != VRRP_STATE_MAST)
+			continue;
+
+		if (have_new_addr || timerisset(&new_vrrp->garp_refresh)) {
+			/* There were addresses added, or we do periodic GARP/GNA
+			 * refreshes, so send GARP/GNAs for them.
+			 * This is a bit over the top if only for added addresses,
+			 * since it will send GARPs/GNAs for * all the addresses,
+			 * but at least we will do so for the new addresses. */
+			vrrp_send_link_update(new_vrrp, new_vrrp->garp_rep);
+
+			/* Add thread for second block of GARPs */
+			if (have_new_addr && new_vrrp->garp_delay)
+				thread_add_timer(master, vrrp_gratuitous_arp_thread,
+						 new_vrrp, new_vrrp->garp_delay);
+		}
+
+		if (timerisset(&new_vrrp->garp_refresh))
+			thread_add_timer(master, vrrp_gratuitous_arp_refresh_thread,
+					 new_vrrp, (have_new_addr ? new_vrrp->garp_delay : 0) + timer_long(new_vrrp->garp_refresh));
+
+#ifdef _HAVE_VRRP_VMAC_
+		if (timerisset(&new_vrrp->vmac_garp_intvl))
+			thread_add_timer(master, vrrp_gratuitous_arp_vmac_update_thread,
+					 new_vrrp, (have_new_addr ? new_vrrp->garp_delay : 0) + timer_long(new_vrrp->vmac_garp_intvl));
+#endif
 	}
 
 #ifdef _HAVE_VRRP_VMAC_
@@ -5120,10 +5361,30 @@ void
 clear_diff_script(void)
 {
 	vrrp_script_t *vscript, *nvscript;
+	bool different;
+	int i;
 
 	list_for_each_entry(vscript, &old_vrrp_data->vrrp_script, e_list) {
 		nvscript = find_script_by_name(vscript->sname);
 		if (nvscript) {
+			/* Check if the scripts are the same */
+			if (vscript->script.num_args != nvscript->script.num_args ||
+			    vscript->script.uid != nvscript->script.uid ||
+			    vscript->script.gid != nvscript->script.gid ||
+			    !vscript->script.path != !nvscript->script.path ||
+			    (vscript->script.path &&
+			     strcmp(vscript->script.path, nvscript->script.path)))
+				continue;
+			for (i = 0, different = false; i < vscript->script.num_args; i++) {
+				if (strcmp(vscript->script.args[i], nvscript->script.args[i])) {
+					different = true;
+					break;
+				}
+			}
+
+			if (different)
+				continue;
+
 			if (vscript->init_state == SCRIPT_INIT_STATE_INIT) {
 				/* We need to undo the startup assumptions and apply new startup assumptions */
 				nvscript->init_state = SCRIPT_INIT_STATE_INIT;
@@ -5198,5 +5459,6 @@ void
 register_vrrp_fifo_addresses(void)
 {
 	register_thread_address("vrrp_notify_fifo_script_exit", vrrp_notify_fifo_script_exit);
+	register_thread_address("vrrp_rogue_timer_thread", vrrp_rogue_timer_thread);
 }
 #endif

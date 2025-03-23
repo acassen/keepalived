@@ -245,9 +245,6 @@ bfd_end_handler(void)
 	top->type = TRACK_CHECKER;
 	top->obj.checker = current_checker;
 	list_add_tail(&top->e_list, &bfdc->bfd->tracking_rs);
-
-	/* queue the checker */
-	list_add_tail(&current_checker->e_list, &checkers_queue);
 }
 
 void

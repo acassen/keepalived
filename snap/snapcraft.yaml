@@ -9,7 +9,23 @@ description: |
 grade: stable
 confinement: classic
 
-base: core20
+base: core22
+
+# Note: When change base to core24 or later, architectures needs to be changed to platforms
+architectures:
+  - build-on: [amd64]
+  - build-on: [arm64]
+  - build-on: [armhf]
+  - build-on: [ppc64el]
+  - build-on: [s390x]
+  - build-on: [riscv64]
+#platforms:
+#  amd64:
+#  arm64:
+#  armhf:
+#  ppc64el:
+#  s390x:
+#  riscv64:
 
 # linux-libc-dev for 5.08, 4.18 and 3.10 are no longer available via
 #    http://security.ubuntu.com/ubuntu/pool/main/l/linux/
@@ -19,7 +35,7 @@ base: core20
 #
 # To find the relevant files, go to launchpad.net/ubuntu/CODENAME/ARCH/linux-libc-dev
 #   where CODENAME is, for example cosmic for Ubuntu 18.10, and ARCH is each of amd64,
-#   ppc64el, arm64, armhf and s390x.
+#   ppc64el, arm64, armhf, s390x and riscv64.
 # Select the most recent version, and click on link under Version column (RHS). Under
 #   Downloadable files is a link to the .deb file. That is what we need in DEB_URL.
 #
@@ -30,8 +46,12 @@ apps:
   daemon:
     daemon: forking
     command: bin/keepalived-wrapper
+    environment:
+      LD_LIBRARY_PATH: "$SNAP/usr/lib/$SNAP_ARCH-linux-gnu"
   keepalived:
     command: bin/keepalived-wrapper
+  "519":        # First post Linux 5.18 version - Ubuntu 22.10
+    command: usr/sbin/keepalived-519
   "508":        # Fedora 33 and Ubuntu 20.10
     command: usr/sbin/keepalived-508
   "504":        # Ubuntu 20.04
@@ -45,6 +65,8 @@ apps:
   genhash:
     command: usr/bin/genhash
 
+# This first part will build with the kernel headers for the Ubuntu version specified in base
+#  - e.g. Ubuntu 22.04 (Jammy) has kernel 5.15.
 parts:
   keepalived:
     plugin: autotools
@@ -62,7 +84,7 @@ parts:
       - --disable-libipset-dynamic
       - --disable-systemd
     override-build: |
-      snapcraftctl build
+      craftctl default
       VER=
       if [ -f lib/git-commit.h ]; then
         COMMIT=`grep GIT_COMMIT lib/git-commit.h | wc -l || true`
@@ -73,12 +95,12 @@ parts:
       if [ -z $VER ]; then
         VER=`grep "^AC_INIT" configure.ac | tr '[' ']' | cut -d']' -f4`
       fi
-      snapcraftctl set-version $VER
+      craftctl set version=$VER
       echo -n "Build kernel:"
       printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
       KERNEL_VER=$(printf "%d%2.2d" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)../0x\1 0x\2/"))
-      rm ${SNAPCRAFT_PART_INSTALL}/usr/bin/genhash
-      ln -s ../sbin/keepalived-$KERNEL_VER ${SNAPCRAFT_PART_INSTALL}/usr/bin/genhash
+      rm ${CRAFT_PART_INSTALL}/usr/bin/genhash
+      ln -s ../sbin/keepalived-$KERNEL_VER ${CRAFT_PART_INSTALL}/usr/bin/genhash
     build-packages:
       - libxtables-dev
       - libip4tc-dev
@@ -105,11 +127,11 @@ parts:
       - libnl-3-200
       - libnl-genl-3-200
       - libpcre2-8-0
-      - libsnmp35
+      - libsnmp40
     organize:
-      'usr/sbin/keepalived': usr/sbin/keepalived-504
+      'usr/sbin/keepalived': usr/sbin/keepalived-515
 
-  linux-headers-508:
+  linux-headers-519:
     plugin: nil
     build-packages:
       - dpkg
@@ -118,8 +140,87 @@ parts:
     after:
       - keepalived
     override-pull: |
+      KERNEL_VER="5.19.0"
+      ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
+      # Packages from Ubuntu 22.10 (Kinetic)
+      if [ $ARCH = amd64 ]; then
+        DEB_URL="http://launchpadlibrarian.net/672569528/linux-libc-dev_5.19.0-46.47_amd64.deb"
+      elif [ $ARCH = ppc64el ]; then
+        DEB_URL="http://launchpadlibrarian.net/672570374/linux-libc-dev_5.19.0-46.47_ppc64el.deb"
+      elif [ $ARCH = arm64 ]; then
+        DEB_URL="http://launchpadlibrarian.net/672667063/linux-libc-dev_5.19.0-46.47_arm64.deb"
+      elif [ $ARCH = armhf ]; then
+        DEB_URL="http://launchpadlibrarian.net/672578326/linux-libc-dev_5.19.0-46.47_armhf.deb"
+      elif [ $ARCH = s390x ]; then
+        DEB_URL="http://launchpadlibrarian.net/672563386/linux-libc-dev_5.19.0-46.47_s390x.deb"
+      elif [ $ARCH = riscv64 ]; then
+        DEB_URL="http://launchpadlibrarian.net/672563745/linux-libc-dev_5.19.0-46.47_riscv64.deb"
+      fi
+      wget --quiet ${DEB_URL} -O ${CRAFT_STAGE}/linux-libc-dev-$KERNEL_VER.deb
+    override-build: |
+      craftctl default
+      KERNEL_VER="5.19.0"
+      echo -n "Unpacking kernel $KERNEL_VER headers..."
+      dpkg -x ${CRAFT_STAGE}/linux-libc-dev-$KERNEL_VER.deb ${CRAFT_STAGE}/keepalived-linux-libc-dev
+      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${CRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+      rm -f ${CRAFT_STAGE}/linux-libc-dev-$KERNEL_VER.deb
+      # Move header from the part to the host
+      ARCH_DIR=$(ls -d ${CRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/*/asm | sed -e "s:/asm$::" -e "s:.*/::")
+      for d in linux asm-generic $ARCH_DIR/asm; do
+        dest=/usr/include/$d
+        rm -rf $dest
+        mv ${CRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/$d ${dest%/*}
+      done
+      rm -rf ${CRAFT_STAGE}/keepalived-linux-libc-dev
+      echo -n "Build kernel:"
+      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+    stage:
+      - -*
+    prime:
+      - -*
+
+  keepalived-519:
+    plugin: autotools
+    source: .
+    source-type: git
+    after:
+      - linux-headers-519
+    autotools-configure-parameters:
+      - --prefix=/usr
+      - --with-samples-dir='$(docdir)'
+      - --enable-bfd
+      - --enable-dbus
+      - --enable-json
+      - --enable-regex
+      - --enable-snmp
+      - --enable-snmp-rfc
+      - --disable-libipset-dynamic
+    organize:
+      'usr/sbin/keepalived': usr/sbin/keepalived-519
+      'usr/etc/dbus-1/system.d/org.keepalived.Vrrp1.conf': etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
+    stage:
+      - usr/sbin/keepalived-519
+      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
+      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
+      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
+    prime:
+      - usr/sbin/keepalived-519
+      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
+      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
+      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
+
+  linux-headers-508:
+    plugin: nil
+    build-packages:
+      - dpkg
+      - dpkg-dev
+      - wget
+    after:
+      - keepalived-519
+    override-pull: |
       KERNEL_VER="5.8.0"
       ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
+      # Packages from 20.10 (Groovy)
       if [ $ARCH = amd64 ]; then
         DEB_URL="http://launchpadlibrarian.net/548300974/linux-libc-dev_5.8.0-63.71_amd64.deb"
       elif [ $ARCH = ppc64el ]; then
@@ -130,22 +231,25 @@ parts:
         DEB_URL="http://launchpadlibrarian.net/548325871/linux-libc-dev_5.8.0-63.71_armhf.deb"
       elif [ $ARCH = s390x ]; then
         DEB_URL="http://launchpadlibrarian.net/548279675/linux-libc-dev_5.8.0-63.71_s390x.deb"
+      elif [ $ARCH = riscv64 ]; then
+        DEB_URL="http://launchpadlibrarian.net/548280908/linux-libc-dev_5.8.0-63.71_riscv64.deb"
       fi
-      wget --quiet ${DEB_URL} -O ${SNAPCRAFT_STAGE}/linux-libc-dev.deb
-      echo -n "Unpacking kernel headers..."
-      dpkg -x ${SNAPCRAFT_STAGE}/linux-libc-dev.deb ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev
-      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
-      rm -f ${SNAPCRAFT_STAGE}/linux-libc-dev.deb
+      wget --quiet ${DEB_URL} -O ${CRAFT_STAGE}/linux-libc-dev-$KERNEL_VER.deb
     override-build: |
-      snapcraftctl build
+      craftctl default
+      KERNEL_VER="5.8.0"
+      echo -n "Unpacking kernel $KERNEL_VER headers..."
+      dpkg -x ${CRAFT_STAGE}/linux-libc-dev-$KERNEL_VER.deb ${CRAFT_STAGE}/keepalived-linux-libc-dev
+      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${CRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+      rm -f ${CRAFT_STAGE}/linux-libc-dev-$KERNEL_VER.deb
       # Move header from the part to the host
-      ARCH_DIR=$(ls -d ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/*/asm | sed -e "s:/asm$::" -e "s:.*/::")
+      ARCH_DIR=$(ls -d ${CRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/*/asm | sed -e "s:/asm$::" -e "s:.*/::")
       for d in linux asm-generic $ARCH_DIR/asm; do
         dest=/usr/include/$d
         rm -rf $dest
-        mv ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/$d ${dest%/*}
+        mv ${CRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/$d ${dest%/*}
       done
-      rm -rf ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev
+      rm -rf ${CRAFT_STAGE}/keepalived-linux-libc-dev
       echo -n "Build kernel:"
       printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
     stage:
@@ -171,19 +275,12 @@ parts:
       - --disable-libipset-dynamic
     organize:
       'usr/sbin/keepalived': usr/sbin/keepalived-508
-      'usr/etc/dbus-1/system.d/org.keepalived.Vrrp1.conf': etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
     stage:
       - usr/sbin/keepalived-508
-      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
     prime:
       - usr/sbin/keepalived-508
-      - etc/dbus-1/system.d/org.keepalived.Vrrp1.conf
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
-      - usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
 
-  linux-headers-418:
+  linux-headers-504:
     plugin: nil
     build-packages:
       - dpkg
@@ -192,30 +289,105 @@ parts:
     after:
       - keepalived-508
     override-pull: |
+      KERNEL_VER="5.4.0"
+      ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
+      if [ $ARCH = amd64 ]; then
+        ARCHIVE_URL="http://security.ubuntu.com/ubuntu/pool/main/l/linux/"
+      else
+        ARCHIVE_URL="http://ports.ubuntu.com/pool/main/l/linux/"
+      fi
+      DEB_SUFFIX=$(wget ${ARCHIVE_URL} -O - | grep linux-libc-dev | cut -d'_' -f2-3 | cut -d'"' -f1 | grep ${ARCH} | grep ${KERNEL_VER} | tail -n1)
+      wget --quiet ${ARCHIVE_URL}/linux-libc-dev_${DEB_SUFFIX} -O ${CRAFT_STAGE}/linux-libc-dev-$KERNEL_VER.deb
+    override-build: |
+      craftctl default
+      KERNEL_VER="5.4.0"
+      echo -n "Unpacking kernel $KERNEL_VER headers..."
+      dpkg -x ${CRAFT_STAGE}/linux-libc-dev-$KERNEL_VER.deb ${CRAFT_STAGE}/keepalived-linux-libc-dev
+      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${CRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+      rm -f ${CRAFT_STAGE}/linux-libc-dev-$KERNEL_VER.deb
+      # Move header from the part to the host
+      ARCH_DIR=$(ls -d ${CRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/*/asm | sed -e "s:/asm$::" -e "s:.*/::")
+      for d in linux asm-generic $ARCH_DIR/asm; do
+        dest=/usr/include/$d
+        rm -rf $dest
+        mv ${CRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/$d ${dest%/*}
+      done
+      rm -rf ${CRAFT_STAGE}/keepalived-linux-libc-dev
+      echo -n "Build kernel:"
+      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+    stage:
+      - -*
+    prime:
+      - -*
+
+  keepalived-504:
+    plugin: autotools
+    source: .
+    source-type: git
+    after:
+      - linux-headers-504
+    autotools-configure-parameters:
+      - --prefix=/usr
+      - --with-samples-dir='$(docdir)'
+      - --enable-bfd
+      - --enable-dbus
+      - --enable-json
+      - --enable-regex
+      - --enable-snmp
+      - --enable-snmp-rfc
+      - --disable-libipset-dynamic
+    organize:
+      'usr/sbin/keepalived': usr/sbin/keepalived-504
+    stage:
+      - usr/sbin/keepalived-504
+    prime:
+      - usr/sbin/keepalived-504
+
+  linux-headers-418:
+    plugin: nil
+    build-packages:
+      - dpkg
+      - dpkg-dev
+      - wget
+    after:
+      - keepalived-504
+    override-pull: |
       KERNEL_VER="4.18.0"
       ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
-      if [ $ARCH = amd64 ] || [ $ARCH = ppc64el ] ||  [ $ARCH = arm64 ]; then
+      # From Ubuntu 18.10 (Cosmic)
+      if [ $ARCH = amd64 ]; then
         DEB_URL="http://launchpadlibrarian.net/431512728/linux-libc-dev_4.18.0-26.27_amd64.deb"
+      elif [ $ARCH = ppc64el ]; then
+        DEB_URL="http://launchpadlibrarian.net/431492858/linux-libc-dev_4.18.0-26.27_ppc64el.deb"
+      elif [ $ARCH = arm64 ]; then
+        DEB_URL="http://launchpadlibrarian.net/431531681/linux-libc-dev_4.18.0-26.27_arm64.deb"
       elif [ $ARCH = armhf ]; then
         DEB_URL="http://launchpadlibrarian.net/431525966/linux-libc-dev_4.18.0-26.27_armhf.deb"
       elif [ $ARCH = s390x ]; then
         DEB_URL="http://launchpadlibrarian.net/431485536/linux-libc-dev_4.18.0-26.27_s390x.deb"
       fi
-      wget --quiet ${DEB_URL} -O ${SNAPCRAFT_STAGE}/linux-libc-dev.deb
-      echo -n "Unpacking kernel headers..."
-      dpkg -x ${SNAPCRAFT_STAGE}/linux-libc-dev.deb ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev
-      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
-      rm -f ${SNAPCRAFT_STAGE}/linux-libc-dev.deb
+      # Ubuntu 18.10 Cosmic Cuttle had no riscv64 support
+      if [ $ARCH != riscv64 ]; then
+        wget --quiet ${DEB_URL} -O ${CRAFT_STAGE}/linux-libc-dev-$KERNEL_VER.deb
+      fi
     override-build: |
-      snapcraftctl build
-      # Move header from the part to the host
-      ARCH_DIR=$(ls -d ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/*/asm | sed -e "s:/asm$::" -e "s:.*/::")
-      for d in linux asm-generic $ARCH_DIR/asm; do
-        dest=/usr/include/$d
-        rm -rf $dest
-        mv ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/$d ${dest%/*}
-      done
-      rm -rf ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev
+      craftctl default
+      KERNEL_VER="4.18.0"
+      ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
+      if [ $ARCH != riscv64 ]; then
+        echo -n "Unpacking kernel $KERNEL_VER headers..."
+        dpkg -x ${CRAFT_STAGE}/linux-libc-dev-$KERNEL_VER.deb ${CRAFT_STAGE}/keepalived-linux-libc-dev
+        printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${CRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+        rm -f ${CRAFT_STAGE}/linux-libc-dev-$KERNEL_VER.deb
+        # Move header from the part to the host
+        ARCH_DIR=$(ls -d ${CRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/*/asm | sed -e "s:/asm$::" -e "s:.*/::")
+        for d in linux asm-generic $ARCH_DIR/asm; do
+          dest=/usr/include/$d
+          rm -rf $dest
+          mv ${CRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/$d ${dest%/*}
+        done
+      fi
+      rm -rf ${CRAFT_STAGE}/keepalived-linux-libc-dev
       echo -n "Build kernel:"
       printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
     stage:
@@ -259,25 +431,32 @@ parts:
       ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
       if [ $ARCH = amd64 ]; then
         ARCHIVE_URL="http://security.ubuntu.com/ubuntu/pool/main/l/linux/"
-      else
+      elif [ $ARCH != riscv64 ]; then
         ARCHIVE_URL="http://ports.ubuntu.com/pool/main/l/linux/"
       fi
-      DEB_SUFFIX=$(wget ${ARCHIVE_URL} -O - | grep linux-libc-dev | cut -d'_' -f2-3 | cut -d'"' -f1 | grep ${ARCH} | grep ${KERNEL_VER} | tail -n1)
-      wget --quiet ${ARCHIVE_URL}/linux-libc-dev_${DEB_SUFFIX} -O ${SNAPCRAFT_STAGE}/linux-libc-dev.deb
-      echo -n "Unpacking kernel headers..."
-      dpkg -x ${SNAPCRAFT_STAGE}/linux-libc-dev.deb ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev
-      printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
-      rm -f ${SNAPCRAFT_STAGE}/linux-libc-dev.deb
+      # Ubuntu 18.40 (Bionic Beaver) had no riscv64 support
+      if [ $ARCH != riscv64 ]; then
+        DEB_SUFFIX=$(wget ${ARCHIVE_URL} -O - | grep linux-libc-dev | cut -d'_' -f2-3 | cut -d'"' -f1 | grep ${ARCH} | grep ${KERNEL_VER} | tail -n1)
+        wget --quiet ${ARCHIVE_URL}/linux-libc-dev_${DEB_SUFFIX} -O ${CRAFT_STAGE}/linux-libc-dev-$KERNEL_VER.deb
+      fi
     override-build: |
-      snapcraftctl build
+      craftctl default
+      KERNEL_VER="4.15.0"
       # Move header from the part to the host
-      ARCH_DIR=$(ls -d ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/*/asm | sed -e "s:/asm$::" -e "s:.*/::")
-      for d in linux asm-generic $ARCH_DIR/asm; do
-        dest=/usr/include/$d
-        rm -rf $dest
-        mv ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/$d ${dest%/*}
-      done
-      rm -rf ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev
+      ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
+      if [ $ARCH != riscv64 ]; then
+        echo -n "Unpacking kernel $KERNEL_VER headers..."
+        dpkg -x ${CRAFT_STAGE}/linux-libc-dev-$KERNEL_VER.deb ${CRAFT_STAGE}/keepalived-linux-libc-dev
+        printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${CRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+        rm -f ${CRAFT_STAGE}/linux-libc-dev-$KERNEL_VER.deb
+        ARCH_DIR=$(ls -d ${CRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/*/asm | sed -e "s:/asm$::" -e "s:.*/::")
+        for d in linux asm-generic $ARCH_DIR/asm; do
+          dest=/usr/include/$d
+          rm -rf $dest
+          mv ${CRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/$d ${dest%/*}
+        done
+      fi
+      rm -rf ${CRAFT_STAGE}/keepalived-linux-libc-dev
       echo -n "Build kernel:"
       printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
     stage:
@@ -317,34 +496,37 @@ parts:
     after:
       - keepalived-415
     override-pull: |
+      KERNEL_VER="3.13.0"
       ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
       if [ $ARCH = amd64 ] || [ $ARCH = ppc64el ] ||  [ $ARCH = arm64 ]; then
         DEB_URL="http://launchpadlibrarian.net/422971061/linux-libc-dev_3.13.0-170.220_amd64.deb"
       elif [ $ARCH = armhf ]; then
         DEB_URL="http://launchpadlibrarian.net/422971427/linux-libc-dev_3.13.0-170.220_i386.deb"
       fi
-      if [ $ARCH != s390x ]; then
-        # s390x was not supported on Trusty, so there are no kernel headers for it.
-        # Just let it build with the previous headers.
-        wget --quiet ${DEB_URL} -O ${SNAPCRAFT_STAGE}/linux-libc-dev.deb
-        echo -n "Unpacking kernel headers..."
-        dpkg -x ${SNAPCRAFT_STAGE}/linux-libc-dev.deb ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev
-        printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
-        rm -f ${SNAPCRAFT_STAGE}/linux-libc-dev.deb
+      if [ $ARCH != s390x ] && [ $ARCH != riscv64 ]; then
+        # riscv64 and s390x were not supported on Trusty, so there are no kernel headers for them.
+        # Just let them build with the previous headers.
+        wget --quiet ${DEB_URL} -O ${CRAFT_STAGE}/linux-libc-dev-$KERNEL_VER.deb
       fi
     override-build: |
-      snapcraftctl build
+      craftctl default
+      KERNEL_VER="3.13.0"
+      # Move header from the part to the host
       ARCH=$(dpkg-architecture -q DEB_BUILD_ARCH)
-      if [ $ARCH != s390x ]; then
+      if [ $ARCH != s390x ] && [ $ARCH != riscv64 ]; then
+        echo -n "Unpacking kernel $KERNEL_VER headers..."
+        dpkg -x ${CRAFT_STAGE}/linux-libc-dev-$KERNEL_VER.deb ${CRAFT_STAGE}/keepalived-linux-libc-dev
+        printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE ${CRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
+        rm -f ${CRAFT_STAGE}/linux-libc-dev-$KERNEL_VER.deb
         # Move header from the part to the host
-        ARCH_DIR=$(ls -d ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/*/asm | sed -e "s:/asm$::" -e "s:.*/::")
+        ARCH_DIR=$(ls -d ${CRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/*/asm | sed -e "s:/asm$::" -e "s:.*/::")
         for d in linux asm-generic $ARCH_DIR/asm; do
           dest=/usr/include/$d
           rm -rf $dest
-          mv ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/$d ${dest%/*}
+          mv ${CRAFT_STAGE}/keepalived-linux-libc-dev/usr/include/$d ${dest%/*}
         done
       fi
-      rm -rf ${SNAPCRAFT_STAGE}/keepalived-linux-libc-dev
+      rm -rf ${CRAFT_STAGE}/keepalived-linux-libc-dev
       echo -n "Build kernel:"
       printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
     stage:

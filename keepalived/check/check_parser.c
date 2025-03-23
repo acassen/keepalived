@@ -545,12 +545,18 @@ pgr_handler(const vector_t *strvec)
 		}
 #endif
 
-		/* Cast via void * to stop -Wcast-align warning.
-		 * Since alignment of struct addrinfo >= alignment of struct sockaddr_in and res->ai_addr is
-		 * aligned to a struct addrinfo, it is not a problem.
-		 *   e.g. vs->persistence_granularity = ((struct sockaddr_in *)((void *)res->ai_addr))->sin_addr.s_addr;
+		/* On 32 bit systems, gcc produces a warning : cast increases required alignment of target type [-Wcast-align]
+		 *  for
+		 * current_vs->persistence_granularity = ((struct sockaddr_in *)res->ai_addr)->sin_addr.s_addr;
 		 */
-		current_vs->persistence_granularity = ((struct sockaddr_in *)res->ai_addr)->sin_addr.s_addr;
+		union {
+			struct sockaddr sa;
+			struct sockaddr_in sa_in;
+		} sa;
+
+		sa.sa = *res->ai_addr;
+		current_vs->persistence_granularity = sa.sa_in.sin_addr.s_addr;
+
 		freeaddrinfo(res);
 	}
 
@@ -670,7 +676,9 @@ rs_end_handler(void)
 	}
 
 	list_add_tail(&current_rs->e_list, &current_vs->rs);
+#ifdef _WITH_SNMP_CHECKER_
 	current_vs->rs_cnt++;
+#endif
 }
 
 static void
@@ -923,13 +931,16 @@ vs_weight_handler(const vector_t *strvec)
 	current_vs->weight = weight;
 }
 
+#ifdef _WITH_SANITIZE_UNDEFINED_
+__attribute__((no_sanitize("null")))
+#endif
 void
 init_check_keywords(bool active)
 {
 	vpp_t check_ptr;
 
 	/* SSL mapping */
-	install_keyword_root("SSL", &ssl_handler, active, VPP &check_data->ssl);
+	install_keyword_root("SSL", &ssl_handler, active, VPP &check_data->ssl);	// Causes sanitizer error: member access within null pointer of type 'struct check_data_t'
 	install_keyword("password", &sslpass_handler);
 	install_keyword("ca", &sslca_handler);
 	install_keyword("certificate", &sslcert_handler);
@@ -976,8 +987,8 @@ init_check_keywords(bool active)
 	/* Pool regression detection and handling. */
 	install_keyword("alpha", &vs_alpha_handler);
 	install_keyword("omega", &omega_handler);
-	install_keyword("quorum_up", &quorum_up_handler);
-	install_keyword("quorum_down", &quorum_down_handler);
+	install_keyword_quoted("quorum_up", &quorum_up_handler);
+	install_keyword_quoted("quorum_down", &quorum_down_handler);
 	install_keyword("quorum", &quorum_handler);
 	install_keyword("hysteresis", &hysteresis_handler);
 	install_keyword("weight", &vs_weight_handler);
@@ -993,8 +1004,8 @@ init_check_keywords(bool active)
 	install_keyword("uthreshold", &uthreshold_handler);
 	install_keyword("lthreshold", &lthreshold_handler);
 	install_keyword("inhibit_on_failure", &rs_inhibit_handler);
-	install_keyword("notify_up", &notify_up_handler);
-	install_keyword("notify_down", &notify_down_handler);
+	install_keyword_quoted("notify_up", &notify_up_handler);
+	install_keyword_quoted("notify_down", &notify_down_handler);
 	install_keyword("alpha", &rs_alpha_handler);
 	install_keyword("retry", &rs_retry_handler);
 	install_keyword("delay_before_retry", &rs_delay_before_retry_handler);

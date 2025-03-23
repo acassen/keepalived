@@ -28,6 +28,9 @@
 #include <unistd.h>
 #include <sys/prctl.h>
 #include <sys/time.h>
+#ifdef _WITH_PROFILING_
+#include <sys/gmon.h>
+#endif
 
 #ifdef THREAD_DUMP
 #ifdef _WITH_SNMP_
@@ -163,7 +166,6 @@ checker_terminate_phase2(void)
 	checker_dispatcher_release();
 	thread_destroy_master(master);
 	master = NULL;
-	free_checkers_queue();
 	free_ssl();
 	set_ping_group_range(false);
 
@@ -175,13 +177,13 @@ checker_terminate_phase2(void)
 	ipvs_stop();
 
 	/* Stop daemon */
-	pidfile_rm(checkers_pidfile);
+	pidfile_rm(&checkers_pidfile);
 
 	/* Clean data */
 	if (global_data)
-		free_global_data(global_data);
+		free_global_data(&global_data);
 	if (check_data)
-		free_check_data(check_data);
+		free_check_data(&check_data);
 	free_parent_mallocs_exit();
 
 	/*
@@ -298,17 +300,16 @@ set_effective_weights(void)
 	list_for_each_entry(vs, &check_data->vs, e_list) {
 		list_for_each_entry(rs, &vs->rs, e_list) {
 			rs->effective_weight = rs->iweight;
+
+			list_for_each_entry(checker, &rs->checkers_list, rs_list)
+				checker->rs->effective_weight += checker->cur_weight;
 		}
         }
-
-	list_for_each_entry(checker, &checkers_queue, e_list) {
-		checker->rs->effective_weight += checker->cur_weight;
-	}
 }
 
 /* Daemon init sequence */
 static void
-start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
+start_check(data_t *prev_global_data)
 {
 	/* Parse configuration file */
 	if (reload)
@@ -325,8 +326,9 @@ start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 		init_global_data(global_data, prev_global_data, true);
 
 	/* Update process name if necessary */
-	if ((!reload && global_data->lvs_process_name) ||
-	    (reload &&
+	if ((!prev_global_data &&		// startup
+	     global_data->lvs_process_name) ||
+	    (prev_global_data &&		// reload
 	     (!global_data->lvs_process_name != !prev_global_data->lvs_process_name ||
 	      (global_data->lvs_process_name && strcmp(global_data->lvs_process_name, prev_global_data->lvs_process_name)))))
 		set_process_name(global_data->lvs_process_name);
@@ -427,7 +429,7 @@ start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 	/* Processing differential configuration parsing */
 	set_track_file_weights();
 	if (reload)
-		clear_diff_services(old_checkers_queue);
+		clear_diff_services();
 	set_track_file_checkers_down();
 	set_effective_weights();
 	if (reload)
@@ -461,7 +463,7 @@ start_check(list_head_t *old_checkers_queue, data_t *prev_global_data)
 void
 check_validate_config(void)
 {
-	start_check(NULL, NULL);
+	start_check(NULL);
 }
 
 #ifndef _ONE_PROCESS_DEBUG_
@@ -469,7 +471,6 @@ check_validate_config(void)
 static void
 reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 {
-	list_head_t old_checkers_queue;
 	bool with_snmp = false;
 
 	log_message(LOG_INFO, "Reloading");
@@ -505,10 +506,6 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 	thread_cleanup_master(master, true);
 	thread_add_base_threads(master, with_snmp);
 
-	/* Save previous checker data */
-	list_copy(&old_checkers_queue, &checkers_queue);
-	init_checkers_queue();
-
 	free_ssl();
 	ipvs_stop();
 
@@ -519,12 +516,11 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 	global_data = NULL;
 
 	/* Reload the conf */
-	start_check(&old_checkers_queue, old_global_data);
+	start_check(old_global_data);
 
 	/* free backup data */
-	free_check_data(old_check_data);
-	free_global_data(old_global_data);
-	free_checker_list(&old_checkers_queue);
+	free_check_data(&old_check_data);
+	free_global_data(&old_global_data);
 
 #ifndef _ONE_PROCESS_DEBUG_
 	save_config(true, "check", dump_data_check);
@@ -570,7 +566,10 @@ static void
 check_signal_init(void)
 {
 	signal_set(SIGHUP, sigreload_check, NULL);
-	signal_set(SIGINT, sigend_check, NULL);
+	if (ignore_sigint)
+		signal_ignore(SIGINT);
+	else
+		signal_set(SIGINT, sigend_check, NULL);
 	signal_set(SIGTERM, sigend_check, NULL);
 	signal_set(SIGUSR1, sigusr1_check, NULL);
 #ifdef THREAD_DUMP
@@ -643,6 +642,7 @@ register_check_thread_addresses(void)
 #ifndef _ONE_PROCESS_DEBUG_
 	register_thread_address("reload_check_thread", reload_check_thread);
 	register_thread_address("start_checker_termination_thread", start_checker_termination_thread);
+	register_thread_address("print_check_data", print_check_data);
 #endif
 	register_thread_address("lvs_notify_fifo_script_exit", lvs_notify_fifo_script_exit);
 	register_thread_address("checker_shutdown_backstop_thread", checker_shutdown_backstop_thread);
@@ -692,6 +692,11 @@ start_check_child(void)
 		return 0;
 	}
 
+#ifdef _WITH_PROFILING_
+	/* See https://lists.gnu.org/archive/html/bug-gnu-utils/2001-09/msg00047.html for details */
+	monstartup ((u_long) &_start, (u_long) &etext);
+#endif
+
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
 	/* Check our parent hasn't already changed since the fork */
@@ -706,6 +711,8 @@ start_check_child(void)
 	/* Remove anything we might have inherited from parent */
 	deregister_thread_addresses();
 #endif
+
+	close_other_pidfiles();
 
 #ifdef _WITH_BFD_
 	/* Close the write end of the BFD checker event notification pipe and the track_process fd */
@@ -755,7 +762,7 @@ start_check_child(void)
 	separate_config_file();
 
 	/* Child process part, write pidfile */
-	if (!pidfile_write(checkers_pidfile, getpid())) {
+	if (!pidfile_write(&checkers_pidfile)) {
 		log_message(LOG_INFO, "Healthcheck child process: cannot write pidfile");
 		exit(KEEPALIVED_EXIT_FATAL);
 	}
@@ -783,7 +790,7 @@ start_check_child(void)
 #endif
 
 	/* Start Healthcheck daemon */
-	start_check(NULL, NULL);
+	start_check(NULL);
 
 #ifdef _ONE_PROCESS_DEBUG_
 	return 0;
@@ -821,7 +828,6 @@ void
 register_check_parent_addresses(void)
 {
 #ifndef _ONE_PROCESS_DEBUG_
-	register_thread_address("print_check_data", print_check_data);
 	register_thread_address("check_respawn_thread", check_respawn_thread);
 	register_thread_address("delayed_restart_check_child_thread", delayed_restart_check_child_thread);
 #endif

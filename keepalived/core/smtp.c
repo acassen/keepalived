@@ -40,7 +40,7 @@
 #include "scheduler.h"
 #endif
 
-/* If it suspected that one of subject, body, buffer or email_to
+/* If it suspected that one of subject, body or buffer
  * is overflowing in the smtp_t structure, defining SMTP_MSG_ALLOC_DEBUG
  * when using --enable-mem-check should help identity the issue
  */
@@ -103,7 +103,6 @@ free_smtp_msg_data(smtp_t * smtp)
 	FREE(smtp->buffer);
 	FREE(smtp->subject);
 	FREE(smtp->body);
-	FREE(smtp->email_to);
 #endif
 	FREE(smtp);
 }
@@ -119,13 +118,11 @@ alloc_smtp_msg_data(void)
 	smtp->subject = (char *)MALLOC(MAX_HEADERS_LENGTH);
 	smtp->body = (char *)MALLOC(MAX_BODY_LENGTH);
 	smtp->buffer = (char *)MALLOC(SMTP_BUFFER_MAX);
-	smtp->email_to = (char *)MALLOC(SMTP_BUFFER_MAX);
 #else
 	smtp = MALLOC(sizeof(smtp_t) + MAX_HEADERS_LENGTH + MAX_BODY_LENGTH + SMTP_BUFFER_MAX + SMTP_BUFFER_MAX);
 	smtp->subject = (char *)smtp + sizeof(smtp_t);
 	smtp->body = smtp->subject + MAX_HEADERS_LENGTH;
 	smtp->buffer = smtp->body + MAX_BODY_LENGTH;
-	smtp->email_to = smtp->buffer + SMTP_BUFFER_MAX;
 #endif
 
 	return smtp;
@@ -378,14 +375,21 @@ smtp_read_thread(thread_ref_t thread)
 static void
 helo_cmd(__attribute__((unused)) thread_ref_t thread)
 {
-	snprintf(smtp_send_buffer, sizeof(smtp_send_buffer), SMTP_HELO_CMD, (global_data->smtp_helo_name) ? global_data->smtp_helo_name : "localhost");
+	snprintf(smtp_send_buffer, sizeof(smtp_send_buffer), "HELO %s\r\n", (global_data->smtp_helo_name) ? global_data->smtp_helo_name : "localhost");
 }
 
 /* MAIL command processing */
 static void
 mail_cmd(__attribute__((unused)) thread_ref_t thread)
 {
-	snprintf(smtp_send_buffer, sizeof(smtp_send_buffer), SMTP_MAIL_CMD, global_data->email_from);
+	size_t len;
+	const char *start;
+
+	len = strlen(global_data->email_from);
+	if (global_data->email_from[len - 1] == '>' && (start = strrchr(global_data->email_from, '<')))
+		snprintf(smtp_send_buffer, sizeof(smtp_send_buffer), "MAIL FROM:%s\r\n", start);
+	else
+		snprintf(smtp_send_buffer, sizeof(smtp_send_buffer), "MAIL FROM:<%s>\r\n", global_data->email_from);
 }
 
 /* RCPT command processing */
@@ -394,6 +398,8 @@ rcpt_cmd(thread_ref_t thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 	email_t *email = smtp->next_email_element;
+	size_t len;
+	const char *start;
 
 	/* We send RCPT TO command multiple time to add all our email receivers.
 	 * --rfc821.3.1
@@ -403,7 +409,11 @@ rcpt_cmd(thread_ref_t thread)
 	else
 		smtp->next_email_element = list_entry(email->e_list.next, email_t, e_list);
 
-	snprintf(smtp_send_buffer, sizeof(smtp_send_buffer), SMTP_RCPT_CMD, email->addr);
+	len = strlen(email->addr);
+	if (email->addr[len - 1] == '>' && (start = strrchr(email->addr, '<')))
+		snprintf(smtp_send_buffer, sizeof(smtp_send_buffer), "RCPT TO:%s\r\n", start);
+	else
+		snprintf(smtp_send_buffer, sizeof(smtp_send_buffer), "RCPT TO:<%s>\r\n", email->addr);
 }
 static void
 rcpt_code(thread_ref_t thread)
@@ -418,7 +428,7 @@ rcpt_code(thread_ref_t thread)
 static void
 data_cmd(__attribute__((unused)) thread_ref_t thread)
 {
-	strncpy(smtp_send_buffer, SMTP_DATA_CMD, sizeof(smtp_send_buffer));
+	strncpy(smtp_send_buffer, "DATA\r\n", sizeof(smtp_send_buffer));
 }
 
 /* BODY command processing.
@@ -432,14 +442,36 @@ body_cmd(thread_ref_t thread)
 	char rfc822[80];	/* Mon, 01 Mar 2021 09:44:08 +0000 */
 	time_t now;
 	struct tm t;
+	size_t offs = 0;
+	email_t *email;
 
 	time(&now);
 	localtime_r(&now, &t);
 	strftime(rfc822, sizeof(rfc822), "%a, %d %b %Y %H:%M:%S %z", &t);
 
 	/* send the DATA fields */
-	snprintf(smtp_send_buffer, sizeof(smtp_send_buffer), SMTP_HEADERS_CMD SMTP_BODY_CMD "%s",
-		 rfc822, global_data->email_from, smtp->subject, smtp->email_to, smtp->body, SMTP_SEND_CMD);
+	offs = snprintf(smtp_send_buffer, sizeof(smtp_send_buffer),
+		"Date: %s\r\n"
+		"From: %s\r\n"
+		"Subject: %s\r\n"
+                "X-Mailer: Keepalived\r\n"
+		"To:",
+		 rfc822, global_data->email_from, smtp->subject);
+
+	/* Add the recipients */
+	list_for_each_entry(email, &global_data->email, e_list) {
+		offs += snprintf(smtp_send_buffer + offs, sizeof(smtp_send_buffer) - offs,
+				"%s %s",
+				list_is_first(&email->e_list, &global_data->email) ? "" : ",\r\n",
+				email->addr);
+	}
+
+	/* Now the message body */
+	snprintf(smtp_send_buffer + offs, sizeof(smtp_send_buffer) - offs,
+		"\r\n\r\n"
+		"%s\r\n"
+		"\r\n.\r\n",
+		smtp->body);
 }
 static void
 body_code(thread_ref_t thread)
@@ -456,7 +488,7 @@ body_code(thread_ref_t thread)
 static void
 quit_cmd(__attribute__((unused)) thread_ref_t thread)
 {
-	strncpy(smtp_send_buffer, SMTP_QUIT_CMD, sizeof(smtp_send_buffer));
+	strncpy(smtp_send_buffer, "QUIT\r\n", sizeof(smtp_send_buffer));
 }
 
 static void
@@ -515,6 +547,7 @@ smtp_log_to_file(smtp_t *smtp)
 	char time_buf[25];
 	int time_buf_len;
 	const char *file_name;
+	email_t *email;
 
 	file_name = make_tmp_filename("smtp-alert.log");
 	fp = fopen_safe(file_name, "a");
@@ -525,10 +558,15 @@ smtp_log_to_file(smtp_t *smtp)
 		localtime_r(&now, &tm);
 		time_buf_len = strftime(time_buf, sizeof time_buf, "%a %b %e %X %Y", &tm);
 
-		fprintf(fp, "%s: %s -> %s\n"
+		fprintf(fp, "%s: %s ->", time_buf, global_data->email_from);
+		list_for_each_entry(email, &global_data->email, e_list)
+			fprintf(fp, "%s %s",
+				list_is_first(&email->e_list, &global_data->email) ? "" : ",",
+				email->addr);
+
+		fprintf(fp, "\n"
 			    "%*sSubject: %s\n"
 			    "%*sBody:    %s\n\n",
-			    time_buf, global_data->email_from, smtp->email_to,
 			    time_buf_len - 7, "", smtp->subject,
 			    time_buf_len - 7, "", smtp->body);
 
@@ -538,48 +576,6 @@ smtp_log_to_file(smtp_t *smtp)
 	free_smtp_msg_data(smtp);
 }
 #endif
-
-/*
- * Build a comma separated string of smtp recipient email addresses
- * for the email message To-header.
- */
-static void
-build_to_header_rcpt_addrs(smtp_t *smtp)
-{
-	char *email_to_addrs;
-	size_t bytes_available = SMTP_BUFFER_MAX - 1;
-	size_t bytes_to_write;
-	bool done_addr = false;
-	email_t *email;
-
-	if (smtp == NULL)
-		return;
-
-	email_to_addrs = smtp->email_to;
-
-	list_for_each_entry(email, &global_data->email, e_list) {
-		bytes_to_write = strlen(email->addr);
-		if (done_addr) {
-			if (bytes_available < 2)
-				break;
-
-			/* Prepend with a comma and space to all non-first email addresses */
-			*email_to_addrs++ = ',';
-			*email_to_addrs++ = ' ';
-			bytes_available -= 2;
-		}
-		else
-			done_addr = true;
-
-		if (bytes_available < bytes_to_write)
-			break;
-
-		strcpy(email_to_addrs, email->addr);
-
-		email_to_addrs += bytes_to_write;
-		bytes_available -= bytes_to_write;
-	}
-}
 
 /* Main entry point */
 void
@@ -655,8 +651,6 @@ smtp_alert(smtp_msg_t msg_type, void* data, const char *subject, const char *bod
 
 	strncpy(smtp->body, body, MAX_BODY_LENGTH - 1);
 	smtp->body[MAX_BODY_LENGTH - 1]= '\0';
-
-	build_to_header_rcpt_addrs(smtp);
 
 #ifdef _SMTP_ALERT_DEBUG_
 	if (do_smtp_alert_debug)

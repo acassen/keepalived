@@ -73,8 +73,15 @@ snmp_header_list_head_table(struct variable *vp, oid *name, size_t *length,
 	if (header_simple_table(vp, name, length, exact, var_len, write_method, -1) != MATCH_SUCCEEDED)
 		return NULL;
 
-	if (list_empty(l))
+	/* header_simple_table sets *var_len = 0 on error. On success it sets
+	   *var_len = sizeof(long), and *write_method = NULL.
+	   If we reach here, the success values will have been written. */
+
+	if (list_empty(l)) {
+		if (var_len)
+			*var_len = 0;
 		return NULL;
+	}
 
 	target = name[*length - 1];
 
@@ -85,9 +92,12 @@ snmp_header_list_head_table(struct variable *vp, oid *name, size_t *length,
 		if (current == target)
 			/* Exact match */
 			return e;
-		if (exact)
+		if (exact) {
 			/* No exact match found */
+			if (var_len)
+				*var_len = 0;
 			return NULL;
+		}
 		/* current is the best match */
 		name[*length - 1] = current;
 		return e;
@@ -95,6 +105,9 @@ snmp_header_list_head_table(struct variable *vp, oid *name, size_t *length,
 
 	/* There are insufficent entries in the list or no match
 	 * at the end then just return no match */
+	if (var_len)
+		*var_len = 0;
+
 	return NULL;
 }
 
@@ -328,6 +341,10 @@ snmp_mail(struct variable *vp, oid *name, size_t *length,
 {
 	email_t *email;
 	list_head_t *e;
+	struct {	/* We need to cast aware const */
+		u_char	*uc;
+		const u_char *cuc;
+	} ret;
 
 	if ((e = snmp_header_list_head_table(vp, name, length, exact,
 					     var_len, write_method,
@@ -339,7 +356,8 @@ snmp_mail(struct variable *vp, oid *name, size_t *length,
 	switch (vp->magic) {
 	case SNMP_MAIL_EMAILADDRESS:
 		*var_len = strlen(email->addr);
-		return PTR_CAST(u_char, email->addr);
+		ret.cuc = PTR_CAST_CONST(u_char, email->addr);
+		return ret.uc;
 	default:
 		break;
 	}
@@ -348,7 +366,7 @@ snmp_mail(struct variable *vp, oid *name, size_t *length,
 
 static const char global_name[] = "Keepalived";
 static oid global_oid[] = GLOBAL_OID;
-static struct variable8 global_vars[] = {
+static struct variable4 global_vars[] = {
 	/* version */
 	{SNMP_KEEPALIVEDVERSION, ASN_OCTET_STR, RONLY, snmp_scalar, 1, {1}},
 	/* routerId */
@@ -482,8 +500,8 @@ snmp_agent_init(const char *snmp_socket_name, bool base_mib)
 	if (base_mib)
 		snmp_register_mib(global_oid, OID_LENGTH(global_oid), global_name,
 				  PTR_CAST(struct variable, global_vars),
-				  sizeof(struct variable8),
-				  sizeof(global_vars)/sizeof(struct variable8));
+				  sizeof(global_vars[0]),
+				  sizeof(global_vars)/sizeof(global_vars[0]));
 	init_snmp(global_name);
 
 	master->snmp_timer_thread = thread_add_timer(master, snmp_timeout_thread, 0, TIMER_NEVER);

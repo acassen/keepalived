@@ -239,6 +239,7 @@ extern bool do_epoll_thread_dump;
 #ifdef _SCRIPT_DEBUG_
 extern bool do_script_debug;
 #endif
+extern const char *config_opts;
 
 /* Prototypes. */
 extern void set_child_finder_name(char const * (*)(pid_t));
@@ -268,6 +269,7 @@ extern void thread_del_write(thread_ref_t);
 extern void thread_close_fd(thread_ref_t);
 extern thread_ref_t thread_add_timer_uval(thread_master_t *, thread_func_t, void *, unsigned, unsigned long);
 extern thread_ref_t thread_add_timer(thread_master_t *, thread_func_t, void *, unsigned long);
+extern thread_ref_t thread_add_timer_sands(thread_master_t *, thread_func_t, void *, const timeval_t *);
 extern void thread_update_arg2(thread_ref_t, const thread_arg2 *);
 extern void timer_thread_update_timeout(thread_ref_t, unsigned long);
 extern thread_ref_t thread_add_timer_shutdown(thread_master_t *, thread_func_t, void *, unsigned long);

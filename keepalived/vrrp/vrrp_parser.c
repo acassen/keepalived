@@ -44,6 +44,8 @@
 #include "global_data.h"
 #include "global_parser.h"
 
+#include "rttables.h"
+
 #include "vrrp_data.h"
 #include "vrrp_ipaddress.h"
 #include "vrrp_sync.h"
@@ -81,6 +83,7 @@ static vrrp_script_t *current_vscr;
 #ifdef _WITH_TRACK_PROCESS_
 static vrrp_tracked_process_t *current_tp;
 #endif
+static unsigned cur_aggregation_group;
 
 
 /* track groups for static items */
@@ -514,7 +517,7 @@ vrrp_vmac_handler(const vector_t *strvec)
 	__set_bit(VRRP_VMAC_BIT, &current_vrrp->flags);
 
 	/* Ifname and MAC address can be specified */
-	for (i = 1; i < vector_size(strvec) && i <= 2; i++) {
+	for (i = 1; i < vector_size(strvec); i++) {
 		if (strchr(strvec_slot(strvec, i), ':')) {
 			/* It's a MAC address - interface names cannot include a ':' */
 			if (__test_bit(VRRP_VMAC_MAC_SPECIFIED, &current_vrrp->flags)) {
@@ -560,41 +563,66 @@ vrrp_vmac_handler(const vector_t *strvec)
 				report_config_error(CONFIG_GENERAL_ERROR, "VMAC MAC address not allowed to be RFC5798 address (%s) - ignoring", strvec_slot(strvec, i));
 			else
 				__set_bit(VRRP_VMAC_MAC_SPECIFIED, &current_vrrp->flags);
-		} else {
-			name = strvec_slot(strvec, i);
 
-			if (current_vrrp->vmac_ifname[0]) {
-				report_config_error(CONFIG_GENERAL_ERROR, "VMAC interface name already specified");
+			continue;
+		}
+
+		if (!strcmp(strvec_slot(strvec, i), "netlink_notify_msg")) {
+			__set_bit(VRRP_VMAC_NETLINK_NOTIFY, &current_vrrp->flags);
+			continue;
+		}
+
+#if HAVE_DECL_FRA_SUPPRESS_IFGROUP
+		if (!strcmp(strvec_slot(strvec, i), "group")) {
+			uint32_t group;
+			if (!find_rttables_group(strvec_slot(strvec, ++i), &group)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "VMAC group %s not found", strvec_slot(strvec, i));
 				continue;
 			}
+			__set_bit(VRRP_VMAC_GROUP, &current_vrrp->flags);
+			current_vrrp->vmac_group = group;
+			continue;
+		}
+#endif
 
-			if (!dev_name_valid(name)) {
-				report_config_error(CONFIG_GENERAL_ERROR, "VMAC interface name '%s' too long or invalid characters - ignoring", name);
-				continue;
+		if (!strcmp(strvec_slot(strvec, i), "name")) {
+			/* Skip over "name" */
+			i++;
+		}
+
+		if (current_vrrp->vmac_ifname[0]) {
+			report_config_error(CONFIG_GENERAL_ERROR, "VMAC interface name already specified");
+			continue;
+		}
+
+		name = strvec_slot(strvec, i);
+
+		if (!dev_name_valid(name)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "VMAC interface name '%s' too long or invalid characters - ignoring", name);
+			continue;
+		}
+
+		/* Check another vrrp instance isn't using this name */
+		list_for_each_entry(ovrrp, &vrrp_data->vrrp, e_list) {
+			if (!strcmp(name, ovrrp->vmac_ifname)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRP instance %s is already using %s - ignoring name", current_vrrp->iname, ovrrp->iname, name);
+				name = NULL;
+				break;
 			}
+		}
 
-			/* Check another vrrp instance isn't using this name */
-			list_for_each_entry(ovrrp, &vrrp_data->vrrp, e_list) {
-				if (!strcmp(name, ovrrp->vmac_ifname)) {
-					report_config_error(CONFIG_GENERAL_ERROR, "(%s) VRRP instance %s is already using %s - ignoring name", current_vrrp->iname, ovrrp->iname, name);
-					name = NULL;
-					break;
-				}
-			}
+		if (!name)
+			continue;
 
-			if (!name)
-				continue;
+		strcpy(current_vrrp->vmac_ifname, name);
 
-			strcpy(current_vrrp->vmac_ifname, name);
-
-			/* Check if the interface exists and is a macvlan we can use */
-			if ((ifp = if_get_by_ifname(current_vrrp->vmac_ifname, IF_NO_CREATE)) &&
-			    (ifp->if_type != IF_TYPE_MACVLAN ||
-			     ifp->vmac_type != MACVLAN_MODE_PRIVATE)) {
-				/* ??? also check ADDR_GEN_MODE and VRF enslavement matches parent */
-				report_config_error(CONFIG_GENERAL_ERROR, "(%s) interface %s already exists and is not a private macvlan; ignoring vmac if_name", current_vrrp->iname, current_vrrp->vmac_ifname);
-				current_vrrp->vmac_ifname[0] = '\0';
-			}
+		/* Check if the interface exists and is a macvlan we can use */
+		if ((ifp = if_get_by_ifname(current_vrrp->vmac_ifname, IF_NO_CREATE)) &&
+		    (ifp->if_type != IF_TYPE_MACVLAN ||
+		     ifp->vmac_type != MACVLAN_MODE_PRIVATE)) {
+			/* ??? also check ADDR_GEN_MODE and VRF enslavement matches parent */
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) interface %s already exists and is not a private macvlan; ignoring vmac if_name", current_vrrp->iname, current_vrrp->vmac_ifname);
+			current_vrrp->vmac_ifname[0] = '\0';
 		}
 	}
 }
@@ -617,7 +645,7 @@ vrrp_ipvlan_handler(const vector_t *strvec)
 	vrrp_t *ovrrp;
 	interface_t *ifp;
 	bool had_flags = false;
-	ip_address_t addr = {};
+	ip_address_t addr = {0};
 	size_t i;
 	const char *ifname;
 
@@ -670,7 +698,22 @@ vrrp_ipvlan_handler(const vector_t *strvec)
 			continue;
 		}
 
-		if (check_valid_ipaddress(strvec_slot(strvec, i), true)) {
+#if HAVE_DECL_FRA_SUPPRESS_IFGROUP
+		if (!strcmp(strvec_slot(strvec, i), "group")) {
+			uint32_t group;
+			if (!find_rttables_group(strvec_slot(strvec, ++i), &group)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "ipvlan group %s not found", strvec_slot(strvec, i));
+				continue;
+			}
+			__set_bit(VRRP_VMAC_GROUP, &current_vrrp->flags);
+			current_vrrp->vmac_group = group;
+			continue;
+		}
+#endif
+
+		if (!strcmp(strvec_slot(strvec, i), "name")) {
+			i++;
+		} else if (check_valid_ipaddress(strvec_slot(strvec, i), true)) {
 			parse_ipaddress(&addr, strvec_slot(strvec, i), true);
 			if (current_vrrp->ipvlan_addr) {
 				report_config_error(CONFIG_GENERAL_ERROR, "(%s) ipvlan address already specified - ignoring '%s'", current_vrrp->iname, strvec_slot(strvec, i));
@@ -1327,12 +1370,18 @@ vrrp_timer_expired_backup_handler(const vector_t *strvec)
 
 	if (vector_size(strvec) >= 2) {
 		if (!read_unsigned_strvec(strvec, 1, &other_priority, 1, VRRP_PRIO_OWNER - 1, false)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) timer_expired _backup highest_other_priority not valid! must be between 1 & %d", current_vrrp->iname, VRRP_PRIO_OWNER - 1);
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) timer_expired_backup highest_other_priority not valid! must be between 1 & %d", current_vrrp->iname, VRRP_PRIO_OWNER - 1);
 			return;
 		}
 	}
 
 	current_vrrp->highest_other_priority = (uint8_t)other_priority;
+}
+static void
+vrrp_thread_timer_expired_handler(const vector_t *strvec)
+{
+	report_config_error(CONFIG_GENERAL_ERROR, "(%s) thread_timer_expired - please replace with keyword 'timer_expired_backup'", current_vrrp->iname);
+	vrrp_timer_expired_backup_handler(strvec);
 }
 #ifdef _HAVE_VRRP_VMAC_
 static void
@@ -1399,6 +1448,21 @@ vrrp_higher_prio_send_advert_handler(const vector_t *strvec)
 	}
 }
 
+static void
+vrrp_owner_ignore_adverts_handler(const vector_t *strvec)
+{
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res < 0) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) invalid %s %s specified", current_vrrp->iname, strvec_slot(strvec, 0), strvec_slot(strvec, 1));
+			return;
+		}
+	}
+
+	current_vrrp->owner_ignore_adverts = (unsigned)res;
+}
 
 static void
 kernel_rx_buf_size_handler(const vector_t *strvec)
@@ -1490,7 +1554,7 @@ vrrp_vscript_script_handler(__attribute__((unused)) const vector_t *strvec)
 	const vector_t *strvec_qe;
 
 	/* We need to allow quoted and escaped strings for the script and parameters */
-	strvec_qe = alloc_strvec_quoted_escaped(NULL);
+	strvec_qe = alloc_strvec_quoted(NULL);
 
 	set_script_params_array(strvec_qe, &current_vscr->script, 0);
 	free_strvec(strvec_qe);
@@ -1500,19 +1564,19 @@ vrrp_vscript_interval_handler(const vector_t *strvec)
 {
 	unsigned interval;
 
-	/* The min value should be 1, but allow 0 to maintain backward compatibility
+	/* The min value should be 0.001, but allow 0 to maintain backward compatibility
 	 * with pre v2.0.7 */
-	if (!read_unsigned_strvec(strvec, 1, &interval, 0, UINT_MAX / TIMER_HZ, true)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vrrp script interval '%s' must be between 1 and %u - ignoring", current_vscr->sname, strvec_slot(strvec, 1), UINT_MAX / TIMER_HZ);
+	if (!read_decimal_unsigned_strvec(strvec, 1, &interval, 0, (UINT_MAX / TIMER_HZ) * 1000, 3, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vrrp script interval '%s' must be between 0.001 and %u - ignoring", current_vscr->sname, strvec_slot(strvec, 1), UINT_MAX / TIMER_HZ);
 		return;
 	}
 
 	if (interval == 0) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vrrp script interval must be greater than 0, setting to 1", current_vscr->sname);
-		interval = 1;
+		interval = 1000;
 	}
 
-	current_vscr->interval = interval * TIMER_HZ;
+	current_vscr->interval = interval * (TIMER_HZ / 1000);
 }
 static void
 vrrp_vscript_timeout_handler(const vector_t *strvec)
@@ -1521,17 +1585,17 @@ vrrp_vscript_timeout_handler(const vector_t *strvec)
 
 	/* The min value should be 1, but allow 0 to maintain backward compatibility
 	 * with pre v2.0.7 */
-	if (!read_unsigned_strvec(strvec, 1, &timeout, 0, UINT_MAX / TIMER_HZ, true)) {
+	if (!read_decimal_unsigned_strvec(strvec, 1, &timeout, 0, (UINT_MAX / TIMER_HZ) * 1000, 3, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vrrp script timeout '%s' invalid - ignoring", current_vscr->sname, strvec_slot(strvec, 1));
 		return;
 	}
 
 	if (timeout == 0) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s): vrrp script timeout must be greater than 0, setting to 1", current_vscr->sname);
-		timeout = 1;
+		timeout = 1000;
 	}
 
-	current_vscr->timeout = timeout * TIMER_HZ;
+	current_vscr->timeout = timeout * (TIMER_HZ / 1000);
 }
 static void
 vrrp_vscript_weight_handler(const vector_t *strvec)
@@ -1866,7 +1930,7 @@ garp_group_garp_interval_handler(const vector_t *strvec)
 {
 	unsigned val;
 
-	if (!read_decimal_unsigned_strvec(strvec, 1, &val, 0, INT_MAX, TIMER_HZ_DIGITS, true)) {
+	if (!read_decimal_unsigned_strvec(strvec, 1, &val, 0, UINT_MAX, TIMER_HZ_DIGITS, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "garp_group garp_interval '%s' invalid", strvec_slot(strvec, 1));
 		return;
 	}
@@ -1883,7 +1947,7 @@ garp_group_gna_interval_handler(const vector_t *strvec)
 {
 	unsigned val;
 
-	if (!read_decimal_unsigned_strvec(strvec, 1, &val, 0, INT_MAX, TIMER_HZ_DIGITS, true)) {
+	if (!read_decimal_unsigned_strvec(strvec, 1, &val, 0, UINT_MAX, TIMER_HZ_DIGITS, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "garp_group gna_interval '%s' invalid", strvec_slot(strvec, 1));
 		return;
 	}
@@ -1923,7 +1987,6 @@ garp_group_interfaces_handler(const vector_t *strvec)
 {
 	interface_t *ifp;
 	const vector_t *interface_vec = read_value_block(strvec);
-	garp_delay_t *gd;
 	size_t i;
 
 	/* Handle the interfaces block being empty */
@@ -1932,12 +1995,8 @@ garp_group_interfaces_handler(const vector_t *strvec)
 		return;
 	}
 
-	/* First set the next aggregation group number */
-	current_ggd->aggregation_group = 1;
-	list_for_each_entry(gd, &garp_delay, e_list) {
-		if (gd->aggregation_group && gd != current_ggd)
-			current_ggd->aggregation_group++;
-	}
+	/* First set the configuration aggregation group number */
+	cur_aggregation_group++;
 
 	for (i = 0; i < vector_size(interface_vec); i++) {
 		ifp = if_get_by_ifname(vector_slot(interface_vec, i), IF_CREATE_IF_DYNAMIC);
@@ -1972,7 +2031,7 @@ garp_group_end_handler(void)
 	list_head_t *ifq;
 
 	if (!current_ggd->have_garp_interval && !current_ggd->have_gna_interval) {
-		report_config_error(CONFIG_GENERAL_ERROR, "garp group %d does not have any delay set - removing", current_ggd->aggregation_group);
+		report_config_error(CONFIG_GENERAL_ERROR, "garp group %u does not have any delay set - removing", cur_aggregation_group);
 
 		/* Remove the garp_delay from any interfaces that are using it */
 		ifq = get_interface_queue();
@@ -2067,11 +2126,11 @@ init_vrrp_keywords(bool active)
 #ifdef _WITH_BFD_
 	install_keyword("track_bfd", &vrrp_group_track_bfd_handler);
 #endif
-	install_keyword("notify_backup", &vrrp_gnotify_backup_handler);
-	install_keyword("notify_master", &vrrp_gnotify_master_handler);
-	install_keyword("notify_fault", &vrrp_gnotify_fault_handler);
-	install_keyword("notify_stop", &vrrp_gnotify_stop_handler);
-	install_keyword("notify", &vrrp_gnotify_handler);
+	install_keyword_quoted("notify_backup", &vrrp_gnotify_backup_handler);
+	install_keyword_quoted("notify_master", &vrrp_gnotify_master_handler);
+	install_keyword_quoted("notify_fault", &vrrp_gnotify_fault_handler);
+	install_keyword_quoted("notify_stop", &vrrp_gnotify_stop_handler);
+	install_keyword_quoted("notify", &vrrp_gnotify_handler);
 	install_keyword("smtp_alert", &vrrp_gsmtp_handler);
 	install_keyword("global_tracking", &vrrp_gglobal_tracking_handler);
 	install_keyword("sync_group_tracking_weight", &vrrp_sg_tracking_weight_handler);
@@ -2153,13 +2212,13 @@ init_vrrp_keywords(bool active)
 	install_keyword("nopreempt", &vrrp_nopreempt_handler);
 	install_keyword("preempt_delay", &vrrp_preempt_delay_handler);
 	install_keyword("debug", &vrrp_debug_handler);
-	install_keyword("notify_backup", &vrrp_notify_backup_handler);
-	install_keyword("notify_master", &vrrp_notify_master_handler);
-	install_keyword("notify_fault", &vrrp_notify_fault_handler);
-	install_keyword("notify_stop", &vrrp_notify_stop_handler);
-	install_keyword("notify_deleted", &vrrp_notify_deleted_handler);
-	install_keyword("notify", &vrrp_notify_handler);
-	install_keyword("notify_master_rx_lower_pri", vrrp_notify_master_rx_lower_pri);
+	install_keyword_quoted("notify_backup", &vrrp_notify_backup_handler);
+	install_keyword_quoted("notify_master", &vrrp_notify_master_handler);
+	install_keyword_quoted("notify_fault", &vrrp_notify_fault_handler);
+	install_keyword_quoted("notify_stop", &vrrp_notify_stop_handler);
+	install_keyword_quoted("notify_deleted", &vrrp_notify_deleted_handler);
+	install_keyword_quoted("notify", &vrrp_notify_handler);
+	install_keyword_quoted("notify_master_rx_lower_pri", vrrp_notify_master_rx_lower_pri);
 	install_keyword("smtp_alert", &vrrp_smtp_handler);
 	install_keyword("notify_priority_changes", &vrrp_notify_priority_changes_handler);
 #ifdef _WITH_LVS_
@@ -2173,12 +2232,14 @@ init_vrrp_keywords(bool active)
 	install_keyword("garp_lower_prio_repeat", &vrrp_garp_lower_prio_rep_handler);
 	install_keyword("down_timer_adverts", &vrrp_down_timer_adverts_handler);
 	install_keyword("timer_expired_backup", &vrrp_timer_expired_backup_handler);
+	install_keyword("thread_timer_expired", &vrrp_thread_timer_expired_handler);	// Added to match the release notes
 #ifdef _HAVE_VRRP_VMAC_
 	install_keyword("garp_extra_if", &vrrp_garp_extra_if_handler);
 	install_keyword("vmac_garp_intvl", &vrrp_garp_extra_if_handler);	/* Deprecated after v2.2.2 - incorrect keyword in commit 3dcd13c */
 #endif
 	install_keyword("lower_prio_no_advert", &vrrp_lower_prio_no_advert_handler);
 	install_keyword("higher_prio_send_advert", &vrrp_higher_prio_send_advert_handler);
+	install_keyword("owner_ignore_adverts", &vrrp_owner_ignore_adverts_handler);
 	install_keyword("kernel_rx_buf_size", &kernel_rx_buf_size_handler);
 #if defined _WITH_VRRP_AUTH_
 	install_keyword("authentication", NULL);
@@ -2189,7 +2250,7 @@ init_vrrp_keywords(bool active)
 #endif
 	/* Script declarations */
 	install_keyword_root("vrrp_script", &vrrp_script_handler, active, VPP &current_vscr);
-	install_keyword("script", &vrrp_vscript_script_handler);
+	install_keyword_quoted("script", &vrrp_vscript_script_handler);
 	install_keyword("interval", &vrrp_vscript_interval_handler);
 	install_keyword("timeout", &vrrp_vscript_timeout_handler);
 	install_keyword("weight", &vrrp_vscript_weight_handler);
@@ -2232,6 +2293,8 @@ vrrp_init_keywords(void)
 	init_bfd_keywords(true);
 #endif
 	add_track_file_keywords(true);
+
+	cur_aggregation_group = 0;
 
 	return keywords;
 }

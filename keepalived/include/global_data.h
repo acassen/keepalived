@@ -69,9 +69,13 @@
 #define LVS_MAX_TIMEOUT			(86400*31)      /* 31 days */
 #endif
 
+#ifdef _WITH_PROFILING_
+extern void _start(void), etext(void);
+#endif
+
 /* email link list */
 typedef struct _email {
-	char				*addr;
+	const char			*addr;
 
 	/* Linked list member */
 	list_head_t			e_list;
@@ -116,6 +120,7 @@ typedef struct _data {
 	unsigned			startup_script_timeout;
 	notify_script_t			*shutdown_script;
 	unsigned			shutdown_script_timeout;
+	bool				use_symlinks;
 #ifndef _ONE_PROCESS_DEBUG_
 	const char			*reload_check_config;	/* log file name for validating new configuration before reloading */
 	const char			*reload_time_file;
@@ -145,7 +150,7 @@ typedef struct _data {
 	lvs_flush_t			lvs_flush_on_stop;	/* flush any LVS config at shutdown */
 #endif
 	int				max_auto_priority;
-	long				min_auto_priority_delay;
+	unsigned			min_auto_priority_delay;
 #ifdef _WITH_VRRP_
 	struct sockaddr_in6		vrrp_mcast_group6 __attribute__((aligned(__alignof__(sockaddr_t))));
 	struct sockaddr_in		vrrp_mcast_group4 __attribute__((aligned(__alignof__(sockaddr_t))));
@@ -175,6 +180,9 @@ typedef struct _data {
 	const char			*vrrp_ipset_address_iface6;
 	const char			*vrrp_ipset_igmp;
 	const char			*vrrp_ipset_mld;
+#ifdef _HAVE_VRRP_VMAC_
+	const char			*vrrp_ipset_vmac_nd;
+#endif
 #endif
 #endif
 #ifdef _WITH_NFTABLES_
@@ -241,13 +249,16 @@ typedef struct _data {
 	bool				enable_snmp_rfcv3;
 #endif
 #endif
-#ifdef _WITH_LVS_
+#ifdef _WITH_SNMP_CHECKER_
 	bool				enable_snmp_checker;
+	unsigned long			snmp_vs_stats_update_interval;
+	unsigned long			snmp_rs_stats_update_interval;
 #endif
 #endif
 #ifdef _WITH_DBUS_
 	bool				enable_dbus;
 	const char			*dbus_service_name;
+	const char			*dbus_no_interface_name;
 #endif
 #ifdef _WITH_VRRP_
 	unsigned			vrrp_netlink_cmd_rcv_bufs;
@@ -275,6 +286,7 @@ typedef struct _data {
 	int				vrrp_rx_bufs_multiples;
 	unsigned			vrrp_startup_delay;
 	bool				log_unknown_vrids;
+	bool				vrrp_owner_ignore_adverts;
 #ifdef _HAVE_VRRP_VMAC_
 	const char			*vmac_prefix;
 	const char			*vmac_addr_prefix;
@@ -283,6 +295,13 @@ typedef struct _data {
 #ifdef _WITH_JSON_
 	unsigned			json_version;
 #endif
+#ifdef _WITH_VRRP_
+	const char			*iproute_usr_dir;
+	const char			*iproute_etc_dir;
+#endif
+	const char			*state_dump_file;
+	const char			*stats_dump_file;
+	const char			*json_dump_file;
 } data_t;
 
 /* Global vars exported */
@@ -290,10 +309,11 @@ extern data_t *global_data;	/* Global configuration data */
 extern data_t *old_global_data;	/* Old global configuration data - used during reload */
 
 /* Prototypes */
+extern const char * format_email_addr(const char *);
 extern void alloc_email(const char *);
 extern data_t *alloc_global_data(void);
 extern void init_global_data(data_t *, data_t *, bool);
-extern void free_global_data(data_t *);
+extern void free_global_data(data_t **);
 extern FILE *open_dump_file(const char *) __attribute__((malloc));
 extern void dump_global_data(FILE *, data_t *);
 

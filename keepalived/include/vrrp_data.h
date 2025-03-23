@@ -101,7 +101,7 @@ extern void alloc_vrrp_vrule(const vector_t *);
 extern void alloc_vrrp_buffer(size_t);
 extern void free_vrrp_buffer(void);
 extern vrrp_data_t *alloc_vrrp_data(void);
-extern void free_vrrp_data(vrrp_data_t *);
+extern void free_vrrp_data(vrrp_data_t **);
 extern void free_sync_group(vrrp_sgroup_t *);
 extern void free_sock_list(list_head_t *);
 extern void dump_sock_list(FILE *, const list_head_t *);

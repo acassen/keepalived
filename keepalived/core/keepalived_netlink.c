@@ -42,14 +42,12 @@
 #include <time.h>
 #ifdef _WITH_VRRP_
 #include <linux/version.h>
-#ifdef _WITH_VRRP_
 #include <linux/fib_rules.h>
-#endif
-#endif
 #include <linux/ip.h>
+#include <linux/if_link.h>
+#endif
 #include <unistd.h>
 #include <inttypes.h>
-#include <linux/if_link.h>
 
 #ifdef THREAD_DUMP
 #include "scheduler.h"
@@ -123,7 +121,7 @@ report_and_clear_netlink_timers(const char * str)
 	log_message(LOG_INFO, "Netlink timers - %s", str);
 	for (i = 0; i <= MAX_NETLINK_TIMER; i++) {
 		if (netlink_count[i]) {
-			log_message(LOG_INFO, "  netlink cmd %d (%u calls), time %ld.%6.6ld", i, netlink_count[i], netlink_times[i].tv_sec, netlink_times[i].tv_usec);
+			log_message(LOG_INFO, "  netlink cmd %d (%u calls), time %" PRI_tv_sec ".%6.6" PRI_tv_usec, i, netlink_count[i], netlink_times[i].tv_sec, netlink_times[i].tv_usec);
 			netlink_times[i].tv_sec = netlink_times[i].tv_usec = netlink_count[i] = 0;
 		}
 	}
@@ -201,7 +199,8 @@ address_is_ours(struct ifaddrmsg *ifa, struct in_addr *addr, interface_t *ifp)
 		     vip_list;
 		     vip_list = vip_list == &vrrp->vip ? &vrrp->evip : NULL) {
 			list_for_each_entry(ip_addr, vip_list, e_list) {
-				if (addr_is_equal(ifa, addr, ip_addr, ifp))
+				if (addr_is_equal(ifa, addr, ip_addr, ifp) &&
+				    ifa->ifa_prefixlen == ip_addr->ifa.ifa_prefixlen)
 					return ip_addr->dont_track ? NULL : vrrp;
 			}
 		}
@@ -259,6 +258,40 @@ compare_addr(int family, void *addr1, ip_address_t *addr2)
 	       addr1_p.in6->s6_addr32[3] != addr2->u.sin6_addr.s6_addr32[3];
 }
 
+static bool
+compare_route(struct rtattr *tb[RTA_MAX + 1], ip_route_t *route, uint32_t table, int family, int mask_len, uint32_t priority, uint8_t tos)
+{
+	union {
+		struct in_addr in;
+		struct in6_addr in6;
+	} default_addr;
+
+	if (table != route->table ||
+	    family != route->family ||
+	    mask_len != route->dst->ifa.ifa_prefixlen ||
+	    priority != route->metric ||
+	    tos != route->tos)
+		return false;
+
+	if (route->oif) {
+		if (!tb[RTA_OIF] || route->oif->ifindex != *PTR_CAST(uint32_t, RTA_DATA(tb[RTA_OIF])))
+			return false;
+	} else if (route->set) {
+		if (!tb[RTA_OIF] != !route->configured_ifindex)
+			return false;
+		if (tb[RTA_OIF] && route->configured_ifindex != *PTR_CAST(uint32_t, RTA_DATA(tb[RTA_OIF])))
+			return false;
+	}
+
+	if (!tb[RTA_DST])
+		memset(&default_addr, 0, sizeof(default_addr));
+
+	if (compare_addr(family, tb[RTA_DST] ? RTA_DATA(tb[RTA_DST]) : &default_addr, route->dst))
+		return false;
+
+	return true;
+}
+
 static ip_route_t *
 route_is_ours(struct rtmsg* rt, struct rtattr *tb[RTA_MAX + 1], vrrp_t** ret_vrrp)
 {
@@ -269,10 +302,6 @@ route_is_ours(struct rtmsg* rt, struct rtattr *tb[RTA_MAX + 1], vrrp_t** ret_vrr
 	uint8_t tos = rt->rtm_tos;
 	vrrp_t *vrrp;
 	ip_route_t *route;
-	union {
-		struct in_addr in;
-		struct in6_addr in6;
-	} default_addr;
 
 	*ret_vrrp = NULL;
 
@@ -283,48 +312,17 @@ route_is_ours(struct rtmsg* rt, struct rtattr *tb[RTA_MAX + 1], vrrp_t** ret_vrr
 
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		list_for_each_entry(route, &vrrp->vroutes, e_list) {
-			if (table != route->table ||
-			    family != route->family ||
-			    mask_len != route->dst->ifa.ifa_prefixlen ||
-			    priority != route->metric ||
-			    tos != route->tos)
-				continue;
-
-			if (route->oif) {
-				if (!tb[RTA_OIF] || route->oif->ifindex != *PTR_CAST(uint32_t, RTA_DATA(tb[RTA_OIF])))
-					continue;
-			} else {
-				if (route->set && route->configured_ifindex &&
-				    (!tb[RTA_OIF] || route->configured_ifindex != *PTR_CAST(uint32_t, RTA_DATA(tb[RTA_OIF]))))
-					continue;
+			if (compare_route(tb, route, table, family, mask_len, priority, tos)) {
+				*ret_vrrp = vrrp;
+				return route;
 			}
-
-			if (!tb[RTA_DST])
-				memset(&default_addr, 0, sizeof(default_addr));
-
-			if (compare_addr(family, tb[RTA_DST] ? RTA_DATA(tb[RTA_DST]) : &default_addr, route->dst))
-				continue;
-
-			*ret_vrrp = vrrp;
-			return route;
 		}
 	}
 
 	/* Now check the static routes */
 	list_for_each_entry(route, &vrrp_data->static_routes, e_list) {
-		if (table != route->table ||
-		    family != route->family ||
-		    mask_len != route->dst->ifa.ifa_prefixlen ||
-		    tos != route->tos)
-			continue;
-
-		if (!tb[RTA_DST])
-			memset(&default_addr, 0, sizeof(default_addr));
-
-		if (compare_addr(family, tb[RTA_DST] ? RTA_DATA(tb[RTA_DST]) : &default_addr, route->dst))
-			continue;
-
-		return route;
+		if (compare_route(tb, route, table, family, mask_len, priority, tos))
+			return route;
 	}
 
 	return NULL;
@@ -682,20 +680,21 @@ netlink_close(nl_handle_t *nl)
 int GCC_LTO_NOINLINE
 addattr_l(struct nlmsghdr *n, size_t maxlen, unsigned short type, const void *data, size_t alen)
 {
-	size_t len = RTA_LENGTH(alen);
-	size_t align_len = NLMSG_ALIGN(len);
+	unsigned short len = RTA_LENGTH(alen);
+	uint32_t align_len = RTA_SPACE(alen);
 	struct rtattr *rta;
 
-	if (n->nlmsg_len + align_len > maxlen)
+	if (NLMSG_ALIGN(n->nlmsg_len) + align_len > maxlen)
 		return -1;
 
-	rta = PTR_CAST(struct rtattr, (((char *)n) + n->nlmsg_len));
+	rta = PTR_CAST(struct rtattr, NLMSG_TAIL(n));
 	rta->rta_type = type;
-	rta->rta_len = (unsigned short)len;
+	rta->rta_len = len;
 RELAX_STRINGOP_OVERFLOW
-	memcpy(RTA_DATA(rta), data, alen);
+	if (alen)
+		memcpy(RTA_DATA(rta), data, alen);
 RELAX_STRINGOP_OVERFLOW_END
-	n->nlmsg_len += (uint32_t)align_len;
+	n->nlmsg_len = NLMSG_ALIGN(n->nlmsg_len) + align_len;
 
 	return 0;
 }
@@ -704,19 +703,21 @@ RELAX_STRINGOP_OVERFLOW_END
 int
 addattr_l2(struct nlmsghdr *n, size_t maxlen, unsigned short type, const void *data, size_t alen, const void *data2, size_t alen2)
 {
-	size_t len = RTA_LENGTH(alen + alen2);
-	size_t align_len = NLMSG_ALIGN(len);
+	unsigned short len = RTA_LENGTH(alen);
+	uint32_t align_len = RTA_SPACE(alen + alen2);
 	struct rtattr *rta;
 
-	if (n->nlmsg_len + align_len > maxlen)
+	if (NLMSG_ALIGN(n->nlmsg_len) + align_len > maxlen)
 		return -1;
 
-	rta = PTR_CAST(struct rtattr, (((char *)n) + n->nlmsg_len));
+	rta = PTR_CAST(struct rtattr, NLMSG_TAIL(n));
 	rta->rta_type = type;
-	rta->rta_len = (unsigned short)len;
-	memcpy(RTA_DATA(rta), data, alen);
-	memcpy((char *)RTA_DATA(rta) + alen, data2, alen2);
-	n->nlmsg_len += (uint32_t)align_len;
+	rta->rta_len = len;
+	if (alen)
+		memcpy(RTA_DATA(rta), data, alen);
+	if (alen2)
+		memcpy((char *)RTA_DATA(rta) + alen, data2, alen2);
+	n->nlmsg_len = NLMSG_ALIGN(n->nlmsg_len) + align_len;
 
 	return 0;
 }
@@ -724,15 +725,15 @@ addattr_l2(struct nlmsghdr *n, size_t maxlen, unsigned short type, const void *d
 int
 addraw_l(struct nlmsghdr *n, size_t maxlen, const void *data, size_t len)
 {
-	size_t align_len = NLMSG_ALIGN(len);
+	uint32_t align_len = NLMSG_ALIGN(len);
 
-	if (n->nlmsg_len + align_len > maxlen)
+	if (NLMSG_ALIGN(n->nlmsg_len) + align_len > maxlen)
 		return -1;
 
 	memcpy(NLMSG_TAIL(n), data, len);
 	if (align_len > len)
 		memset(PTR_CAST(char, NLMSG_TAIL(n)) + len, 0, align_len - len);
-	n->nlmsg_len += (uint32_t)align_len;
+	n->nlmsg_len = NLMSG_ALIGN(n->nlmsg_len) + align_len;
 	return 0;
 }
 
@@ -741,17 +742,18 @@ rta_addattr_l(struct rtattr *rta, size_t maxlen, unsigned short type,
 		  const void *data, size_t alen)
 {
 	struct rtattr *subrta;
-	size_t len = RTA_LENGTH(alen);
-	size_t align_len = RTA_ALIGN(len);
+	unsigned short len = RTA_LENGTH(alen);
+	unsigned short align_len = RTA_SPACE(alen);
 
-	if (rta->rta_len + align_len > maxlen)
+	if (RTA_ALIGN(rta->rta_len) + align_len > maxlen)
 		return 0;
 
-	subrta = PTR_CAST(struct rtattr, (char *)rta + rta->rta_len);
+	subrta = PTR_CAST(struct rtattr, (char *)rta + RTA_ALIGN(rta->rta_len));
 	subrta->rta_type = type;
-	subrta->rta_len = (unsigned short)len;
-	memcpy(RTA_DATA(subrta), data, alen);
-	rta->rta_len = (unsigned short)(rta->rta_len + align_len);
+	subrta->rta_len = len;
+	if (alen)
+		memcpy(RTA_DATA(subrta), data, alen);
+	rta->rta_len = RTA_ALIGN(rta->rta_len) + align_len;
 	return align_len;
 }
 
@@ -761,18 +763,20 @@ rta_addattr_l2(struct rtattr *rta, size_t maxlen, unsigned short type,
 		  const void *data2, size_t alen2)
 {
 	struct rtattr *subrta;
-	size_t len = RTA_LENGTH(alen + alen2);
-	size_t align_len = RTA_ALIGN(len);
+	unsigned short len = RTA_LENGTH(alen + alen2);
+	unsigned short align_len = RTA_ALIGN(len);
 
-	if (rta->rta_len + align_len > maxlen)
+	if (RTA_ALIGN(rta->rta_len) + align_len > maxlen)
 		return 0;
 
-	subrta = PTR_CAST(struct rtattr, (((char*)rta) + rta->rta_len));
+	subrta = PTR_CAST(struct rtattr, (char*)rta + RTA_ALIGN(rta->rta_len));
 	subrta->rta_type = type;
-	subrta->rta_len = (unsigned short)len;
-	memcpy(RTA_DATA(subrta), data, alen);
-	memcpy((char *)RTA_DATA(subrta) + alen, data2, alen2);
-	rta->rta_len = (unsigned short)(rta->rta_len + align_len);
+	subrta->rta_len = len;
+	if (alen)
+		memcpy(RTA_DATA(subrta), data, alen);
+	if (alen2)
+		memcpy((char *)RTA_DATA(subrta) + alen, data2, alen2);
+	rta->rta_len = RTA_ALIGN(rta->rta_len) + align_len;
 	return align_len;
 }
 
@@ -1176,11 +1180,21 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 							 vrrp->ifp) &&
 						 vrrp->family == ifa->ifa_family &&
 						 vrrp->saddr.ss_family != AF_UNSPEC &&
+#ifdef _HAVE_VRRP_VMAC_
 						 (vrrp->family != AF_INET6 ||	/* For an IPv6 VMAC if down removes the link local address */
 						  !__test_bit(VRRP_VMAC_BIT, &vrrp->flags) ||
 						  __test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags) ||
 						  IF_ISUP(ifp)) &&
+#endif
 						 (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) || is_tracking_saddr)) {
+						/* Don't attempt to send an IPv6 advert if no address on the interface */
+						if (vrrp->saddr.ss_family == AF_INET6
+#ifdef _HAVE_VRRP_VMAC_
+						    && !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags)
+#endif
+											)
+							vrrp->saddr.ss_family = AF_UNSPEC;
+
 						down_instance(vrrp, false, VRRP_IF_FAULT_FLAG_NO_SOURCE_IP);
 						vrrp->saddr.ss_family = AF_UNSPEC;
 					}
@@ -1537,8 +1551,12 @@ netlink_request(nl_handle_t *nl,
 		req.nlh.nlmsg_flags |= NLM_F_DUMP;
 #if HAVE_DECL_RTEXT_FILTER_SKIP_STATS
 	/* The following produces a -Wstringop-overflow warning due to writing
-	 * 4 bytes into a region of size 0. This is, however, safe. */
+	 * 4 bytes into a region of size 0. This is, however, safe.
+	 * By GCC 14 the warning is -Warray-bounds=
+	 */
+RELAX_ARRAY_BOUNDS_START
 	addattr32(&req.nlh, sizeof req, IFLA_EXT_MASK, RTEXT_FILTER_SKIP_STATS);
+RELAX_ARRAY_BOUNDS_END
 #endif
 
 	status = sendto(nl->fd, (void *) &req, sizeof (req)
@@ -1899,6 +1917,8 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	ifp->base_ifp = ifp;
 	ifp->base_ifindex = 0;
 
+	ifp->group = *PTR_CAST(uint32_t, RTA_DATA(tb[IFLA_GROUP]));
+
 	if (tb[IFLA_LINKINFO]) {
 		if (linkinfo[IFLA_INFO_KIND]) {
 			/* See if this interface is a MACVLAN */
@@ -2186,6 +2206,11 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 				}
 			}
 
+#ifdef _HAVE_VRRP_VMAC_
+			if (tb[IFLA_GROUP])
+				ifp->group = *PTR_CAST(uint32_t, RTA_DATA(tb[IFLA_GROUP]));
+#endif
+
 			if (strcmp(ifp->ifname, name)) {
 				/* The name can change, so handle that here */
 				log_message(LOG_INFO, "Interface name has changed from %s to %s", ifp->ifname, name);
@@ -2360,9 +2385,8 @@ netlink_route_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlm
 			route->configured_ifindex = *PTR_CAST(uint32_t, RTA_DATA(tb[RTA_OIF]));
 			if (route->oif && route->oif->ifindex != route->configured_ifindex)
 				log_message(LOG_INFO, "route added index %" PRIu32 " != config index %u", route->configured_ifindex, route->oif->ifindex);
-		}
-		else
-			log_message(LOG_INFO, "New route doesn't have i/f index");
+		} else
+			route->configured_ifindex = 0;
 
 		return 0;
 	}
@@ -2670,6 +2694,8 @@ void
 register_keepalived_netlink_addresses(void)
 {
 	register_thread_address("kernel_netlink", kernel_netlink);
+#ifdef _WITH_VRRP_
 	register_thread_address("delayed_if_flags_change_thread", delayed_if_flags_change_thread);
+#endif
 }
 #endif

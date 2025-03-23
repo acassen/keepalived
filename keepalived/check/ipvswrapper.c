@@ -42,6 +42,7 @@
 #include "namespaces.h"
 #ifdef _WITH_NFTABLES_
 #include "check_nftables.h"
+#include "check_data.h"
 #endif
 
 static bool no_ipvs = false;
@@ -87,8 +88,8 @@ ipvs_start(void)
 {
 	log_message(LOG_DEBUG, "%snitializing ipvs", reload ? "Rei" : "I");
 	/* Initialize IPVS module */
-	if (ipvs_init()) {
-		if (!keepalived_modprobe("ip_vs") || ipvs_init()) {
+	if (ipvs_init(false)) {
+		if (!keepalived_modprobe("ip_vs") || ipvs_init(true)) {
 			log_message(LOG_INFO, "IPVS: Can't initialize ipvs: %s",
 			       ipvs_strerror(errno));
 			no_ipvs = true;
@@ -251,9 +252,9 @@ ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool i
 
 	/* prepare user rule */
 	if (config) {
-		daemonrule.syncid = (int)config->syncid;
+		daemonrule.user.syncid = (int)config->syncid;
 		if (cmd == IPVS_STARTDAEMON) {
-			strcpy_safe(daemonrule.mcast_ifn, config->ifname);
+			strcpy_safe(daemonrule.user.mcast_ifn, config->ifname);
 
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
 			if (config->sync_maxlen)
@@ -275,14 +276,14 @@ ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool i
 	}
 
 	if (state & IPVS_MASTER) {
-		daemonrule.state = IP_VS_STATE_MASTER;
+		daemonrule.user.state = IP_VS_STATE_MASTER;
 
 		/* Talk to the IPVS channel */
 		ipvs_talk(cmd, NULL, NULL, &daemonrule, ignore_error);
 	}
 
 	if (state & IPVS_BACKUP) {
-		daemonrule.state = IP_VS_STATE_BACKUP;
+		daemonrule.user.state = IP_VS_STATE_BACKUP;
 
 		/* Talk to the IPVS channel */
 		ipvs_talk(cmd, NULL, NULL, &daemonrule, ignore_error);
@@ -580,32 +581,30 @@ ipvs_cmd(int cmd, virtual_server_t *vs, real_server_t *rs)
 
 	/* Set vs rule and send to kernel */
 #ifdef _WITH_NFTABLES_
-	if (vs->service_type)
+	if (VS_USES_VSG_AUTO_FWMARK(vs))
 		proto_index = protocol_to_index(vs->service_type);
 	else
-		proto_index = PROTO_INDEX_MAX;
+		proto_index = PROTO_INDEX_NONE;
 #endif
 
 	if (vs->vsg) {
 #ifdef _WITH_NFTABLES_
 		if (cmd == IP_VS_SO_SET_ADD &&
-		    global_data->ipvs_nf_table_name &&
-		    proto_index < PROTO_INDEX_MAX &&
-		    list_empty(&vs->vsg->vfwmark) &&
+		    VS_USES_VSG_AUTO_FWMARK(vs) &&
 		    !vs->vsg->auto_fwmark[proto_index]) {
 			vs->vsg->auto_fwmark[proto_index] = set_vs_fwmark(vs);
-		} else if (proto_index == PROTO_INDEX_MAX || !vs->vsg->auto_fwmark[proto_index])
+		} else if (proto_index == PROTO_INDEX_NONE || !vs->vsg->auto_fwmark[proto_index])
 #endif
 			return ipvs_group_cmd(cmd, &srule, &drule, vs, rs);
 	}
 
 	if (vs->vfwmark
 #ifdef _WITH_NFTABLES_
-			|| (vs->vsg && proto_index < PROTO_INDEX_MAX && vs->vsg->auto_fwmark[proto_index])
+			|| VS_USES_VSG_AUTO_FWMARK(vs)
 #endif
 								) {
 #ifdef _WITH_NFTABLES_
-		srule.user.fwmark = vs->vsg ? vs->vsg->auto_fwmark[proto_index] : vs->vfwmark;
+		srule.user.fwmark = VS_USES_VSG_AUTO_FWMARK(vs) ? vs->vsg->auto_fwmark[proto_index] : vs->vfwmark;
 #else
 		srule.user.fwmark = vs->vfwmark;
 #endif
@@ -630,7 +629,7 @@ ipvs_cmd(int cmd, virtual_server_t *vs, real_server_t *rs)
 	    vs->af == AF_UNSPEC &&
 	    vs->vsg->have_ipv4 &&
 	    vs->vsg->have_ipv6 &&
-	    proto_index < PROTO_INDEX_MAX &&
+	    proto_index != PROTO_INDEX_NONE &&
 	    vs->vsg->auto_fwmark[proto_index]) {
 		srule.af = AF_INET6;
 		srule.user.netmask = 128;
@@ -648,14 +647,11 @@ ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 	real_server_t *rs;
 	ipvs_service_t srule;
 	ipvs_dest_t drule;
-#ifdef _WITH_NFTABLES_
-	proto_index_t proto_index = protocol_to_index(vs->service_type);
-#endif
 
 	ipvs_set_srule(IP_VS_SO_SET_ADDDEST, &srule, vs);
 #ifdef _WITH_NFTABLES_
-	if (vs->vsg->auto_fwmark[proto_index])
-		srule.user.fwmark = vs->vsg->auto_fwmark[proto_index];
+	if (VS_USES_VSG_AUTO_FWMARK(vs))
+		srule.user.fwmark = vs->vsg->auto_fwmark[protocol_to_index(vs->service_type)];
 	else
 #endif
 	if (vsge->is_fwmark)
@@ -669,7 +665,12 @@ ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 		if (rs->reloaded && (rs->alive || (rs->inhibit && rs->set))) {
 			/* Prepare the IPVS drule */
 			ipvs_set_drule(IP_VS_SO_SET_ADDDEST, &drule, rs);
-			drule.user.weight = rs->inhibit && !rs->alive ? 0 : real_weight(rs->effective_weight);
+			drule.user.weight = ((rs->inhibit && !rs->alive) || vs->s_svr->alive) ? 0 : real_weight(rs->effective_weight);
+
+			if (rs->forwarding_method != IP_VS_CONN_F_MASQ)
+				drule.user.port = inet_sockaddrport(&vsge->addr);
+			else
+				drule.user.port = inet_sockaddrport(&rs->addr);
 
 			/* Set vs rule */
 			if (srule.user.fwmark) {
@@ -678,7 +679,23 @@ ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 			}
 			else
 				ipvs_group_range_cmd(IP_VS_SO_SET_ADDDEST, &srule, &drule, vsge);
+
+			ipvs_set_vsge_alive_state(IP_VS_SO_SET_ADDDEST, vsge, vs);
 		}
+	}
+
+	if (vs->s_svr && vs->s_svr->reloaded && vs->s_svr->set) {
+		ipvs_set_drule(IP_VS_SO_SET_ADDDEST, &drule, vs->s_svr);
+		drule.user.weight = vs->s_svr->alive ? real_weight(vs->s_svr->effective_weight) : 0;
+
+		if (vs->s_svr->forwarding_method != IP_VS_CONN_F_MASQ)
+			drule.user.port = inet_sockaddrport(&vsge->addr);
+		else
+			drule.user.port = inet_sockaddrport(&vs->s_svr->addr);
+
+		ipvs_group_range_cmd(IP_VS_SO_SET_ADDDEST, &srule, &drule, vsge);
+
+		ipvs_set_vsge_alive_state(IP_VS_SO_SET_ADDDEST, vsge, vs);
 	}
 }
 
@@ -689,13 +706,10 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 	real_server_t *rs;
 	ipvs_service_t srule;
 	ipvs_dest_t drule;
-#ifdef _WITH_NFTABLES_
-	proto_index_t proto_index = protocol_to_index(vs->service_type);
-#endif
 
 #ifdef _WITH_NFTABLES_
 	/* Prepare target rules */
-	if (vs->vsg->auto_fwmark[proto_index]) {
+	if (VS_USES_VSG_AUTO_FWMARK(vs)) {
 		/* Remove the fwmark entry(s) */
 		remove_vs_fwmark_entry(vs, vsge);
 
@@ -709,8 +723,8 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 
 	ipvs_set_srule(IP_VS_SO_SET_DELDEST, &srule, vs);
 #ifdef _WITH_NFTABLES_
-	if (vs->vsg->auto_fwmark[proto_index])
-		srule.user.fwmark = vs->vsg->auto_fwmark[proto_index];
+	if (VS_USES_VSG_AUTO_FWMARK(vs))
+		srule.user.fwmark = vs->vsg->auto_fwmark[protocol_to_index(vs->service_type)];
 	else
 #endif
 	if (vsge->is_fwmark)
@@ -718,12 +732,17 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 	else
 		srule.user.port = inet_sockaddrport(&vsge->addr);
 
-	if (global_data->lvs_flush_on_stop == LVS_NO_FLUSH) {
-		/* Process realserver queue */
-		list_for_each_entry(rs, &vs->rs, e_list) {
-			if (rs->alive) {
+	/* Process realserver queue */
+	list_for_each_entry(rs, &vs->rs, e_list) {
+		if (rs->set) {
+			if (global_data->lvs_flush_on_stop == LVS_NO_FLUSH) {
 				/* Setting IPVS drule */
 				ipvs_set_drule(IP_VS_SO_SET_DELDEST, &drule, rs);
+
+				if (rs->forwarding_method != IP_VS_CONN_F_MASQ)
+					drule.user.port = inet_sockaddrport(&vsge->addr);
+				else
+					drule.user.port = inet_sockaddrport(&rs->addr);
 
 				/* Delete rs rule */
 				if (srule.user.fwmark) {
@@ -733,7 +752,23 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 				else
 					ipvs_group_range_cmd(IP_VS_SO_SET_DELDEST, &srule, &drule, vsge);
 			}
+
+			ipvs_set_vsge_alive_state(IP_VS_SO_SET_DELDEST, vsge, vs);
 		}
+	}
+
+	if (vs->s_svr && vs->s_svr->set) {
+		if (global_data->lvs_flush_on_stop == LVS_NO_FLUSH) {
+			ipvs_set_drule(IP_VS_SO_SET_ADDDEST, &drule, vs->s_svr);
+
+			if (vs->s_svr->forwarding_method != IP_VS_CONN_F_MASQ)
+				drule.user.port = inet_sockaddrport(&vsge->addr);
+			else
+				drule.user.port = inet_sockaddrport(&vs->s_svr->addr);
+
+			ipvs_group_range_cmd(IP_VS_SO_SET_DELDEST, &srule, &drule, vsge);
+		}
+		ipvs_set_vsge_alive_state(IP_VS_SO_SET_DELDEST, vsge, vs);
 	}
 
 	/* Remove VS entry if this is the last VS using it */
@@ -801,41 +836,49 @@ vsd_equal(real_server_t *rs, struct ip_vs_dest_entry_app *entry)
 static void
 ipvs_update_vs_stats(virtual_server_t *vs, uint16_t af, uint32_t fwmark, union nf_inet_addr *nfaddr, uint16_t port)
 {
-	struct ip_vs_get_dests_app *dests = NULL;
-	real_server_t *rs, *rs_match;
-	unsigned int i;
 	ipvs_service_entry_t *serv;
 
 	if (!(serv = ipvs_get_service(fwmark, af, vs->service_type, nfaddr, port)))
 		return;
 
 	/* Update virtual server stats */
-	vs->stats.conns		+= serv->stats.conns;
-	vs->stats.inpkts	+= serv->stats.inpkts;
-	vs->stats.outpkts	+= serv->stats.outpkts;
-	vs->stats.inbytes	+= serv->stats.inbytes;
-	vs->stats.outbytes	+= serv->stats.outbytes;
-	vs->stats.cps		+= serv->stats.cps;
-	vs->stats.inpps		+= serv->stats.inpps;
-	vs->stats.outpps	+= serv->stats.outpps;
-	vs->stats.inbps		+= serv->stats.inbps;
-	vs->stats.outbps	+= serv->stats.outbps;
+	vs->stats.conns		+= serv->ip_vs_stats.conns;
+	vs->stats.inpkts	+= serv->ip_vs_stats.inpkts;
+	vs->stats.outpkts	+= serv->ip_vs_stats.outpkts;
+	vs->stats.inbytes	+= serv->ip_vs_stats.inbytes;
+	vs->stats.outbytes	+= serv->ip_vs_stats.outbytes;
+	vs->stats.cps		+= serv->ip_vs_stats.cps;
+	vs->stats.inpps		+= serv->ip_vs_stats.inpps;
+	vs->stats.outpps	+= serv->ip_vs_stats.outpps;
+	vs->stats.inbps		+= serv->ip_vs_stats.inbps;
+	vs->stats.outbps	+= serv->ip_vs_stats.outbps;
+
+	vs->num_dests = serv->user.num_dests;		// Only needed if using old socket interface
+
+	FREE(serv);
+}
+
+static void
+ipvs_update_rs_stats(virtual_server_t *vs, uint16_t af, uint32_t fwmark, union nf_inet_addr *nfaddr, uint16_t port)
+{
+	struct ip_vs_get_dests_app *dests;
+	real_server_t *rs, *rs_match;
+	unsigned int i;
 
 	/* Get real servers */
-	dests = ipvs_get_dests(serv);
-	FREE(serv);
+	dests = ipvs_get_dests(fwmark, af, vs->service_type, nfaddr, port, vs->num_dests ? vs->num_dests : vs->rs_cnt + !!vs->s_svr);
 	if (!dests)
 		return;
 
 	for (i = 0; i < dests->user.num_dests; i++) {
 		rs = NULL;
-		rs_match = NULL;
 
 		/* Is it the sorry server? */
 		if (vs->s_svr && vsd_equal(vs->s_svr, &dests->user.entrytable[i]))
 			rs = vs->s_svr;
 		else {
 			/* Search for a match in the list of real servers */
+			rs_match = NULL;
 			list_for_each_entry(rs, &vs->rs, e_list) {
 				if (vsd_equal(rs, &dests->user.entrytable[i])) {
 					rs_match = rs;
@@ -846,69 +889,59 @@ ipvs_update_vs_stats(virtual_server_t *vs, uint16_t af, uint32_t fwmark, union n
 				rs = NULL;
 		}
 
-		if (rs) {
-			rs->activeconns		+= dests->user.entrytable[i].user.activeconns;
-			rs->inactconns		+= dests->user.entrytable[i].user.inactconns;
-			rs->persistconns	+= dests->user.entrytable[i].user.persistconns;
-			rs->stats.conns		+= dests->user.entrytable[i].stats.conns;
-			rs->stats.inpkts	+= dests->user.entrytable[i].stats.inpkts;
-			rs->stats.outpkts	+= dests->user.entrytable[i].stats.outpkts;
-			rs->stats.inbytes	+= dests->user.entrytable[i].stats.inbytes;
-			rs->stats.outbytes	+= dests->user.entrytable[i].stats.outbytes;
-			rs->stats.cps		+= dests->user.entrytable[i].stats.cps;
-			rs->stats.inpps		+= dests->user.entrytable[i].stats.inpps;
-			rs->stats.outpps	+= dests->user.entrytable[i].stats.outpps;
-			rs->stats.inbps		+= dests->user.entrytable[i].stats.inbps;
-			rs->stats.outbps	+= dests->user.entrytable[i].stats.outbps;
-		}
+		if (!rs)
+			continue;
+
+		rs->activeconns		+= dests->user.entrytable[i].user.activeconns;
+		rs->inactconns		+= dests->user.entrytable[i].user.inactconns;
+		rs->persistconns	+= dests->user.entrytable[i].user.persistconns;
+		rs->stats.conns		+= dests->user.entrytable[i].ip_vs_stats.conns;
+		rs->stats.inpkts	+= dests->user.entrytable[i].ip_vs_stats.inpkts;
+		rs->stats.outpkts	+= dests->user.entrytable[i].ip_vs_stats.outpkts;
+		rs->stats.inbytes	+= dests->user.entrytable[i].ip_vs_stats.inbytes;
+		rs->stats.outbytes	+= dests->user.entrytable[i].ip_vs_stats.outbytes;
+		rs->stats.cps		+= dests->user.entrytable[i].ip_vs_stats.cps;
+		rs->stats.inpps		+= dests->user.entrytable[i].ip_vs_stats.inpps;
+		rs->stats.outpps	+= dests->user.entrytable[i].ip_vs_stats.outpps;
+		rs->stats.inbps		+= dests->user.entrytable[i].ip_vs_stats.inbps;
+		rs->stats.outbps	+= dests->user.entrytable[i].ip_vs_stats.outbps;
 	}
+
 	FREE(dests);
 }
 
-/* Update statistics for a given virtual server. This includes
-   statistics of real servers. The update is only done if we need
-   refreshing. */
+/* Update statistics for a given virtual server. The update is only
+   done if we need refreshing. */
 void
-ipvs_update_stats(virtual_server_t *vs)
+ipvs_vs_update_stats(virtual_server_t *vs)
 {
 	virtual_server_group_entry_t *vsg_entry;
 	uint32_t addr_ip, addr_end;
 	uint16_t port;
 	union nf_inet_addr nfaddr;
-	real_server_t *rs;
-	time_t cur_time = time(NULL);
+	struct timespec cur_time;
 	uint16_t af;
-#ifdef _WITH_NFTABLES_
-	proto_index_t proto_index = protocol_to_index(vs->service_type);
-#endif
 
-	if (cur_time - vs->lastupdated < STATS_REFRESH)
+	clock_gettime(CLOCK_MONOTONIC, &cur_time);
+	if ((unsigned long)((cur_time.tv_sec - vs->vs_stats_last_updated.tv_sec) * TIMER_HZ +
+	    cur_time.tv_nsec / (NSEC_PER_SEC / TIMER_HZ) - vs->vs_stats_last_updated.tv_nsec / (NSEC_PER_SEC / TIMER_HZ)) < global_data->snmp_vs_stats_update_interval)
 		return;
-	vs->lastupdated = cur_time;
+	vs->vs_stats_last_updated = cur_time;
 
 	/* Reset stats */
 	memset(&vs->stats, 0, sizeof(vs->stats));
-	if (vs->s_svr) {
-		memset(&vs->s_svr->stats, 0, sizeof(vs->s_svr->stats));
-		vs->s_svr->activeconns =
-			vs->s_svr->inactconns = vs->s_svr->persistconns = 0;
-	}
-	list_for_each_entry(rs, &vs->rs, e_list) {
-		memset(&rs->stats, 0, sizeof(rs->stats));
-		rs->activeconns = rs->inactconns = rs->persistconns = 0;
-	}
 
 	/* Update the stats */
 	if (vs->vsg) {
 		for (af = (vs->vsg->have_ipv4) ? AF_INET : AF_INET6; af != AF_UNSPEC; af = af == AF_INET && vs->vsg->have_ipv6 ? AF_INET6 : AF_UNSPEC) {
 #ifdef _WITH_NFTABLES_
-			if (global_data->ipvs_nf_table_name && vs->vsg->auto_fwmark[proto_index])
-				ipvs_update_vs_stats(vs, af, vs->vsg->auto_fwmark[proto_index], &nfaddr, 0);
+			if (VS_USES_VSG_AUTO_FWMARK(vs))
+				ipvs_update_vs_stats(vs, af, vs->vsg->auto_fwmark[protocol_to_index(vs->service_type)], NULL, 0);
 			else
 #endif
 			{
 				list_for_each_entry(vsg_entry, &vs->vsg->vfwmark, e_list)
-					ipvs_update_vs_stats(vs, af, vsg_entry->vfwmark, &nfaddr, 0);
+					ipvs_update_vs_stats(vs, af, vsg_entry->vfwmark, NULL, 0);
 
 				list_for_each_entry(vsg_entry, &vs->vsg->addr_range, e_list) {
 					addr_ip = (vsg_entry->addr.ss_family == AF_INET6) ?
@@ -934,14 +967,89 @@ ipvs_update_stats(virtual_server_t *vs)
 			}
 		}
 	} else if (vs->vfwmark) {
-		memset(&nfaddr, 0, sizeof(nfaddr));
-		ipvs_update_vs_stats(vs, vs->af, vs->vfwmark, &nfaddr, 0);
+		ipvs_update_vs_stats(vs, vs->af, vs->vfwmark, NULL, 0);
 	} else {
 		memcpy(&nfaddr, (vs->addr.ss_family == AF_INET6) ?
 		       (void*)(&PTR_CAST(struct sockaddr_in6, &vs->addr)->sin6_addr) :
 		       (void*)(&PTR_CAST(struct sockaddr_in, &vs->addr)->sin_addr),
 		       sizeof(nfaddr));
 		ipvs_update_vs_stats(vs, vs->af, 0, &nfaddr, inet_sockaddrport(&vs->addr));
+	}
+}
+
+/* Update statistics for a given real server. The update is only
+   done if we need refreshing. */
+void
+ipvs_rs_update_stats(virtual_server_t *vs)
+{
+	virtual_server_group_entry_t *vsg_entry;
+	uint32_t addr_ip, addr_end;
+	uint16_t port;
+	union nf_inet_addr nfaddr;
+	real_server_t *rs;
+	struct timespec cur_time;
+	uint16_t af;
+
+	clock_gettime(CLOCK_MONOTONIC, &cur_time);
+	if ((unsigned long)((cur_time.tv_sec - vs->rs_stats_last_updated.tv_sec) * TIMER_HZ +
+	    cur_time.tv_nsec / (NSEC_PER_SEC / TIMER_HZ) - vs->rs_stats_last_updated.tv_nsec / (NSEC_PER_SEC / TIMER_HZ)) < global_data->snmp_rs_stats_update_interval)
+		return;
+	vs->rs_stats_last_updated = cur_time;
+
+	/* Reset stats */
+	if (vs->s_svr) {
+		memset(&vs->s_svr->stats, 0, sizeof(vs->s_svr->stats));
+		vs->s_svr->activeconns =
+			vs->s_svr->inactconns = vs->s_svr->persistconns = 0;
+	}
+	list_for_each_entry(rs, &vs->rs, e_list) {
+		memset(&rs->stats, 0, sizeof(rs->stats));
+		rs->activeconns = rs->inactconns = rs->persistconns = 0;
+	}
+
+	/* Update the stats */
+	if (vs->vsg) {
+		for (af = (vs->vsg->have_ipv4) ? AF_INET : AF_INET6; af != AF_UNSPEC; af = af == AF_INET && vs->vsg->have_ipv6 ? AF_INET6 : AF_UNSPEC) {
+#ifdef _WITH_NFTABLES_
+			if (VS_USES_VSG_AUTO_FWMARK(vs))
+				ipvs_update_rs_stats(vs, af, vs->vsg->auto_fwmark[protocol_to_index(vs->service_type)], NULL, 0);
+			else
+#endif
+			{
+				list_for_each_entry(vsg_entry, &vs->vsg->vfwmark, e_list)
+					ipvs_update_rs_stats(vs, af, vsg_entry->vfwmark, NULL, 0);
+
+				list_for_each_entry(vsg_entry, &vs->vsg->addr_range, e_list) {
+					addr_ip = (vsg_entry->addr.ss_family == AF_INET6) ?
+						    ntohs(PTR_CAST(struct sockaddr_in6, &vsg_entry->addr)->sin6_addr.s6_addr16[7]) :
+						    ntohl(PTR_CAST(struct sockaddr_in, &vsg_entry->addr)->sin_addr.s_addr);
+					addr_end = (vsg_entry->addr.ss_family == AF_INET6) ?
+						    ntohs(PTR_CAST(struct sockaddr_in6, &vsg_entry->addr_end)->sin6_addr.s6_addr16[7]) :
+						    ntohl(PTR_CAST(struct sockaddr_in, &vsg_entry->addr_end)->sin_addr.s_addr);
+					if (vsg_entry->addr.ss_family == AF_INET6)
+						inet_sockaddrip6(&vsg_entry->addr, &nfaddr.in6);
+
+					port = inet_sockaddrport(&vsg_entry->addr);
+					do {
+						if (vsg_entry->addr.ss_family == AF_INET6)
+							nfaddr.in6.s6_addr16[7] = htons(addr_ip);
+						else
+							nfaddr.ip = htonl(addr_ip);
+
+						ipvs_update_rs_stats(vs, af, 0, &nfaddr, port);
+// This doesn't work for /111 say
+					} while (addr_ip++ != addr_end);
+				}
+			}
+		}
+	} else if (vs->vfwmark) {
+		ipvs_update_rs_stats(vs, vs->af, vs->vfwmark, NULL, 0);
+	} else {
+		memcpy(&nfaddr, (vs->addr.ss_family == AF_INET6) ?
+		       (void*)(&PTR_CAST(struct sockaddr_in6, &vs->addr)->sin6_addr) :
+		       (void*)(&PTR_CAST(struct sockaddr_in, &vs->addr)->sin_addr),
+		       sizeof(nfaddr));
+		ipvs_update_rs_stats(vs, vs->af, 0, &nfaddr, inet_sockaddrport(&vs->addr));
 	}
 }
 #endif /* _WITH_SNMP_CHECKER_ */

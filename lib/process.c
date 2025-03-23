@@ -42,7 +42,7 @@
 
 static unsigned cur_rt_priority;
 static unsigned max_rt_priority;
-long min_auto_priority_delay;
+unsigned min_auto_priority_delay;
 
 static unsigned cur_rlimit_rttime;
 static unsigned default_rlimit_rttime;
@@ -120,7 +120,7 @@ reset_process_priority(void)
    variable length buffer" warning */
 RELAX_STACK_PROTECTOR_START
 void
-set_process_priorities(int realtime_priority, int max_realtime_priority, long min_delay,
+set_process_priorities(int realtime_priority, int max_realtime_priority, unsigned min_delay,
 		       int rlimit_rt, int process_priority, int no_swap_stack_size)
 {
 	if (max_realtime_priority != -1)

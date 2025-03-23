@@ -230,6 +230,25 @@ netlink_link_up(vrrp_t *vrrp)
 	return status;
 }
 
+static void
+netlink_link_group(interface_t *base_ifp)
+{
+	struct {
+		struct nlmsghdr n;
+		struct ifinfomsg ifi;
+		char buf[256];
+	} req = { .buf[0] = 0 };
+
+	req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
+	req.n.nlmsg_flags = NLM_F_REQUEST;
+	req.n.nlmsg_type = RTM_NEWLINK;
+	req.ifi.ifi_family = AF_UNSPEC;
+	req.ifi.ifi_index = (int)IF_INDEX(base_ifp);
+
+	addattr32(&req.n, sizeof(req), IFLA_GROUP, base_ifp->group);
+	netlink_talk(&nl_cmd, &req.n);
+}
+
 bool
 set_link_local_address(const vrrp_t *vrrp)
 {
@@ -265,6 +284,7 @@ netlink_link_add_vmac(vrrp_t *vrrp, const interface_t *old_interface)
 	} req;
 	u_char if_ll_addr[ETH_ALEN];
 	bool update_interface = false;
+	bool ret = true;
 
 	if (!vrrp->ifp || __test_bit(VRRP_VMAC_UP_BIT, &vrrp->flags) || !vrrp->vrid)
 		return false;
@@ -365,6 +385,15 @@ netlink_link_add_vmac(vrrp_t *vrrp, const interface_t *old_interface)
 			addattr32(&req.n, sizeof(req), IFLA_LINK, vrrp->configured_ifp->ifindex);
 			addattr_l(&req.n, sizeof(req), IFLA_IFNAME, vrrp->vmac_ifname, strlen(vrrp->vmac_ifname));
 		}
+
+		/*
+		 * Copy the group from the base interface to allow firewall rules
+		 * (iptables devgroup or nftables iifgroup, oifgroup) to continue
+		 * working regardless of the use_vmac setting.
+		 */
+		addattr32(&req.n, sizeof(req), IFLA_GROUP,
+			__test_bit(VRRP_VMAC_GROUP, &vrrp->flags) ? vrrp->vmac_group
+								  : vrrp->configured_ifp->base_ifp->group);
 		addattr_l(&req.n, sizeof(req), IFLA_ADDRESS, if_ll_addr, ETH_ALEN);
 
 #ifdef _HAVE_VRF_
@@ -415,10 +444,9 @@ netlink_link_add_vmac(vrrp_t *vrrp, const interface_t *old_interface)
 	if (!ifp->ifindex)
 		return false;
 
-	if (vrrp->family == AF_INET && create_interface) {
+	if (create_interface) {
 		/* Set the necessary kernel parameters to make macvlans work for us */
-// If this saves current base_ifp's settings, we need to be careful if multiple VMACs on same i/f
-		set_interface_parameters(ifp, ifp->base_ifp);
+		set_interface_parameters(ifp, ifp->base_ifp, vrrp->family);
 	}
 
 #ifdef _WITH_FIREWALL_
@@ -476,9 +504,26 @@ netlink_link_add_vmac(vrrp_t *vrrp, const interface_t *old_interface)
 
 	if (vrrp->family == AF_INET6 &&
 	    !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags)) {
-		if (!set_link_local_address(vrrp) && create_interface)
+		if (!set_link_local_address(vrrp) && create_interface) {
 			log_message(LOG_INFO, "(%s) adding link-local address to %s failed", vrrp->iname, vrrp->ifp->ifname);
+			ret = false;
+		}
 	}
+
+	/* If the base interface does not implement IFF_UNICAST_FLT, for example
+	 * it is a bridge interface, no netlink notification is sent by the kernel
+	 * when promiscuity is set on the base interface.
+	 * The promiscuous state of the base interface is correct in the kernel
+	 * but it is in incorrect in processes that listen to the interface netlink
+	 * messages due to the missing netlink message.
+	 *
+	 * Force a notification by re-setting IFLA_GROUP for the base interface.
+	 * NOTE: there is a window here where the group may have been changed by
+	 * 	 some other process but we have not received the netlink message yet.
+	 */
+	if (create_interface && vrrp->configured_ifp->base_ifp->ifindex &&
+	    __test_bit(VRRP_VMAC_NETLINK_NOTIFY, &vrrp->flags))
+		netlink_link_group(vrrp->configured_ifp->base_ifp);
 
 #if !HAVE_DECL_IFLA_INET6_ADDR_GEN_MODE
 	if (vrrp->family == AF_INET6 || __test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags)) {
@@ -509,7 +554,7 @@ netlink_link_add_vmac(vrrp_t *vrrp, const interface_t *old_interface)
 	 * as we progress */
 	kernel_netlink_poll();
 
-	return true;
+	return ret;
 }
 
 #ifdef _INCLUDE_UNUSED_CODE_
@@ -573,9 +618,15 @@ netlink_link_add_ipvlan(vrrp_t *vrrp)
 		/* ipvlan settings */
 
 		/* Note: if the underlying interface is a ipvlan, then the kernel will configure the
-		 * interface only the underlying interface of the ipvlan */
+		 * interface only the underlying interface of the ipvlan.
+		 * We copy the group from the base interface to allow firewall rules
+		 * (iptables devgroup or nftables iifgroup, oifgroup) to continue
+		 * working regardless of the use_vmac setting. */
 		addattr32(&req.n, sizeof(req), IFLA_LINK, vrrp->configured_ifp->ifindex);
 		addattr_l(&req.n, sizeof(req), IFLA_IFNAME, vrrp->vmac_ifname, strlen(vrrp->vmac_ifname));
+		addattr32(&req.n, sizeof(req), IFLA_GROUP,
+			__test_bit(VRRP_VMAC_GROUP, &vrrp->flags) ? vrrp->vmac_group
+								  : vrrp->configured_ifp->base_ifp->group);
 		linkinfo = PTR_CAST(struct rtattr, NLMSG_TAIL(&req.n));
 		addattr_l(&req.n, sizeof(req), IFLA_LINKINFO, NULL, 0);
 		addattr_l(&req.n, sizeof(req), IFLA_INFO_KIND, (const void *)ipvlan_ll_kind, strlen(ipvlan_ll_kind));
@@ -709,6 +760,12 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 		log_message(LOG_INFO, "(%s) Error removing VMAC interface %s"
 				    , vrrp->iname, vrrp->vmac_ifname);
 		return;
+	}
+
+	if (__test_bit(VRRP_VMAC_NETLINK_NOTIFY, &vrrp->flags)) {
+		/* Force a netlink RTM_NEWLINK message for the base interface
+		 * since promiscuity may have been decremented. */
+		netlink_link_group(vrrp->configured_ifp->base_ifp);
 	}
 
 #ifdef _WITH_FIREWALL_

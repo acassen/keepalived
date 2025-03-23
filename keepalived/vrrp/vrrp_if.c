@@ -89,6 +89,9 @@ if_get_by_ifindex(ifindex_t ifindex)
 {
 	interface_t *ifp;
 
+	if (!ifindex)
+		return NULL;
+
 	list_for_each_entry(ifp, &if_queue, e_list) {
 		if (ifp->ifindex == ifindex)
 			return ifp;
@@ -413,20 +416,20 @@ dump_garp_delay(FILE *fp, const garp_delay_t *gd)
 	char time_str[26];
 	interface_t *ifp;
 
-	conf_write(fp, "------< GARP delay group %d >------", gd->aggregation_group);
+	conf_write(fp, "------< GARP delay group >------");
 
 	if (gd->have_garp_interval) {
-		conf_write(fp, " GARP interval = %g", gd->garp_interval.tv_sec + ((double)gd->garp_interval.tv_usec) / 1000000);
+		conf_write(fp, " GARP interval = %" PRI_tv_sec ".%6.6" PRI_tv_usec, gd->garp_interval.tv_sec, gd->garp_interval.tv_usec);
 		if (!ctime_r(&gd->garp_next_time.tv_sec, time_str))
 			strcpy(time_str, "invalid time ");
-		conf_write(fp, " GARP next time %ld.%6.6ld (%.19s.%6.6ld)", gd->garp_next_time.tv_sec, gd->garp_next_time.tv_usec, time_str, gd->garp_next_time.tv_usec);
+		conf_write(fp, " GARP next time %" PRI_tv_sec ".%6.6" PRI_tv_usec " (%.19s.%6.6" PRI_tv_usec ")", gd->garp_next_time.tv_sec, gd->garp_next_time.tv_usec, time_str, gd->garp_next_time.tv_usec);
 	}
 
 	if (gd->have_gna_interval) {
-		conf_write(fp, " GNA interval = %g", gd->gna_interval.tv_sec + ((double)gd->gna_interval.tv_usec) / 1000000);
+		conf_write(fp, " GNA interval = %" PRI_tv_sec ".%6.6" PRI_tv_usec, gd->gna_interval.tv_sec, gd->gna_interval.tv_usec);
 		if (!ctime_r(&gd->gna_next_time.tv_sec, time_str))
 			strcpy(time_str, "invalid time ");
-		conf_write(fp, " GNA next time %ld.%6.6ld (%.19s.%6.6ld)", gd->gna_next_time.tv_sec, gd->gna_next_time.tv_usec, time_str, gd->gna_next_time.tv_usec);
+		conf_write(fp, " GNA next time %" PRI_tv_sec ".%6.6" PRI_tv_usec " (%.19s.%6.6" PRI_tv_usec ")", gd->gna_next_time.tv_sec, gd->gna_next_time.tv_usec, time_str, gd->gna_next_time.tv_usec);
 	}
 	else if (!gd->have_garp_interval)
 		conf_write(fp, " No configuration");
@@ -453,6 +456,8 @@ alloc_garp_delay(void)
 
 	PMALLOC(gd);
 	INIT_LIST_HEAD(&gd->e_list);
+	INIT_LIST_HEAD(&gd->garp_list);
+	INIT_LIST_HEAD(&gd->gna_list);
 
 	list_add_tail(&gd->e_list, &garp_delay);
 	return gd;
@@ -472,20 +477,21 @@ set_garp_delay(interface_t *ifp, const garp_delay_t *delay)
 void
 set_default_garp_delay(void)
 {
-	garp_delay_t default_delay = {};
+	garp_delay_t default_delay = {0};
 	interface_t *ifp;
 	vrrp_t *vrrp;
 	list_head_t *vip_list;
 	ip_address_t *vip;
+	bool have_ipv4, have_ipv6;
 
 	if (global_data->vrrp_garp_interval) {
-		default_delay.garp_interval.tv_sec = global_data->vrrp_garp_interval / 1000000;
-		default_delay.garp_interval.tv_usec = global_data->vrrp_garp_interval % 1000000;
+		default_delay.garp_interval.tv_sec = global_data->vrrp_garp_interval / TIMER_HZ;
+		default_delay.garp_interval.tv_usec = global_data->vrrp_garp_interval % TIMER_HZ;
 		default_delay.have_garp_interval = true;
 	}
 	if (global_data->vrrp_gna_interval) {
-		default_delay.gna_interval.tv_sec = global_data->vrrp_gna_interval / 1000000;
-		default_delay.gna_interval.tv_usec = global_data->vrrp_gna_interval % 1000000;
+		default_delay.gna_interval.tv_sec = global_data->vrrp_gna_interval / TIMER_HZ;
+		default_delay.gna_interval.tv_usec = global_data->vrrp_gna_interval % TIMER_HZ;
 		default_delay.have_gna_interval = true;
 	}
 
@@ -494,6 +500,24 @@ set_default_garp_delay(void)
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		if (!vrrp->ifp)
 			continue;
+
+		/* Check what family of addresses we have */
+		have_ipv4 = vrrp->family == AF_INET;
+		have_ipv6 = vrrp->family == AF_INET6;
+
+		list_for_each_entry(vip, &vrrp->evip, e_list) {
+			if (IP_IS6(vip))
+				have_ipv6 = true;
+			else
+				have_ipv4 = true;
+		}
+
+		/* We don't need a delay if there isn't a delay for the
+		 * address family we are using */
+		if (!((have_ipv4 && global_data->vrrp_garp_interval) ||
+		      (have_ipv6 && global_data->vrrp_gna_interval)))
+			continue;
+
 		ifp = IF_BASE_IFP(vrrp->ifp);
 		if (!ifp->garp_delay)
 			set_garp_delay(ifp, &default_delay);
@@ -528,6 +552,23 @@ dump_if(FILE *fp, const interface_t *ifp)
 
 	conf_write(fp, " Name = %s", ifp->ifname);
 	conf_write(fp, "   index = %u%s", ifp->ifindex, ifp->ifindex ? "" : " (deleted)");
+
+	if (!ifp->ifindex) {
+		/* This duplicates code below, but it is simpler, and clearer,
+		 * than having lost of "if (ifp->ifindex)" tests */
+#ifdef _HAVE_VRRP_VMAC_
+		if (ifp->is_ours)
+			conf_write(fp, "   I/f created by keepalived");
+#endif
+
+		if (!list_empty(&ifp->tracking_vrrp)) {
+			conf_write(fp, "   Tracking VRRP instances :");
+			if_tracking_vrrp_dump_list(fp, &ifp->tracking_vrrp);
+		}
+
+		return;
+	}
+
 	conf_write(fp, "   IPv4 address = %s",
 			ifp->sin_addr.s_addr ? inet_ntop2(ifp->sin_addr.s_addr) : "(none)");
 	if (!list_empty(&ifp->sin_addr_l)) {
@@ -574,6 +615,8 @@ dump_if(FILE *fp, const interface_t *ifp)
 	conf_write(fp, "   Down debounce timer = %uus", ifp->down_debounce_timer);
 
 #ifdef _HAVE_VRRP_VMAC_
+	conf_write(fp, "   Group = %u", ifp->group);
+
 	if (IS_MAC_IP_VLAN(ifp)) {
 		const char *if_type =
 #ifdef _HAVE_VRRP_IPVLAN_
@@ -667,16 +710,14 @@ dump_if(FILE *fp, const interface_t *ifp)
 
 	if (ifp->garp_delay) {
 		if (ifp->garp_delay->have_garp_interval)
-			conf_write(fp, "   Gratuitous ARP interval %ldms",
+			conf_write(fp, "   Gratuitous ARP interval %" PRI_tv_sec "ms",
 				    ifp->garp_delay->garp_interval.tv_sec * 1000 +
 				     ifp->garp_delay->garp_interval.tv_usec / (TIMER_HZ / 1000));
 
 		if (ifp->garp_delay->have_gna_interval)
-			conf_write(fp, "   Gratuitous NA interval %ldms",
+			conf_write(fp, "   Gratuitous NA interval %" PRI_time_t "ms",
 				    ifp->garp_delay->gna_interval.tv_sec * 1000 +
 				     ifp->garp_delay->gna_interval.tv_usec / (TIMER_HZ / 1000));
-		if (ifp->garp_delay->aggregation_group)
-			conf_write(fp, "   Gratuitous ARP aggregation group %d", ifp->garp_delay->aggregation_group);
 	}
 
 #ifdef _HAVE_VRRP_VMAC_
@@ -690,7 +731,7 @@ dump_if(FILE *fp, const interface_t *ifp)
 	conf_write(fp, "   Reset promote_secondaries counter %" PRIu32, ifp->reset_promote_secondaries);
 	if (timerisset(&ifp->last_gna_router_check)) {
 		ctime_r(&ifp->last_gna_router_check.tv_sec, time_str);
-		conf_write(fp, "   %sIPv6 forwarding. Last checked %ld.%6.6ld (%.24s.%6.6ld)", ifp->gna_router ? "" : "Not ", ifp->last_gna_router_check.tv_sec, ifp->last_gna_router_check.tv_usec, time_str, ifp->last_gna_router_check.tv_usec);
+		conf_write(fp, "   %sIPv6 forwarding. Last checked %" PRI_tv_sec ".%6.6" PRI_tv_usec " (%.24s.%6.6" PRI_tv_usec ")", ifp->gna_router ? "" : "Not ", ifp->last_gna_router_check.tv_sec, ifp->last_gna_router_check.tv_usec, time_str, ifp->last_gna_router_check.tv_usec);
 
 	}
 
@@ -1517,7 +1558,7 @@ setup_interface(vrrp_t *vrrp)
 	if (!vrrp->ifp->ifindex) {
 		/* coverity[var_deref_model] - vrrp->configured_ifp is not NULL for VMAC */
 		if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
-		    !netlink_link_add_vmac(vrrp, false))
+		    !netlink_link_add_vmac(vrrp, NULL))
 			return;
 #ifdef _HAVE_VRRP_IPVLAN_
 		/* coverity[var_deref_model] - vrrp->configured_ifp is not NULL for IPVLAN */
@@ -1666,7 +1707,14 @@ update_added_interface(interface_t *ifp)
 			}
 		}
 
-		if (vrrp->flags) {
+		if (
+#ifdef _HAVE_VRRP_VMAC_
+		    __test_bit(VRRP_VMAC_BIT, &vrrp->flags)
+#ifdef _HAVE_VRRP_IPVLAN_
+		    || __test_bit(VRRP_IPVLAN_BIT, &vrrp->flags)
+#endif
+#endif
+								) {
 			if (top->type & TRACK_VRRP) {
 				add_vrrp_to_interface(vrrp, ifp->base_ifp, top->weight, top->weight_multiplier == -1, false, TRACK_VRRP_DYNAMIC);
 				if (!IF_ISUP(vrrp->configured_ifp->base_ifp) && !__test_bit(VRRP_FLAG_DONT_TRACK_PRIMARY, &vrrp->flags)) {
@@ -1698,7 +1746,10 @@ update_added_interface(interface_t *ifp)
 		/* Reopen any socket on this interface if necessary */
 		if (
 #ifdef _HAVE_VRRP_VMAC_
-		    !vrrp->flags &&
+		    !__test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
+#ifdef _HAVE_VRRP_IPVLAN_
+		    !__test_bit(VRRP_IPVLAN_BIT, &vrrp->flags) &&
+#endif
 #endif
 		    vrrp->sockets->fd_in == -1)
 			setup_interface(vrrp);

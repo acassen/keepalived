@@ -46,6 +46,10 @@
 
 #define INFINITY_LIFE_TIME      0xFFFFFFFF
 
+#if HAVE_DECL_IFA_PROTO
+static uint8_t address_protocol;
+#endif
+
 const char *
 ipaddresstos(char *buf, const ip_address_t *ip_addr)
 {
@@ -212,6 +216,10 @@ netlink_ipaddress(ip_address_t *ip_addr, int cmd)
 
 		if (ip_addr->have_peer)
 			addattr_l(&req.n, sizeof(req), IFA_ADDRESS, &ip_addr->peer, req.ifa.ifa_family == AF_INET6 ? 16 : 4);
+
+#if HAVE_DECL_IFA_PROTO		// introduced in Linux v5.18
+		addattr8(&req.n, sizeof(req), IFA_PROTO, address_protocol);
+#endif
 	}
 
 	/* If the state of the interface or its parent is down, it might be because the interface
@@ -268,6 +276,7 @@ free_ipaddress(ip_address_t *ip_addr)
 {
 	FREE_PTR(ip_addr->label);
 	list_del_init(&ip_addr->e_list);
+	list_del_init(&ip_addr->garp_gna_list);
 	FREE(ip_addr);
 }
 
@@ -484,6 +493,7 @@ alloc_ipaddress(const vector_t *strvec, bool static_addr)
 		return NULL;
 	}
 	INIT_LIST_HEAD(&new->e_list);
+	INIT_LIST_HEAD(&new->garp_gna_list);
 
 	/* We expect the address first */
 	if (!parse_ipaddress(new, strvec_slot(strvec, 0), true)) {
@@ -811,8 +821,8 @@ void
 clear_diff_static_addresses(void)
 {
 	LIST_HEAD_INITIALIZE(remove_addr);
-	vrrp_t old = {};
-	vrrp_t new = {};
+	vrrp_t old = {0};
+	vrrp_t new = {0};
 
 	list_copy(&old.vip, &old_vrrp_data->static_addresses);
 	list_copy(&new.vip, &vrrp_data->static_addresses);
@@ -835,4 +845,13 @@ void reinstate_static_address(ip_address_t *ip_addr)
 	ip_addr->set = (netlink_ipaddress(ip_addr, IPADDRESS_ADD) > 0);
 	format_ipaddress(ip_addr, buf, sizeof(buf));
 	log_message(LOG_INFO, "Restoring deleted static address %s", buf);
+}
+
+void
+set_addrproto(void)
+{
+#if HAVE_DECL_IFA_PROTO
+	if (!find_rttables_addrproto("keepalived", &address_protocol))
+		create_rttables_addrproto("keepalived", &address_protocol);
+#endif
 }

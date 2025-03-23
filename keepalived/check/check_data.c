@@ -469,19 +469,15 @@ dump_tracking_rs(FILE *fp, const void *data)
 	conf_write(fp, "     %s -> %s, weight %d%s", FMT_VS(checker->vs), FMT_RS(checker->rs, checker->vs), top->weight, top->weight_multiplier == -1 ? " reverse" : "");
 }
 
-static const char *
-format_decimal(unsigned long val, int dp)
+static void
+dump_notify_vs_rs_script(FILE *fp, const notify_script_t *script, const char *type, const char *state)
 {
-	static char buf[22];	/* Sufficient for 2^64 as decimal plus decimal point */
-	unsigned dp_factor = 1;
-	int i;
-
-	for (i = 0; i < dp; i++)
-		dp_factor *= 10;
-
-	snprintf(buf, sizeof(buf), "%lu.%*.*lu", val / dp_factor, dp, dp, val % dp_factor);
-
-	return buf;
+	if (script->path)
+		conf_write(fp, "   %s %s notify script = %s, params = %s, uid:gid %u:%u", type, state,
+			    script->path, cmd_str(script), script->uid, script->gid);
+	else
+		conf_write(fp, "   %s %s notify script = %s, uid:gid %u:%u", type, state,
+			    cmd_str(script), script->uid, script->gid);
 }
 
 static void
@@ -511,11 +507,9 @@ dump_rs(FILE *fp, const real_server_t *rs)
 	conf_write(fp, "   Inhibit on failure is %s", rs->inhibit ? "ON" : "OFF");
 
 	if (rs->notify_up)
-		conf_write(fp, "     RS up notify script = %s, uid:gid %u:%u",
-				cmd_str(rs->notify_up), rs->notify_up->uid, rs->notify_up->gid);
+		dump_notify_vs_rs_script(fp, rs->notify_up, "RS", "up");
 	if (rs->notify_down)
-		conf_write(fp, "     RS down notify script = %s, uid:gid %u:%u",
-				cmd_str(rs->notify_down), rs->notify_down->uid, rs->notify_down->gid);
+		dump_notify_vs_rs_script(fp, rs->notify_down, "RS", "down");
 	if (rs->virtualhost)
 		conf_write(fp, "    VirtualHost = '%s'", rs->virtualhost);
 #ifdef _WITH_SNMP_CHECKER_
@@ -570,6 +564,8 @@ alloc_rs(const char *ip, const char *port)
 #ifdef _WITH_BFD_
 	INIT_LIST_HEAD(&new->tracked_bfds);
 #endif
+	INIT_LIST_HEAD(&new->checkers_list);
+
 	if (inet_stosockaddr(ip, port_str, &new->addr)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid real server ip address/port %s/%s - skipping", ip, port);
 		skip_block(true);
@@ -636,7 +632,6 @@ free_vs(virtual_server_t *vs)
 	free_rs_list(&vs->rs);
 	free_notify_script(&vs->notify_quorum_up);
 	free_notify_script(&vs->notify_quorum_down);
-	free_vs_checkers(vs);
 	FREE(vs);
 }
 
@@ -714,7 +709,7 @@ dump_vs(FILE *fp, const virtual_server_t *vs)
 		conf_write(fp, "   protocol = UDP");
 	else if (vs->service_type == IPPROTO_SCTP)
 		conf_write(fp, "   protocol = SCTP");
-	else if (vs->service_type == 0)
+	else if (vs->service_type == IPPROTO_IP)
 		conf_write(fp, "   protocol = none");
 	else
 		conf_write(fp, "   protocol = %d", vs->service_type);
@@ -729,11 +724,9 @@ dump_vs(FILE *fp, const virtual_server_t *vs)
 	conf_write(fp, "   Inhibit on failure is %s", vs->inhibit ? "ON" : "OFF");
 	conf_write(fp, "   quorum = %u, hysteresis = %u", vs->quorum, vs->hysteresis);
 	if (vs->notify_quorum_up)
-		conf_write(fp, "   Quorum up notify script = %s, uid:gid %u:%u",
-			    cmd_str(vs->notify_quorum_up), vs->notify_quorum_up->uid, vs->notify_quorum_up->gid);
+		dump_notify_vs_rs_script(fp, vs->notify_quorum_up, "Quorum", "up");
 	if (vs->notify_quorum_down)
-		conf_write(fp, "   Quorum down notify script = %s, uid:gid %u:%u",
-			    cmd_str(vs->notify_quorum_down), vs->notify_quorum_down->uid, vs->notify_quorum_down->gid);
+		dump_notify_vs_rs_script(fp, vs->notify_quorum_down, "Quorum", "down");
 	if (vs->ha_suspend)
 		conf_write(fp, "   Using HA suspend");
 	conf_write(fp, "   Using smtp notification = %s", vs->smtp_alert ? "yes" : "no");
@@ -754,8 +747,10 @@ dump_vs(FILE *fp, const virtual_server_t *vs)
 				    , FMT_RS(vs->s_svr, vs));
 		dump_forwarding_method(fp, "  ", vs->s_svr);
 		conf_write(fp, "     Inhibit on failure is %s", vs->s_svr->inhibit ? "ON" : "OFF");
+		conf_write(fp, "     set = %d", vs->s_svr->set);
+		conf_write(fp, "     alive = %d", vs->s_svr->alive);
 	}
-	conf_write(fp, "   alive = %d", vs->alive);
+	conf_write(fp, "   VS alive = %d", vs->alive);
 	conf_write(fp, "   quorum_state_up = %d", vs->quorum_state_up);
 	conf_write(fp, "   reloaded = %d", vs->reloaded);
 
@@ -929,8 +924,10 @@ alloc_check_data(void)
 }
 
 void
-free_check_data(check_data_t *data)
+free_check_data(check_data_t **datap)
 {
+	check_data_t *data = *datap;
+
 	free_vs_list(&data->vs);
 	free_vsg_list(&data->vs_group);
 	free_track_file_list(&data->track_files);
@@ -938,6 +935,8 @@ free_check_data(check_data_t *data)
 	free_checker_bfd_list(&data->track_bfds);
 #endif
 	FREE(data);
+
+	*datap = NULL;
 }
 
 static void
@@ -956,7 +955,7 @@ dump_check_data(FILE *fp, const check_data_t *data)
 			dump_vsg_list(fp, &data->vs_group);
 		dump_vs_list(fp, &data->vs);
 	}
-	dump_checkers_queue(fp);
+	dump_checkers(fp);
 
 	if (!list_empty(&data->track_files)) {
 		conf_write(fp, "------< Checker track files >------");
@@ -1166,7 +1165,9 @@ validate_check_config(void)
 				if (rs_iseq(rs, rs1)) {
 					report_config_error(CONFIG_GENERAL_ERROR, "VS %s: real server %s is duplicated - removing second rs", FMT_VS(vs), FMT_RS(rs, vs));
 					free_rs(rs);
+#ifdef _WITH_SNMP_CHECKER_
 					vs->rs_cnt--;
+#endif
 					rs_removed = true;
 					break;
 				}
@@ -1336,44 +1337,48 @@ validate_check_config(void)
 		}
 	}
 
-	list_for_each_entry(checker, &checkers_queue, e_list) {
-		/* Ensure any checkers that don't have ha_suspend set are enabled */
-		if (!checker->vs->ha_suspend)
-			checker->enabled = true;
+	list_for_each_entry(vs, &check_data->vs, e_list) {
+		list_for_each_entry(rs, &vs->rs, e_list) {
+			list_for_each_entry(checker, &rs->checkers_list, rs_list) {
+				/* Ensure any checkers that don't have ha_suspend set are enabled */
+				if (!checker->vs->ha_suspend)
+					checker->enabled = true;
 
-		/* Take default values from real server */
-		if (checker->alpha == -1)
-			checker->alpha = checker->rs->alpha;
-		if (checker->launch) {
-			if (checker->retry == UINT_MAX)
-				checker->retry = checker->rs->retry != UINT_MAX ? checker->rs->retry : checker->default_retry;
-			if (checker->co && checker->co->connection_to == UINT_MAX)
-				checker->co->connection_to = checker->rs->connection_to;
-			if (checker->delay_loop == ULONG_MAX)
-				checker->delay_loop = checker->rs->delay_loop;
-			if (checker->warmup == ULONG_MAX)
-				checker->warmup = checker->rs->warmup != ULONG_MAX ? checker->rs->warmup : checker->delay_loop;
-			if (checker->delay_before_retry == ULONG_MAX) {
-				checker->delay_before_retry =
-					checker->rs->delay_before_retry != ULONG_MAX ?
-						checker->rs->delay_before_retry :
-					checker->default_delay_before_retry ?
-						checker->default_delay_before_retry :
-						checker->delay_loop;
+				/* Take default values from real server */
+				if (checker->alpha == -1)
+					checker->alpha = checker->rs->alpha;
+				if (checker->launch) {
+					if (checker->retry == UINT_MAX)
+						checker->retry = checker->rs->retry != UINT_MAX ? checker->rs->retry : checker->default_retry;
+					if (checker->co && checker->co->connection_to == UINT_MAX)
+						checker->co->connection_to = checker->rs->connection_to;
+					if (checker->delay_loop == ULONG_MAX)
+						checker->delay_loop = checker->rs->delay_loop;
+					if (checker->warmup == ULONG_MAX)
+						checker->warmup = checker->rs->warmup != ULONG_MAX ? checker->rs->warmup : checker->delay_loop;
+					if (checker->delay_before_retry == ULONG_MAX) {
+						checker->delay_before_retry =
+							checker->rs->delay_before_retry != ULONG_MAX ?
+								checker->rs->delay_before_retry :
+							checker->default_delay_before_retry ?
+								checker->default_delay_before_retry :
+								checker->delay_loop;
+					}
+				}
+
+				/* In Alpha mode also mark any checker that hasn't run as failed.
+				 * Reloading is handled in migrate_checkers() */
+				if (!reload) {
+					if (checker->alpha) {
+						set_checker_state(checker, false);
+						UNSET_ALIVE(checker->rs);
+					}
+
+					/* For non alpha mode, one failure is enough initially.
+					 * For alpha mode, log failure after one failure */
+					checker->retry_it = checker->retry;
+				}
 			}
-		}
-
-		/* In Alpha mode also mark any checker that hasn't run as failed.
-		 * Reloading is handled in migrate_checkers() */
-		if (!reload) {
-			if (checker->alpha) {
-				set_checker_state(checker, false);
-				UNSET_ALIVE(checker->rs);
-			}
-
-			/* For non alpha mode, one failure is enough initially.
-			 * For alpha mode, log failure after one failure */
-			checker->retry_it = checker->retry;
 		}
 	}
 

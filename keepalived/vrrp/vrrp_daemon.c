@@ -30,6 +30,9 @@
 #include <sys/prctl.h>
 #include <sys/time.h>
 #include <fcntl.h>
+#ifdef _WITH_PROFILING_
+#include <sys/gmon.h>
+#endif
 
 #ifdef THREAD_DUMP
 #ifdef _WITH_SNMP_
@@ -142,9 +145,9 @@ dump_vrrp_fd(void)
 			else {
 				timersub(&vrrp->sands, &time_now, &time_diff);
 				if (time_diff.tv_sec >= 0)
-					log_message(LOG_INFO, "    %s: sands %ld.%6.6ld", vrrp->iname, time_diff.tv_sec, time_diff.tv_usec);
+					log_message(LOG_INFO, "    %s: sands %" PRI_tv_sec ".%6.6" PRI_tv_usec, vrrp->iname, time_diff.tv_sec, time_diff.tv_usec);
 				else
-					log_message(LOG_INFO, "    %s: sands -%ld.%6.6ld", vrrp->iname, -time_diff.tv_sec - (time_diff.tv_usec ? 1 : 0), time_diff.tv_usec ? 1000000 - time_diff.tv_usec : 0);
+					log_message(LOG_INFO, "    %s: sands -%" PRI_tv_sec ".%6.6" PRI_tv_usec, vrrp->iname, -time_diff.tv_sec - (time_diff.tv_usec ? 1 : 0), time_diff.tv_usec ? 1000000 - time_diff.tv_usec : 0);
 			}
 		}
 
@@ -321,8 +324,8 @@ vrrp_terminate_phase2(int exit_status)
 	if (global_data->disable_local_igmp)
 		reset_disable_local_igmp();
 
-	free_global_data(global_data);
-	free_vrrp_data(vrrp_data);
+	free_global_data(&global_data);
+	free_vrrp_data(&vrrp_data);
 	free_vrrp_buffer();
 	free_interface_queue();
 	free_parent_mallocs_exit();
@@ -348,7 +351,7 @@ vrrp_terminate_phase2(int exit_status)
 	close_std_fd();
 
 	/* Stop daemon */
-	pidfile_rm(vrrp_pidfile);
+	pidfile_rm(&vrrp_pidfile);
 
 	exit(exit_status);
 }
@@ -523,8 +526,9 @@ start_vrrp(data_t *prev_global_data)
 	init_data(conf_file, vrrp_init_keywords, false);
 
 	/* Update process name if necessary */
-	if ((!reload && global_data->vrrp_process_name) ||
-	    (reload &&
+	if ((!prev_global_data && 		// startup
+	     global_data->vrrp_process_name) ||
+	    (prev_global_data &&		// reload
 	     (!global_data->vrrp_process_name != !prev_global_data->vrrp_process_name ||
 	      (global_data->vrrp_process_name && strcmp(global_data->vrrp_process_name, prev_global_data->vrrp_process_name)))))
 		set_process_name(global_data->vrrp_process_name);
@@ -605,10 +609,24 @@ start_vrrp(data_t *prev_global_data)
 		/* Init & start the VRRP packet dispatcher */
 		thread_add_event(master, vrrp_dispatcher_init, NULL, 0);
 
-		if (!reload && global_data->vrrp_startup_delay) {
-			vrrp_delayed_start_time = timer_add_long(time_now, global_data->vrrp_startup_delay);
-			thread_add_timer(master, delayed_start_clear_thread, NULL, global_data->vrrp_startup_delay);
-			log_message(LOG_INFO, "Delaying startup for %g seconds", global_data->vrrp_startup_delay / TIMER_HZ_DOUBLE);
+		if (global_data->vrrp_startup_delay) {
+			if (!reload) {
+				vrrp_delayed_start_time = timer_add_long(time_now, global_data->vrrp_startup_delay);
+				thread_add_timer(master, delayed_start_clear_thread, NULL, global_data->vrrp_startup_delay);
+				log_message(LOG_INFO, "Delaying startup for %g seconds", global_data->vrrp_startup_delay / TIMER_HZ_DOUBLE);
+			} else if (vrrp_delayed_start_time.tv_sec) {
+				if (time_now.tv_sec > vrrp_delayed_start_time.tv_sec ||
+				    (time_now.tv_sec == vrrp_delayed_start_time.tv_sec &&
+				     time_now.tv_usec >= vrrp_delayed_start_time.tv_usec))
+					vrrp_delayed_start_time.tv_sec = 0;
+				else {
+					unsigned delay_left;
+					delay_left = (vrrp_delayed_start_time.tv_sec - time_now.tv_sec) * 1000000UL
+							+ vrrp_delayed_start_time.tv_usec - time_now.tv_usec;
+					thread_add_timer(master, delayed_start_clear_thread, NULL, delay_left);
+					log_message(LOG_INFO, "Delaying startup for a further %g seconds", delay_left / TIMER_HZ_DOUBLE);
+				}
+			}
 		}
 
 		if (!reload && global_data->disable_local_igmp)
@@ -755,8 +773,6 @@ sigusr2_vrrp(__attribute__((unused)) void *v, int sig)
 static void
 sigjson_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
-	log_message(LOG_INFO, "Printing VRRP as json for process(%d) on signal",
-		getpid());
 	thread_add_event(master, print_vrrp_json, NULL, 0);
 }
 #endif
@@ -774,7 +790,10 @@ static void
 vrrp_signal_init(void)
 {
 	signal_set(SIGHUP, sigreload_vrrp, NULL);
-	signal_set(SIGINT, sigend_vrrp, NULL);
+	if (ignore_sigint)
+		signal_ignore(SIGINT);
+	else
+		signal_set(SIGINT, sigend_vrrp, NULL);
 	signal_set(SIGTERM, sigend_vrrp, NULL);
 	signal_set(SIGUSR1, sigusr1_vrrp, NULL);
 	signal_set(SIGUSR2, sigusr2_vrrp, NULL);
@@ -875,10 +894,8 @@ reload_vrrp_thread(__attribute__((unused)) thread_ref_t thread)
 #endif
 
 	/* free backup data */
-	free_vrrp_data(old_vrrp_data);
-	old_vrrp_data = NULL;
-	free_global_data(old_global_data);
-	old_global_data = NULL;
+	free_vrrp_data(&old_vrrp_data);
+	free_global_data(&old_global_data);
 
 	free_old_interface_queue();
 
@@ -978,6 +995,7 @@ register_vrrp_thread_addresses(void)
 	register_thread_address("start_vrrp_termination_thread", start_vrrp_termination_thread);
 	register_thread_address("send_reload_advert_thread", send_reload_advert_thread);
 #endif
+	register_thread_address("delayed_start_clear_thread", delayed_start_clear_thread);
 	register_thread_address("vrrp_shutdown_backstop_thread", vrrp_shutdown_backstop_thread);
 	register_thread_address("vrrp_shutdown_timer_thread", vrrp_shutdown_timer_thread);
 
@@ -1030,6 +1048,11 @@ start_vrrp_child(void)
 		return 0;
 	}
 
+#ifdef _WITH_PROFILING_
+	/* See https://lists.gnu.org/archive/html/bug-gnu-utils/2001-09/msg00047.html for details */
+	monstartup ((u_long) &_start, (u_long) &etext);
+#endif
+
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
 	/* Check our parent hasn't already changed since the fork */
@@ -1049,6 +1072,8 @@ start_vrrp_child(void)
 	/* Remove anything we might have inherited from parent */
 	deregister_thread_addresses();
 #endif
+
+	close_other_pidfiles();
 
 #ifdef _WITH_BFD_
 	/* Close the write end of the BFD vrrp event notification pipe */
@@ -1091,7 +1116,7 @@ start_vrrp_child(void)
 	separate_config_file();
 
 	/* Child process part, write pidfile */
-	if (!pidfile_write(vrrp_pidfile, getpid())) {
+	if (!pidfile_write(&vrrp_pidfile)) {
 		/* Fatal error */
 		log_message(LOG_INFO, "VRRP child process: cannot write pidfile");
 		exit(0);
@@ -1100,6 +1125,9 @@ start_vrrp_child(void)
 #ifdef _USE_SYSTEMD_NOTIFY_
 	systemd_unset_notify();
 #endif
+
+	/* Set the protocol for ip addresses we add */
+	set_addrproto();
 
 #ifdef _VRRP_FD_DEBUG_
 	if (do_vrrp_fd_debug)
@@ -1175,6 +1203,5 @@ register_vrrp_parent_addresses(void)
 	register_thread_address("vrrp_respawn_thread", vrrp_respawn_thread);
 	register_thread_address("delayed_restart_vrrp_child_thread", delayed_restart_vrrp_child_thread);
 #endif
-	register_thread_address("delayed_start_clear_thread", delayed_start_clear_thread);
 }
 #endif

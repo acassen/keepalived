@@ -83,6 +83,7 @@ typedef struct _keyword {
 	vector_t *sub;
 	void (*sub_close_handler) (void);
 	bool active;
+	bool allow_mismatched_quotes;
 	vpp_t ptr;
 	vpp_t sub_close_ptr;
 } keyword_t;
@@ -111,13 +112,13 @@ set_value_r(const vector_t *strvec)
 }
 
 #ifdef _MEM_CHECK_
-#define alloc_strvec(str)	(memcheck_log("alloc_strvec", str, (__FILE__), (__func__), (__LINE__)), \
-				 alloc_strvec_r(str))
+#define alloc_strvec(str, keyw)	(memcheck_log("alloc_strvec", str, (__FILE__), (__func__), (__LINE__)), \
+				 alloc_strvec_r(str, keyw))
 
 #define set_value(str)		(memcheck_log("set_value", strvec_slot(str,1), (__FILE__), (__func__), (__LINE__)), \
 				 set_value_r(str))
 #else
-#define alloc_strvec(str)	(alloc_strvec_r(str))
+#define alloc_strvec(str, keyw)	(alloc_strvec_r(str, keyw))
 #define set_value(str)		(set_value_r(str))
 #endif
 
@@ -144,8 +145,10 @@ extern vpp_t install_sublevel(vpp_t) WARN_UNUSED_RESULT;
 extern void install_sublevel_end(vpp_t);
 extern void install_level_end_handler(void (*handler) (void));
 extern void install_keyword(const char *, void (*handler) (const vector_t *));
+extern void install_keyword_quoted(const char *, void (*handler) (const vector_t *));
 extern const vector_t *alloc_strvec_quoted_escaped(const char *);
-extern vector_t *alloc_strvec_r(const char *);
+extern const vector_t *alloc_strvec_quoted(const char *);
+extern vector_t *alloc_strvec_r(const char *, const vector_t *);
 extern bool check_conf_file(const char*);
 extern const vector_t *read_value_block(const vector_t *);
 extern void alloc_value_block(void (*alloc_func) (const vector_t *), const vector_t *);

@@ -28,6 +28,9 @@
 #include <sys/prctl.h>
 #include <fcntl.h>
 #include <sys/time.h>
+#ifdef _WITH_PROFILING_
+#include <sys/gmon.h>
+#endif
 
 #include "bfd.h"
 #include "bfd_daemon.h"
@@ -79,12 +82,12 @@ stop_bfd(int status)
 		return;
 
 	/* Stop daemon */
-	pidfile_rm(bfd_pidfile);
+	pidfile_rm(&bfd_pidfile);
 
 	/* Clean data */
-	free_global_data(global_data);
+	free_global_data(&global_data);
 	bfd_dispatcher_release(bfd_data);
-	free_bfd_data(bfd_data);
+	free_bfd_data(&bfd_data);
 	free_bfd_buffer();
 	thread_destroy_master(master);
 	free_parent_mallocs_exit();
@@ -156,8 +159,9 @@ start_bfd(__attribute__((unused)) data_t *prev_global_data)
 		init_global_data(global_data, prev_global_data, true);
 
 	/* Update process name if necessary */
-	if ((!reload && global_data->bfd_process_name) ||
-	    (reload &&
+	if ((!prev_global_data &&		// startup
+	    global_data->bfd_process_name) ||
+	    (prev_global_data &&		// reload
 	     (!global_data->bfd_process_name != !prev_global_data->bfd_process_name ||
 	      (global_data->bfd_process_name && strcmp(global_data->bfd_process_name, prev_global_data->bfd_process_name)))))
 		set_process_name(global_data->bfd_process_name);
@@ -237,7 +241,10 @@ static void
 bfd_signal_init(void)
 {
 	signal_set(SIGHUP, sigreload_bfd, NULL);
-	signal_set(SIGINT, sigend_bfd, NULL);
+	if (ignore_sigint)
+		signal_ignore(SIGINT);
+	else
+		signal_set(SIGINT, sigend_bfd, NULL);
 	signal_set(SIGTERM, sigend_bfd, NULL);
 	signal_set(SIGUSR1, sigdump_bfd, NULL);
 #ifdef THREAD_DUMP
@@ -281,8 +288,8 @@ reload_bfd_thread(__attribute__((unused)) thread_ref_t thread)
 	signal_set(SIGCHLD, thread_child_handler, master);
 	start_bfd(old_global_data);
 
-	free_bfd_data(old_bfd_data);
-	free_global_data(old_global_data);
+	free_bfd_data(&old_bfd_data);
+	free_global_data(&old_global_data);
 
 #ifndef _ONE_PROCESS_DEBUG_
 	save_config(true, "bfd", dump_bfd_data_global);
@@ -388,6 +395,11 @@ start_bfd_child(void)
 		return 0;
 	}
 
+#ifdef _WITH_PROFILING_
+	/* See https://lists.gnu.org/archive/html/bug-gnu-utils/2001-09/msg00047.html for details */
+	monstartup ((u_long) &_start, (u_long) &etext);
+#endif
+
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
 	/* Check our parent hasn't already changed since the fork */
@@ -395,6 +407,8 @@ start_bfd_child(void)
 		kill(getpid(), SIGTERM);
 
 	prog_type = PROG_TYPE_BFD;
+
+	close_other_pidfiles();
 
 	/* Close the read end of the event notification pipes, and the track_process fd */
 #ifdef _WITH_VRRP_
@@ -445,7 +459,7 @@ start_bfd_child(void)
 	separate_config_file();
 
 	/* Child process part, write pidfile */
-	if (!pidfile_write(bfd_pidfile, getpid())) {
+	if (!pidfile_write(&bfd_pidfile)) {
 		/* Fatal error */
 		log_message(LOG_INFO,
 			    "BFD child process: cannot write pidfile");

@@ -47,9 +47,8 @@ static const char * const ping_group_range = "/proc/sys/net/ipv4/ping_group_rang
 static gid_t save_gid_min;
 static bool checked_ping_group_range;
 
-static uint16_t seq_no;
-
 static void icmp_connect_thread(thread_ref_t);
+static void icmp_ping_thread(thread_ref_t);
 
 bool
 set_ping_group_range(bool set)
@@ -129,9 +128,12 @@ free_ping_check(checker_t *checker)
 }
 
 static void
-dump_ping_check(FILE *fp, __attribute__((unused)) const checker_t *checker)
+dump_ping_check(FILE *fp, const checker_t *checker)
 {
+	ping_check_t *ping_checker = CHECKER_ARG(checker);
+
 	conf_write(fp, "   Keepalive method = PING_CHECK");
+	conf_write(fp, "     ICMP seq no = %u", ping_checker->seq_no);
 }
 
 static bool
@@ -161,9 +163,6 @@ ping_check_end_handler(void)
 		dequeue_new_checker();
 		return;
 	}
-
-	/* queue the checker */
-	list_add_tail(&current_checker->e_list, &checkers_queue);
 }
 
 void
@@ -180,8 +179,10 @@ install_ping_check_keyword(void)
 }
 
 static enum connect_result
-ping_it(int fd, conn_opts_t* co)
+ping_it(int fd, checker_t *checker, conn_opts_t* co)
 {
+	ping_check_t *ping_checker = CHECKER_ARG(checker);
+
 	struct icmphdr *icmp_hdr;
 	char send_buf[sizeof(*icmp_hdr) + ICMP_BUFSIZE] __attribute__((aligned(__alignof__(struct icmphdr))));
 
@@ -191,7 +192,7 @@ ping_it(int fd, conn_opts_t* co)
 
 	memset(icmp_hdr, 0, sizeof(*icmp_hdr));
 	icmp_hdr->type = ICMP_ECHO;
-	icmp_hdr->un.echo.sequence = seq_no++;
+	icmp_hdr->un.echo.sequence = htons(++ping_checker->seq_no);
 
 	if (sendto(fd, send_buf, sizeof(send_buf), 0, PTR_CAST(struct sockaddr, &co->dst), sizeof(struct sockaddr)) < 0) {
 		log_message(LOG_INFO, "send ICMP packet fail");
@@ -201,8 +202,9 @@ ping_it(int fd, conn_opts_t* co)
 }
 
 static enum connect_result
-recv_it(int fd)
+recv_it(int fd, checker_t *checker)
 {
+	ping_check_t *ping_checker = CHECKER_ARG(checker);
 	ssize_t len;
 	const struct icmphdr *icmp_hdr;
 	char recv_buf[sizeof(*icmp_hdr) + ICMP_BUFSIZE] __attribute__((aligned(__alignof__(struct icmphdr))));
@@ -225,12 +227,18 @@ recv_it(int fd)
 		return connect_error;
 	}
 
+	if (ntohs(icmp_hdr->un.echo.sequence) != ping_checker->seq_no) {
+		log_message(LOG_INFO, "Ping reply expected seq no %u, received %u", ping_checker->seq_no, ntohs(icmp_hdr->un.echo.sequence));
+		return connect_error;
+	}
+
 	return connect_success;
 }
 
 static enum connect_result
-ping6_it(int fd, conn_opts_t* co)
+ping6_it(int fd, checker_t *checker, conn_opts_t* co)
 {
+	ping_check_t *ping_checker = CHECKER_ARG(checker);
 	struct icmp6_hdr* icmp6_hdr;
 	char send_buf[sizeof(*icmp6_hdr) + ICMP_BUFSIZE] __attribute__((aligned(__alignof__(struct icmp6_hdr))));
 
@@ -240,7 +248,7 @@ ping6_it(int fd, conn_opts_t* co)
 
 	memset(icmp6_hdr, 0, sizeof(*icmp6_hdr));
 	icmp6_hdr->icmp6_type = ICMP6_ECHO_REQUEST;
-	icmp6_hdr->icmp6_seq = seq_no++;
+	icmp6_hdr->icmp6_seq = htons(++ping_checker->seq_no);
 
 	if (sendto(fd, send_buf, sizeof(send_buf), 0, PTR_CAST(struct sockaddr, &co->dst), sizeof(struct sockaddr_in6)) < 0) {
 		log_message(LOG_INFO, "send ICMPv6 packet fail - errno %d", errno);
@@ -251,8 +259,9 @@ ping6_it(int fd, conn_opts_t* co)
 }
 
 static enum connect_result
-recv6_it(int fd)
+recv6_it(int fd, checker_t *checker)
 {
+	ping_check_t *ping_checker = CHECKER_ARG(checker);
 	ssize_t len;
 	const struct icmp6_hdr* icmp6_hdr;
 	char recv_buf[sizeof (*icmp6_hdr) + ICMP_BUFSIZE] __attribute__((aligned(__alignof__(struct icmp6_hdr))));
@@ -272,6 +281,11 @@ recv6_it(int fd)
 	icmp6_hdr = PTR_CAST_CONST(struct icmp6_hdr, recv_buf);
 	if (icmp6_hdr->icmp6_type != ICMP6_ECHO_REPLY) {
 		log_message(LOG_INFO, "Got ICMPv6 packet with type 0x%x", icmp6_hdr->icmp6_type);
+		return connect_error;
+	}
+
+	if (ntohs(icmp6_hdr->icmp6_seq) != ping_checker->seq_no) {
+		log_message(LOG_INFO, "Ping reply expected seq no %u, received %u", ping_checker->seq_no, ntohs(icmp6_hdr->icmp6_seq));
 		return connect_error;
 	}
 
@@ -328,14 +342,19 @@ icmp_epilog(thread_ref_t thread, bool is_success)
 
 	checker->has_run = true;
 
-	thread_add_timer(thread->master, icmp_connect_thread, checker, delay);
+	if (is_success)
+		thread_add_read(thread->master, icmp_ping_thread, checker, thread->u.f.fd, delay, THREAD_DESTROY_CLOSE_FD);
+	else {
+		thread_close_fd(thread);
+		thread_add_timer(thread->master, icmp_connect_thread, checker, delay);
+	}
 }
 
 static void
 icmp_check_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
-	int status;
+	enum connect_result status;
 
 	if (thread->type == THREAD_READ_TIMEOUT) {
 		if (checker->is_up &&
@@ -344,36 +363,66 @@ icmp_check_thread(thread_ref_t thread)
 		status = connect_error;
 	} else
 		status = checker->co->dst.ss_family == AF_INET ?
-				recv_it(thread->u.f.fd) : recv6_it(thread->u.f.fd);
+				recv_it(thread->u.f.fd, checker) : recv6_it(thread->u.f.fd, checker);
 
 	/*
 	 * If status = connect_success, then we start udp check with the record of icmp failed times.
 	 * Otherwise we will do the icmp connect again until it reaches the unhealthy threshold.
 	 * we handle fd uniform.
 	 */
-	thread_close_fd(thread);
-
 	if (status == connect_success)
-		icmp_epilog(thread, 1);
+		icmp_epilog(thread, true);
 	else if (status == connect_error) {
 		if (checker->is_up &&
 		    thread->type != THREAD_READ_TIMEOUT &&
 		    (global_data->checker_log_all_failures || checker->log_all_failures))
 			log_message(LOG_INFO, "ICMP connection to %s of %s failed."
 				,FMT_CHK(checker), FMT_VS(checker->vs));
-		icmp_epilog(thread, 0);
+		icmp_epilog(thread, false);
 	}
+}
 
-	return;
+static void
+icmp_ping_thread(thread_ref_t thread)
+{
+	checker_t *checker = THREAD_ARG(thread);
+	conn_opts_t *co = checker->co;
+	enum connect_result status;
+
+	if (thread->type == THREAD_READ_TIMEOUT) {
+		/* Send next ICMP echo request */
+		if (co->dst.ss_family == AF_INET)
+			status = ping_it(thread->u.f.fd, checker, co);
+		else
+			status = ping6_it(thread->u.f.fd, checker, co);
+
+		/* handle icmp send status & register check worker thread */
+		if (udp_icmp_check_state(thread->u.f.fd, status, thread, icmp_check_thread, co->connection_to))
+			icmp_epilog(thread, false);
+	} else if (thread->type == THREAD_READY_READ_FD) {
+		/* This shouldn't happen */
+		ssize_t len;
+		char recv_buf[sizeof (struct icmp6_hdr) + ICMP_BUFSIZE] __attribute__((aligned(__alignof__(struct icmp6_hdr))));
+
+		len = recv(thread->u.f.fd, recv_buf, sizeof(recv_buf), 0);
+
+		if (len > 0)
+			log_message(LOG_INFO, "unexpected ping check receive packet");
+		thread_add_read_sands(thread->master, icmp_ping_thread, checker, thread->u.f.fd, &thread->sands, THREAD_DESTROY_CLOSE_FD);
+	} else {
+		/* THREAD_READ_ERROR */
+		thread_close_fd(thread);
+		thread_add_timer_sands(thread->master, icmp_connect_thread, checker, &thread->sands);
+	}
 }
 
 static void
 icmp_connect_thread(thread_ref_t thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
+	ping_check_t *ping_checker = CHECKER_ARG(checker);
 	conn_opts_t *co = checker->co;
 	int fd;
-	int status;
 	int size = SOCK_RECV_BUFF;
 
 	if (!checker->enabled) {
@@ -382,10 +431,19 @@ icmp_connect_thread(thread_ref_t thread)
 		return;
 	}
 
-	 /*
-	  * If we config a real server in several virtual server, the icmp_ratelimit should be cancelled.
-	  * echo 0 > /proc/sys/net/ipv4/icmp_ratelimit
-	  */
+	/*
+	 * If we config a real server in several virtual server, the icmp_ratelimit should be cancelled.
+	 * echo 0 > /proc/sys/net/ipv4/icmp_ratelimit
+	 */
+
+	/*
+	 * Using SOCK_DGRAM with IPPROTO_ICMP/ICMPV6 means that the kernel will insert the ICMP
+	 * id value. In order to keep the same id value for each ICMP echo request, we need to keep
+	 * the socket open.
+	 *
+	 * The alternative is to use SOCK_RAW, but then we can't ensure the uniqueness of the id
+	 * field.
+	 */
 	if ((fd = socket(co->dst.ss_family, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK,
 			 co->dst.ss_family == AF_INET ? IPPROTO_ICMP : IPPROTO_ICMPV6)) == -1) {
 		log_message(LOG_INFO, "ICMP%s connect fail to create socket. Rescheduling.",
@@ -398,22 +456,9 @@ icmp_connect_thread(thread_ref_t thread)
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size)))
 		log_message(LOG_INFO, "setsockopt SO_RCVBUF for socket %d failed (%d) - %m", fd, errno);
 
-	/*
-	 * OK if setsockopt fails
-	 * Prevent users from pinging broadcast or multicast addresses
-	 */
-	if (co->dst.ss_family == AF_INET)
-		status = ping_it(fd, co);
-	else
-		status = ping6_it(fd, co);
+	ping_checker->seq_no = 0;
 
-	/* handle icmp send status & register check worker thread */
-	if (udp_icmp_check_state(fd, status, thread, icmp_check_thread,
-		co->connection_to)) {
-		close(fd);
-		icmp_epilog(thread, false);
-	}
-	return;
+	thread_add_read(thread->master, icmp_ping_thread, checker, fd, 0, THREAD_DESTROY_CLOSE_FD);
 }
 
 #ifdef THREAD_DUMP
@@ -422,5 +467,6 @@ register_check_ping_addresses(void)
 {
 	register_thread_address("icmp_check_thread", icmp_check_thread);
 	register_thread_address("icmp_connect_thread", icmp_connect_thread);
+	register_thread_address("icmp_ping_thread", icmp_ping_thread);
 }
 #endif

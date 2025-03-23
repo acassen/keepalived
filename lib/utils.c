@@ -808,29 +808,24 @@ inet_inaddrcmp(const int family, const void *a, const void *b)
 {
 	int64_t addr_diff;
 
-	if (family == AF_INET) {
+	if (family == AF_INET)
 		addr_diff = (int64_t)ntohl(*PTR_CAST_CONST(uint32_t, a)) - (int64_t)ntohl(*PTR_CAST_CONST(uint32_t, b));
-		if (addr_diff > 0)
-			return 1;
-		if (addr_diff < 0)
-			return -1;
-		return 0;
-	}
-
-	if (family == AF_INET6) {
+	else if (family == AF_INET6) {
 		int i;
 
 		for (i = 0; i < 4; i++ ) {
-			addr_diff = (int64_t)ntohl(PTR_CAST_CONST(uint32_t, (a))[i]) - (int64_t)ntohl(PTR_CAST_CONST(uint32_t, (b))[i]);
-			if (addr_diff > 0)
-				return 1;
-			if (addr_diff < 0)
-				return -1;
+			if ((addr_diff = (int64_t)ntohl(PTR_CAST_CONST(uint32_t, (a))[i]) - (int64_t)ntohl(PTR_CAST_CONST(uint32_t, (b))[i])))
+				break;
 		}
-		return 0;
-	}
+	} else
+		return -2;
 
-	return -2;
+	if (addr_diff > 0)
+		return 1;
+	if (addr_diff < 0)
+		return -1;
+
+	return 0;
 }
 
 /* inet_sockaddcmp is similar to sockstorage_equal except the latter also compares the port */
@@ -940,6 +935,21 @@ format_mac_buf(char *op, size_t op_len, const unsigned char *addr, size_t addr_l
 	}
 }
 
+const char *
+format_decimal(unsigned long val, int dp)
+{
+	static char buf[22];	/* Sufficient for 2^64 as decimal plus decimal point */
+	unsigned dp_factor = 1;
+	int i;
+
+	for (i = 0; i < dp; i++)
+		dp_factor *= 10;
+
+	snprintf(buf, sizeof(buf), "%lu.%*.*lu", val / dp_factor, dp, dp, val % dp_factor);
+
+	return buf;
+}
+
 /* Getting localhost official canonical name */
 const char * __attribute__((malloc))
 get_local_name(void)
@@ -1003,7 +1013,7 @@ ctime_us_r(const timeval_t *timep, char *buf)
 
 	localtime_r(&timep->tv_sec, &tm);
 	asctime_r(&tm, buf);
-	snprintf(buf + 19, 8, ".%6.6ld", timep->tv_usec);
+	snprintf(buf + 19, 8, ".%6.6" PRI_tv_usec, timep->tv_usec);
 	strftime(buf + 26, 6, " %Y", &tm);
 
 	return buf;
@@ -1374,11 +1384,12 @@ log_stopping(void)
 		getrusage(RUSAGE_CHILDREN, &child_usage);
 
 		if (child_usage.ru_utime.tv_sec || child_usage.ru_utime.tv_usec)
-			log_message(LOG_INFO, "Stopped - used (self/children) %ld.%6.6ld/%ld.%6.6ld user time, %ld.%6.6ld/%ld.%6.6ld system time",
+			log_message(LOG_INFO, "Stopped - used (self/children) %" PRI_tv_sec ".%6.6" PRI_tv_usec "/%" PRI_tv_sec ".%6.6" PRI_tv_usec " user time,"
+				        " %" PRI_tv_sec ".%6.6" PRI_tv_usec "/%" PRI_tv_sec ".%6.6" PRI_tv_usec " system time",
 					usage.ru_utime.tv_sec, usage.ru_utime.tv_usec, child_usage.ru_utime.tv_sec, child_usage.ru_utime.tv_usec,
 					usage.ru_stime.tv_sec, usage.ru_stime.tv_usec, child_usage.ru_stime.tv_sec, child_usage.ru_stime.tv_usec);
 		else
-			log_message(LOG_INFO, "Stopped - used %ld.%6.6ld user time, %ld.%6.6ld system time",
+			log_message(LOG_INFO, "Stopped - used %" PRI_tv_sec ".%6.6" PRI_tv_usec " user time, %" PRI_tv_sec ".%6.6" PRI_tv_usec " system time",
 					usage.ru_utime.tv_sec, usage.ru_utime.tv_usec, usage.ru_stime.tv_sec, usage.ru_stime.tv_usec);
 	} else
 		log_message(LOG_INFO, "Stopped");

@@ -45,4 +45,9 @@ if !ONE_PROCESS_DEBUG
   EXTRA_libcore_a_SOURCES += reload_monitor.c config_notify.c
 endif
 
+if WITH_SANITIZER
+  libcore_a_LIBADD	+= sanitizer.o
+  EXTRA_libcore_a_SOURCES += sanitizer.c
+endif
+
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@

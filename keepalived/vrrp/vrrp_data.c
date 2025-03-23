@@ -192,8 +192,12 @@ dump_notify_script(FILE *fp, const notify_script_t *script, const char *type)
 	if (!script)
 		return;
 
-	conf_write(fp, "   %s state transition script = %s, uid:gid %u:%u"
-		     , type, cmd_str(script), script->uid, script->gid);
+	if (script->path)
+		conf_write(fp, "   %s state transition script = %s, params = %s, uid:gid %u:%u"
+			     , type, script->path, cmd_str(script), script->uid, script->gid);
+	else
+		conf_write(fp, "   %s state transition script = %s, uid:gid %u:%u"
+			     , type, cmd_str(script), script->uid, script->gid);
 }
 
 static void
@@ -275,7 +279,7 @@ free_vscript(vrrp_script_t *vscript)
 	list_del_init(&vscript->e_list);
 	free_tracking_obj_list(&vscript->tracking_vrrp);
 	FREE_CONST(vscript->sname);
-	FREE_PTR(vscript->script.args);
+	notify_free_script(&vscript->script);
 	FREE(vscript);
 }
 static void
@@ -293,8 +297,16 @@ dump_vscript(FILE *fp, const vrrp_script_t *vscript)
 
 	conf_write(fp, " VRRP Script = %s", vscript->sname);
 	conf_write(fp, "   Command = %s", cmd_str(&vscript->script));
-	conf_write(fp, "   Interval = %lu sec", vscript->interval / TIMER_HZ);
-	conf_write(fp, "   Timeout = %lu sec", vscript->timeout / TIMER_HZ);
+	if (vscript->script.path)
+		conf_write(fp, "   Path = %s", vscript->script.path);
+	if (vscript->interval % TIMER_HZ)
+		conf_write(fp, "   Interval = %lu.%3.3lu sec", vscript->interval / TIMER_HZ, (vscript->interval % TIMER_HZ) / 1000);
+	else
+		conf_write(fp, "   Interval = %lu sec", vscript->interval / TIMER_HZ);
+	if (vscript->timeout % TIMER_HZ)
+		conf_write(fp, "   Timeout = %lu.%3.3lu sec", vscript->timeout / TIMER_HZ, (vscript->timeout % TIMER_HZ) / 1000);
+	else
+		conf_write(fp, "   Timeout = %lu sec", vscript->timeout / TIMER_HZ);
 	conf_write(fp, "   Weight = %d%s", vscript->weight, vscript->weight_reverse ? " reverse" : "");
 	conf_write(fp, "   Rise = %d", vscript->rise);
 	conf_write(fp, "   Fall = %d", vscript->fall);
@@ -605,7 +617,12 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 			conf_write(fp, "   Master router = %s", inet_sockaddrtos(&vrrp->master_saddr));
 			conf_write(fp, "   Master priority = %d", vrrp->master_priority);
 			if (vrrp->version == VRRP_VERSION_3)
-				conf_write(fp, "   Master advert int = %.2f sec", vrrp->master_adver_int / TIMER_HZ_DOUBLE);
+				conf_write(fp, "   Master advert interval = %u milli-sec", vrrp->master_adver_int / (TIMER_HZ / 1000));
+		} else if (vrrp->state == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER) {
+			conf_write(fp, "   Rogue master counter = %u", vrrp->rogue_counter);
+			conf_write(fp, "   Roger timer thread = %p", vrrp->rogue_timer_thread);
+			if (vrrp->rogue_counter || vrrp->rogue_timer_thread)
+				conf_write(fp, "   Roger adver interval = %u ms", vrrp->rogue_adver_int / (TIMER_HZ / 1000));
 		}
 	}
 	if (vrrp->flags) {
@@ -619,6 +636,9 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 	} else
 		conf_write(fp, "   Flags: none");
 
+	if (vrrp->rlflags)
+		conf_write(fp, "   Rate-limit flags = 0x%x", vrrp->rlflags);
+
 	conf_write(fp, "   Wantstate = %s", get_state_str(vrrp->wantstate));
 	conf_write(fp, "   Number of config faults = %u", vrrp->num_config_faults);
 	if (fp) {
@@ -629,13 +649,13 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 			conf_write(fp, "   Duplicate VRID");
 #endif
 		conf_write(fp, "   Number of track scripts init = %u", vrrp->num_script_init);
-		conf_write(fp, "   Last transition = %ld.%6.6ld (%s)", vrrp->last_transition.tv_sec, vrrp->last_transition.tv_usec, ctime_us_r(&vrrp->last_transition, time_str));
+		conf_write(fp, "   Last transition = %" PRI_tv_sec ".%6.6" PRI_tv_usec " (%s)", vrrp->last_transition.tv_sec, vrrp->last_transition.tv_usec, ctime_us_r(&vrrp->last_transition, time_str));
 		if (!ctime_r(&vrrp->sands.tv_sec, time_str))
 			strcpy(time_str, "invalid time ");
 		if (vrrp->sands.tv_sec == TIMER_DISABLED)
 			conf_write(fp, "   Read timeout = DISABLED");
 		else
-			conf_write(fp, "   Read timeout = %ld.%6.6ld (%s)", vrrp->sands.tv_sec, vrrp->sands.tv_usec, ctime_us_r(&vrrp->sands, time_str));
+			conf_write(fp, "   Read timeout = %" PRI_tv_sec ".%6.6" PRI_tv_usec " (%s)", vrrp->sands.tv_sec, vrrp->sands.tv_usec, ctime_us_r(&vrrp->sands, time_str));
 		conf_write(fp, "   Master down timer = %u usecs", vrrp->ms_down_timer);
 	}
 #ifdef _HAVE_VRRP_VMAC_
@@ -649,8 +669,6 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 					vrrp->ll_addr[0], vrrp->ll_addr[1], vrrp->ll_addr[2], vrrp->ll_addr[3], vrrp->ll_addr[4], vrrp->ll_addr[5],
 					__test_bit(VRRP_VMAC_MAC_USE_VRID, &vrrp->flags) ? " (using VRID)" : "");
 	}
-	if (__test_bit(VRRP_VMAC_ADDR_BIT, &vrrp->flags))
-		conf_write(fp, "   Use VMAC for VIPs on other interfaces");
 #ifdef _HAVE_VRRP_IPVLAN_
 	else if (__test_bit(VRRP_IPVLAN_BIT, &vrrp->flags))
 		conf_write(fp, "   Use IPVLAN, i/f %s, is_up = %s%s%s, type %s",
@@ -665,6 +683,20 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 #endif
 					);
 #endif
+
+	/* The following two flags should only be set on VMACs, but
+	 * we check them for any interface type, just incase ... */
+	if (__test_bit(VRRP_VMAC_NETLINK_NOTIFY, &vrrp->flags))
+		conf_write(fp, "     Force netlink update for base interface");
+	if (__test_bit(VRRP_VMAC_ADDR_BIT, &vrrp->flags))
+		conf_write(fp, "     Use VMAC for VIPs on other interfaces");
+
+	/* The following should only be specified for VMACs and ipvlans */
+	if (__test_bit(VRRP_VMAC_GROUP, &vrrp->flags))
+		conf_write(fp, "     Interface group %u", vrrp->vmac_group);
+	else if (vrrp->ifp && vrrp->ifp->base_ifp->group)
+		conf_write(fp, "     Interface group %u (copied from parent)", vrrp->ifp->base_ifp->group);
+
 	if (vrrp->ifp && vrrp->ifp->is_ours) {
 		conf_write(fp, "   Interface = %s, %s on %s%s", IF_NAME(vrrp->ifp),
 				__test_bit(VRRP_VMAC_BIT, &vrrp->flags) ? "vmac" : "ipvlan",
@@ -702,7 +734,7 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 	conf_write(fp, "   Gratuitous ARP delay = %u",
 		       vrrp->garp_delay/TIMER_HZ);
 	conf_write(fp, "   Gratuitous ARP repeat = %u", vrrp->garp_rep);
-	conf_write(fp, "   Gratuitous ARP refresh = %ld",
+	conf_write(fp, "   Gratuitous ARP refresh = %" PRI_tv_sec,
 		       vrrp->garp_refresh.tv_sec);
 	conf_write(fp, "   Gratuitous ARP refresh repeat = %u", vrrp->garp_refresh_rep);
 	conf_write(fp, "   Gratuitous ARP lower priority delay = %u", vrrp->garp_lower_prio_delay / TIMER_HZ);
@@ -710,13 +742,13 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 	conf_write(fp, "   Down timer adverts = %u", vrrp->down_timer_adverts);
 #ifdef _HAVE_VRRP_VMAC_
 	if (vrrp->vmac_garp_intvl.tv_sec) {
-		conf_write(fp, "   Gratuitous ARP for each secondary %s = %ld", __test_bit(VRRP_FLAG_VMAC_GARP_ALL_IF, &vrrp->flags) ? "i/f" : "VMAC", vrrp->vmac_garp_intvl.tv_sec);
-		ctime_r(&vrrp->vmac_garp_timer.tv_sec, time_str);
-		conf_write(fp, "   Next gratuitous ARP for such secondary = %ld.%6.6ld (%.24s.%6.6ld)", vrrp->vmac_garp_timer.tv_sec, vrrp->vmac_garp_timer.tv_usec, time_str, vrrp->vmac_garp_timer.tv_usec);
+		conf_write(fp, "   Gratuitous ARP for each secondary %s = %" PRI_time_t, __test_bit(VRRP_FLAG_VMAC_GARP_ALL_IF, &vrrp->flags) ? "i/f" : "VMAC", vrrp->vmac_garp_intvl.tv_sec);
 	}
 #endif
 	conf_write(fp, "   Send advert after receive lower priority advert = %s", vrrp->lower_prio_no_advert ? "false" : "true");
 	conf_write(fp, "   Send advert after receive higher priority advert = %s", vrrp->higher_prio_send_advert ? "true" : "false");
+	if (vrrp->base_priority == VRRP_PRIO_OWNER)
+		conf_write(fp, "   Address owner ignores received adverts = %s", vrrp->owner_ignore_adverts ? "true" : "false");
 	conf_write(fp, "   Virtual Router ID = %d", vrrp->vrid);
 	conf_write(fp, "   Priority = %d", vrrp->base_priority);
 	if (fp) {
@@ -729,9 +761,7 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 		(vrrp->version == VRRP_VERSION_2) ? (vrrp->adver_int / TIMER_HZ) :
 		(vrrp->adver_int / (TIMER_HZ / 1000)),
 		(vrrp->version == VRRP_VERSION_2) ? "sec" : "milli-sec");
-	conf_write(fp, "   Last advert sent = %ld.%6.6ld", vrrp->last_advert_sent.tv_sec, vrrp->last_advert_sent.tv_usec);
-	if (vrrp->state == VRRP_STATE_BACK && vrrp->version == VRRP_VERSION_3)
-		conf_write(fp, "   Master advert interval = %u milli-sec", vrrp->master_adver_int / (TIMER_HZ / 1000));
+	conf_write(fp, "   Last advert sent = %" PRI_tv_sec ".%6.6" PRI_tv_usec, vrrp->last_advert_sent.tv_sec, vrrp->last_advert_sent.tv_usec);
 #ifdef _WITH_FIREWALL_
 	conf_write(fp, "   Accept = %s", vrrp->accept ? "enabled" : "disabled");
 #endif
@@ -969,6 +999,7 @@ alloc_vrrp(const char *iname)
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 	new->unicast_chksum_compat = CHKSUM_COMPATIBILITY_NONE;
 #endif
+	new->owner_ignore_adverts = PARAMETER_UNSET;
 	if (global_data->v3_checksum_as_v2)
 	        __set_bit(VRRP_FLAG_V3_CHECKSUM_AS_V2, &new->flags);
 	new->smtp_alert = -1;
@@ -988,6 +1019,7 @@ alloc_vrrp_unicast_peer(const vector_t *strvec)
 	unicast_peer_t *peer;
 	unsigned ttl;
 	unsigned i;
+	unicast_peer_t *existing_peer;
 
 	/* Allocate new unicast peer */
 	PMALLOC(peer);
@@ -1014,7 +1046,7 @@ alloc_vrrp_unicast_peer(const vector_t *strvec)
 
 	for (i = 1; i < vector_size(strvec); i += 2) {
 		if (i + 1 >= vector_size(strvec)) {
-			report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s is missing a value", current_vrrp->iname, strvec_slot(strvec, i));
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s - %s is missing a value", current_vrrp->iname, strvec_slot(strvec, 0), strvec_slot(strvec, i));
 			break;
 		}
 		if (read_unsigned(strvec_slot(strvec, i + 1), &ttl, 0, 255, false)) {
@@ -1023,15 +1055,28 @@ alloc_vrrp_unicast_peer(const vector_t *strvec)
 			else if (!strcmp(strvec_slot(strvec, i), "max_ttl"))
 				peer->max_ttl = ttl;
 			else {
-				report_config_error(CONFIG_GENERAL_ERROR, "(%s) unknown unicast_peer option %s", current_vrrp->iname, strvec_slot(strvec, i));
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s - unknown unicast_peer option %s", current_vrrp->iname, strvec_slot(strvec, 0), strvec_slot(strvec, i));
 				break;
 			}
 			__set_bit(VRRP_FLAG_CHECK_UNICAST_SRC, &current_vrrp->flags);
 		}
 	}
 
+	/* Check this unicast peer is not already configured */
+	list_for_each_entry(existing_peer, &current_vrrp->unicast_peer, e_list) {
+		if ((current_vrrp->family == AF_INET && ((struct sockaddr_in *)&peer->address)->sin_addr.s_addr == ((struct sockaddr_in *)&existing_peer->address)->sin_addr.s_addr) ||
+		    (current_vrrp->family == AF_INET6 &&
+		     !memcmp(&((struct sockaddr_in6 *)&peer->address)->sin6_addr,
+			     &((struct sockaddr_in6 *)&existing_peer->address)->sin6_addr,
+			     sizeof(((struct sockaddr_in6 *)&peer->address)->sin6_addr)))) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s - duplicate unicast_peer", current_vrrp->iname, strvec_slot(strvec, 0));
+			FREE(peer);
+			return;
+		}
+	}
+
 	if (peer->min_ttl > peer->max_ttl)
-		report_config_error(CONFIG_GENERAL_ERROR, "(%s) min_ttl %u > max_ttl %u - all packets will be discarded", current_vrrp->iname, peer->min_ttl, peer->max_ttl);
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) %s - min_ttl %u > max_ttl %u - all packets will be discarded", current_vrrp->iname, strvec_slot(strvec, 0), peer->min_ttl, peer->max_ttl);
 
 	list_add_tail(&peer->e_list, &current_vrrp->unicast_peer);
 }
@@ -1104,6 +1149,43 @@ alloc_vrrp_group_track_bfd(const vector_t *strvec)
 }
 #endif
 
+static bool
+vip_is_duplicate(const ip_address_t *new_ipaddr, const char *vip_str, bool excluded_vip)
+{
+	ip_address_t *vip;
+
+	list_for_each_entry(vip, &current_vrrp->vip, e_list) {
+		/* We can have a VIP and an eVIP the same if they are on
+		 * different interfaces. */
+		if (excluded_vip && new_ipaddr->ifp != vip->ifp)
+			continue;
+
+		if ((IP_FAMILY(new_ipaddr) == AF_INET && new_ipaddr->u.sin.sin_addr.s_addr == vip->u.sin.sin_addr.s_addr) ||
+		    (IP_FAMILY(new_ipaddr) == AF_INET6 && !memcmp(&new_ipaddr->u.sin6_addr, &vip->u.sin6_addr, sizeof(new_ipaddr->u.sin6_addr)))) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s): %sVIP duplicates a VIP %s - ignoring",
+					    current_vrrp->iname, excluded_vip ? "Excluded " : "", vip_str);
+			return true;
+		}
+	}
+
+	list_for_each_entry(vip, &current_vrrp->evip, e_list) {
+		if (IP_FAMILY(new_ipaddr) != IP_FAMILY(vip))
+			continue;
+
+		if (new_ipaddr->ifp != vip->ifp)
+			continue;
+
+		if ((IP_FAMILY(new_ipaddr) == AF_INET && new_ipaddr->u.sin.sin_addr.s_addr == vip->u.sin.sin_addr.s_addr) ||
+		    (IP_FAMILY(new_ipaddr) == AF_INET6 && !memcmp(&new_ipaddr->u.sin6_addr, &vip->u.sin6_addr, sizeof(new_ipaddr->u.sin6_addr)))) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s): %sVIP duplicates an excluded VIP %s - ignoring",
+					    current_vrrp->iname, excluded_vip ? "Excluded " : "", vip_str);
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void
 alloc_vrrp_vip(const vector_t *strvec)
 {
@@ -1123,6 +1205,12 @@ alloc_vrrp_vip(const vector_t *strvec)
 		return;
 	}
 
+	/* Check we don't already have this address */
+	if (vip_is_duplicate(new_ipaddr, strvec_slot(strvec, 0), false)) {
+		free_ipaddress(new_ipaddr);
+		return;
+	}
+
 	list_add_tail(&new_ipaddr->e_list, &current_vrrp->vip);
 	current_vrrp->vip_cnt++;
 }
@@ -1132,8 +1220,16 @@ alloc_vrrp_evip(const vector_t *strvec)
 {
 	ip_address_t *new_ipaddr;
 
-	if ((new_ipaddr = alloc_ipaddress(strvec, false)))
-		list_add_tail(&new_ipaddr->e_list, &current_vrrp->evip);
+	if (!(new_ipaddr = alloc_ipaddress(strvec, false)))
+		return;
+
+	/* Check we don't already have this address */
+	if (vip_is_duplicate(new_ipaddr, strvec_slot(strvec, 0), true)) {
+		free_ipaddress(new_ipaddr);
+		return;
+	}
+
+	list_add_tail(&new_ipaddr->e_list, &current_vrrp->evip);
 }
 
 void
@@ -1241,8 +1337,10 @@ alloc_vrrp_data(void)
 }
 
 void
-free_vrrp_data(vrrp_data_t * data)
+free_vrrp_data(vrrp_data_t ** datap)
 {
+	vrrp_data_t *data = *datap;
+
 	free_ipaddress_list(&data->static_addresses);
 	free_iproute_list(&data->static_routes);
 	free_iprule_list(&data->static_rules);
@@ -1258,6 +1356,8 @@ free_vrrp_data(vrrp_data_t * data)
 #endif
 	free_vrrp_list(&data->vrrp);
 	FREE(data);
+
+	*datap = NULL;
 }
 
 static void

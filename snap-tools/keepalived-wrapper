@@ -1,9 +1,13 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 MAJ_VER=$(uname -r | cut -d'.' -f1)
 MIN_VER=$(uname -r | cut -d'.' -f2)
 RUNNING_KERNEL_VER=$(printf "%d%2.2d\n" $MAJ_VER $MIN_VER)
-if [ ${RUNNING_KERNEL_VER} -ge 508 ]; then
+if [ ${RUNNING_KERNEL_VER} -ge 519 ]; then
+  BINARY="keepalived-519"
+elif [ ${RUNNING_KERNEL_VER} -ge 515 ]; then
+  BINARY="keepalived-515"
+elif [ ${RUNNING_KERNEL_VER} -ge 508 ]; then
   BINARY="keepalived-508"
 elif [ ${RUNNING_KERNEL_VER} -ge 504 ]; then
   BINARY="keepalived-504"
@@ -22,6 +26,7 @@ exit 1
 fi
 
 # The magic file must be the one in the snap
-export MAGIC=${SNAP}/usr/share/misc/magic
+MAGIC="${SNAP}/usr/share/misc/magic"
+export MAGIC
 
-exec ${SNAP}/usr/sbin/${BINARY} "$@"
+exec "${SNAP}/usr/sbin/${BINARY}" "$@"

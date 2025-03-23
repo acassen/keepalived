@@ -72,7 +72,7 @@ There are three classes of scripts can be configured to be executed.
 (a) Notify scripts that are run when a vrrp instance or vrrp group
 changes state, or a virtual server quorum changes between up and down.
 
-(b) vrrp tracking scripts that will cause vrrp instances to go down it they exit
+(b) vrrp tracking scripts that will cause vrrp instances to go down if they exit
 a non-zero exist status, or if a weight is specified will add or subtract the
 weight to/from the priority of that vrrp instance.
 
@@ -128,15 +128,31 @@ will be the three strings:
 i.e. the " and ' characters are removed and any intervening whitespace is retained.
 .PP
 Quoted strings can also have escaped characters, like the shell. \\a, \\b, \\E, \\f,
-\\n, \\r, \\t, \\v, \\nnn and \\xXX (where nnn is up to 3 octal digits, and XX is any
-sequence of hex digits) and \\cC (which produces the control version of
-character C) are all supported. \\C for any other character C is just
-treated as an escaped version of character C, so \\\\ is a \\ character and
-\\" will be a " character, but it won't start or terminate a quoted string.
+\\n, \\r, \\t, \\v, \\nnn and \\xXX (where nnn is up to 3 octal digits, and XX is up
+to two hex digits) and \\cC (which produces the control version of character C) are
+all supported. \\C for any other character C is just treated as an escaped version
+of character C, so \\\\ is a \\ character and \\" will be a " character, but it
+won't start or terminate a quoted string.
 .PP
 For specifying scripts with parameters, unquoted spaces will separate the parameters.
 If it is required for a parameter to contain a space, it should be enclosed in single
-quotes (').
+quotes ('). For example
+
+.nf
+.RS
+$SG_NAME=SG1
+$INST=low
+$USER=user
+notify_master "/etc/keepalived/notify_event.sh ' spaces\\\\x20f\\x69le ' '\\"s p a c e \\"' ${SG_NAME}.$INST master" $USER group
+.RE
+
+.fi
+specifies a notify_master script /etc/keepalived/notify_event.sh that will be executed as user:group with parameters
+
+.nf
+.RS
+\' spaces\\x20file \', \'"s p a c e "\', \'SG1.low\' and \'master\'
+.RE
 
 .PP
 .SH CONFIGURATION PARSER
@@ -246,6 +262,10 @@ possibly following any cleanup actions needed.
     \fBchecker_process_name\fR NAME
     \fBbfd_process_name\fR NAME
 
+    # keepalived by default resolves script path names to remove symlinks.
+    # To keep symlinks in pathnames, specify use_syslink_paths.
+    \fBuse_symlink_paths \fR[<BOOL>]
+
     # The startup and shutdown scripts are run once, when keepalived starts
     # before any child processes are run, and when keepalived stops after
     # all child processes have terminated, respectively.
@@ -265,14 +285,16 @@ possibly following any cleanup actions needed.
     \fBshutdown_script\fR SCRIPT_NAME [username [groupname]]
     \fBshutdown_script_timeout\fR SECONDS   # range [1,1000]
 
-    # Set of email To: notify
+    # Set of email To: notify. To include a display name, the whole email address
+    #  must be included in double quotes(").
     \fBnotification_email \fR{
-        admin@example1.com
+        admin@example1.com "My admin <admin@example2.com>"
         ...
     }
 
-    # email from address that will be in the header
-    # (default: keepalived@<local host name>)
+    # email from address that will be in the header (see comment above for
+    # including a display name).
+    # (default: keepalived@local_host_name)
     \fBnotification_email_from \fRadmin@example.com
 
     # Remote SMTP server used to send notification email.
@@ -361,28 +383,25 @@ possibly following any cleanup actions needed.
     # remove them).
     \fBlvs_flush_on_stop [VS]\fR
 
+    # number of gratuitous ARP messages to send at a time after
+    # transition to MASTER.
+    # (default: 5)
+    \fBvrrp_garp_master_repeat \fR1
+
     # delay for second set of gratuitous ARPs after transition to MASTER.
     # in seconds, 0 for no second set.
     # (default: 5)
     \fBvrrp_garp_master_delay \fR10
 
     # number of gratuitous ARP messages to send at a time after
-    # transition to MASTER.
-    # (default: 5)
-    \fBvrrp_garp_master_repeat \fR1
+    # lower priority advert received when MASTER.
+    # (default: vrrp_garp_master_repeat)
+    \fBvrrp_garp_lower_prio_repeat \fR1
 
     # delay for second set of gratuitous ARPs after lower priority
     # advert received when MASTER.
     # (default: vrrp_garp_master_delay)
     \fBvrrp_garp_lower_prio_delay \fR10
-
-    # Default value for vrrp down_timer_adverts.
-    \fBvrrp_down_timer_adverts \fR[1:100]
-
-    # number of gratuitous ARP messages to send at a time after
-    # lower priority advert received when MASTER.
-    # (default: vrrp_garp_master_repeat)
-    \fBvrrp_garp_lower_prio_repeat \fR1
 
     # minimum time interval for refreshing gratuitous ARPs while MASTER.
     # in seconds (resolution seconds).
@@ -422,9 +441,12 @@ possibly following any cleanup actions needed.
     # will cause it to send GARP/NA on each interface used by the VRRP instance.
     \fBvrrp_garp_extra_if [all] \fR100
 
+    # Default value for vrrp down_timer_adverts.
+    \fBvrrp_down_timer_adverts \fR[1:100]
+
     # If a lower priority advert is received, don't send another advert.
-    # This causes adherence to the RFCs. Defaults to false, unless
-    # strict_mode is set.
+    # This causes adherence to the RFCs prior to RFC9568.
+    # Defaults to false, unless strict_mode is set.
     \fBvrrp_lower_prio_no_advert \fR[<BOOL>]
 
     # If we are master and receive a higher priority advert, send an advert
@@ -520,8 +542,8 @@ possibly following any cleanup actions needed.
     # iptables. If so, then the ipset names can be specified, defaults
     # as below. If no names are specified, ipsets will not be used,
     # otherwise any omitted names will be constructed by adding "_if"
-    # and/or "6" and _igmp/_mld to previously specified names.
-    \fBvrrp_ipsets \fR[keepalived [keepalived6 [keepalived_if6 [keepalived_igmp [keepalived_mld]]]]]
+    # and/or "6" and _igmp/_mld/_nd to previously specified names.
+    \fBvrrp_ipsets \fR[keepalived [keepalived6 [keepalived_if6 [keepalived_igmp [keepalived_mld [keepalived_vmac_nd]]]]]]
 
     # An alternative to moving IGMP messages from VMACs to their parent interfaces
     # is to disable them altogether in the kernel by setting
@@ -560,6 +582,7 @@ possibly following any cleanup actions needed.
     #   Cannot set higher_prio_send_advert
     #   Cannot use vmac_xmit_base
     #   Cannot have no VIPs with VRRPv3
+    #   If priority is 255 ignore received adverts
     \fBvrrp_strict\fR
 
     # Send vrrp instance priority notifications on notify FIFOs.
@@ -672,6 +695,18 @@ possibly following any cleanup actions needed.
     # enable SNMP traps
     \fBenable_traps\fR
 
+    # When SNMP requests are made, the checker process only updates the
+    # virtual and real server stats from the kernel if the last time the
+    # stats for that virtual server were read was more than this configured
+    # interval (in seconds). The default interval is 5 seconds, and the
+    # valid range is 0.001 (1 milli-second) to 30 seconds.
+    \fBsnmp_vs_stats_update_interval\fR <TIMER>
+
+    # Like snmp_vs_stats_update_interval but for real servers. Stats for
+    # real servers are only read if there is an SNMP request for real server
+    # stats.
+    \fBsnmp_rs_stats_update_interval\fR <TIMER>
+
     # If Keepalived has been build with DBus support, the following
     # keywords are available.
     # --
@@ -682,6 +717,11 @@ possibly following any cleanup actions needed.
     # Useful if you want to run multiple keepalived processes with DBus enabled
     # (default: org.keepalived.Vrrp1)
     \fBdbus_service_name \fRSERVICE_NAME
+
+    # String to use for DBus path when VRRP instance has no interface configured
+    # Useful if your system has an interface named "none"!
+    # (default: "none")
+    \fBdbus_no_interface_name \fRNAME
 
     # Specify the default username/groupname to run scripts under.
     # If this option is not specified, the user defaults to keepalived_script
@@ -708,7 +748,7 @@ possibly following any cleanup actions needed.
 
     # script to be run by keepalived to process notify events
     # The FIFO name will be passed to the script as the last parameter
-    \fBnotify_fifo_script \fRSTRING|QUOTED_STRING [username [groupname]]
+    \fBnotify_fifo_script \fRSTRING|QUOTED-STRING [username [groupname]]
 
     # FIFO to write vrrp notify events to.
     # The string written will be a line of the form: INSTANCE "VI_1" MASTER 100
@@ -719,7 +759,7 @@ possibly following any cleanup actions needed.
 
     # script to be run by keepalived to process vrrp notify events
     # The FIFO name will be passed to the script as the last parameter
-    \fBvrrp_notify_fifo_script \fRSTRING|QUOTED_STRING [username [groupname]]
+    \fBvrrp_notify_fifo_script \fRSTRING|QUOTED-STRING [username [groupname]]
 
     # FIFO to write notify healthchecker events to
     # The string written will be a line of the form:
@@ -730,7 +770,7 @@ possibly following any cleanup actions needed.
 
     # script to be run by keepalived to process healthchecher notify events
     # The FIFO name will be passed to the script as the last parameter
-    \fBlvs_notify_fifo_script \fRSTRING|QUOTED_STRING [username [groupname]]
+    \fBlvs_notify_fifo_script \fRSTRING|QUOTED-STRING [username [groupname]]
 
     # By default, when keepalived reloads the vrrp instance and sync group states
     # are not written to the relevant FIFOs. Setting this option will cause the
@@ -925,7 +965,24 @@ possibly following any cleanup actions needed.
     # if more than one keepalived instance is running on a system.
     # In order to alleviate this, enabling data_use_instance includes the
     # instance name and network namespace in the file name of the .data files.
+    # This also applies to SIGUSR2 for outputting stats.
     \fBdata_use_instance \fR[<BOOL>]
+
+    # If the files produced by SIGUSR1 and SIGUSR2 are on slow storage, then writing to
+    # them may cause keepalived processes to block. This option allows specifying the
+    # location to which the files should be written, and should ideally be a tmpfs rather
+    # than a real disc, and definitely not network attached storage or other storage that
+    # can block for more than a few microseconds.
+    # If path ends in a / it is considered to be a directory and the normal filenames
+    # in that directory will be used, otherwise it will be used as the full path name
+    # of the file to be written. Note that \fBdata_use_instance\fR may also modify the
+    # file name.
+    # For the state files, these are template names and "_checker" will be added
+    # for the checker process, "_bfd" will be added for the BFD process and
+    # "_parent" will be added for the parent process.
+    \fBstate_file_location \fRpath
+    \fBstats_file_location \fRpath
+    \fBjson_file_location \fRpath
 
     # json_version 2 puts the VRRP data in a named array and adds
     # track_process details. Default is version 1.
@@ -1104,7 +1161,7 @@ The syntax for track file is:
 
 \fBtrack_file \fR<STRING> {	# vrrp_track_file is a deprecated synonym
     # file to track (weight defaults to 1)
-    \fBfile \fR<QUOTED_STRING>
+    \fBfile \fR<QUOTED-STRING>
 
     # optional default weight
     \fBweight \fR<-2147483647..2147483647> [reverse]
@@ -1132,7 +1189,7 @@ The configuration block looks like:
         #  process "@KA_TMP_DIR@/a b" param1 "param 2"
         # would mean a process named '@KA_TMP_DIR@/a b' (quotes removed) with 2 parameters
         #  'param1' and 'param 2'.
-        \fBprocess\fR <STRING>|<QUOTED_STRING> [<STRING>|<QUOTED_STRING> ...]
+        \fBprocess\fR <STRING>|<QUOTED-STRING> [<STRING>|<QUOTED-STRING> ...]
 
         # If matching parameters, this specifies a partial match (i.e. the first
         #   n parameters match exactly), or an initial match, i.e. the last
@@ -1141,12 +1198,15 @@ The configuration block looks like:
         #   any parameters, but specify param_match.
         param_match {initial|partial}
 
-        # default weight (default is 1). For description of reverse, see track_process.
+        # default weight (default is 0). For description of reverse, see track_process.
         # 'weight 0 reverse' will cause the vrrp instance to be down when the
-        # quorum is up, and vice versa.
+        #   quorum is up, and vice versa.
+	# A non-zero weight will adjust the VRRP priority of the tracking VRRP instance,
+	#   whereas a 0 weight will cause the VRRP instance to enter FAULT state if the
+	#   track process is in the failed state (see above for the effect of "reverse").
         \fBweight\fR <-254..254> [reverse]
 
-        # minimum number of processes for success
+        # minimum number of processes for success (default 1)
         \fBquorum\fR NUM
 
         # maximum number of processes for success. For example, setting
@@ -1154,6 +1214,7 @@ The configuration block looks like:
         #   were running (but beware forks - see fork_delay below).
         #   Setting this to 0 would mean failure if the matching process were
         #   running at all.
+	#   Default is unlimited.
         \fBquorum_max\fR NUM
 
         # time to delay after process quorum gained after fork before
@@ -1299,9 +1360,15 @@ The syntax for bfd instance is :
     # Default tracking weight
     # Normally, positive weights are added to the vrrp instance priority when
     # the bfd instance is up, negative weights reduce the priority when it is down.
-    # However, if reverse is specified, the priority is decreased when up and
-    # increased when down. 'weight 0 reverse' will cause the vrrp instance to be down
-    # when the bfd instance is up, and vice versa.
+    # However, if reverse is specified, a positive weight decreases the priority the
+    # script is up, and a negative weight increases the priority when the script is
+    # 'weight 0 reverse' will cause the vrrp instance to be down when the bfd
+    # instance is up, and vice versa.
+    # Weight  Reverse  Script up   Script down
+    #  +ve      No	prio +		-
+    #  -ve	No	   -	     prio -
+    #  +ve      Yes	prio -		-
+    #  -ve	Yes	   -	     prio +
     \fBweight\fR <-253:253> [reverse]
 
     # Normally bfd event notifications are sent to both the VRRP and checker processes.
@@ -1346,11 +1413,11 @@ The syntax for the vrrp script is:
     # path of the script to execute
     \fBscript \fR<STRING>|<QUOTED-STRING>
 
-    # seconds between script invocations, (default: 1 second)
-    \fBinterval \fR<INTEGER>
+    # seconds between script invocations, (default: 1 second, resolution milliseconds)
+    \fBinterval \fR<DECIMAL>
 
-    # seconds after which script is considered to have failed
-    \fBtimeout \fR<INTEGER>
+    # seconds after which script is considered to have failed (default = interval, resolution milliseconds)
+    \fBtimeout \fR<DECIMAL>
 
     # adjust priority by this weight, (default: 0)
     # For description of reverse, see track_script.
@@ -1539,7 +1606,7 @@ and the limits apply to the switch as a whole.
 
 If the global vrrp_garp_interval and/or vrrp_gna_interval are set, any
 interfaces that aren't specified in a garp_group will inherit the global
-settings.
+settings on a per interface basis.
 .PP
 .nf
 The syntax for garp_group is :
@@ -1610,7 +1677,15 @@ The syntax for vrrp_instance is :
     # vmac_xmit_base must be set.
     # The MAC address can be specified with only 5 octets, in which case
     # the virtual_router_id will be used as the last octet.
-    \fBuse_vmac \fR[<VMAC_INTERFACE_NAME>] [MAC_ADDRESS]
+    # If \fBnetlink_notify_msg\fR is specified, when keepalived creates a macvlan
+    # interface it will force a netlink message to be sent for the base interface
+    # since the kernel does not send one, even if the promiscuity of the base
+    # interface has been updated.
+    # By default the VMAC is created in the same link group as the parent interface.
+    # Specifying group GROUP_ID (where GROUP_ID is either a valid group number, or a
+    # name in /etc/iproute2/group) will create the interface in the specied group.
+    # The name option can be specified if you want to use an interface name "group".
+    \fBuse_vmac \fR[[name] <VMAC_INTERFACE_NAME>] [MAC_ADDRESS] [netlink_notify_msg] [group GROUP_ID]
 
     # use_vmac_addr is used to create VMAC (macvlan) interfaces for
     # each interface that is used by a VIP or eVIP where the interface
@@ -1634,12 +1709,15 @@ The syntax for vrrp_instance is :
     # For IPv4 instances, an IP address is required, for IPv6
     # the address is optional, in which case the link local
     # address will be used.
-    # The mode flags default to bridge. NOTE: the mode flags must be the
+    # The mode flags defaults to bridge. NOTE: the mode flags must be the
     # same for all ipvlans on the same underlying interface.
     # It is safer to configure an interface name, in case keepalived crashes
     # and restarts, in which case it can more reliably find a previously
     # created interface.
-    \fBuse_ipvlan \fR[<INTERFACE_NAME>] [IP_ADDRESS] [bridge|private|vepa]
+    # The name option can be specified if you want to use a name that would cause
+    # a parsing error (e.g. "bridge").
+    # For a description of the group option, see use_vmac.
+    \fBuse_ipvlan \fR[[name] <INTERFACE_NAME>] [IP_ADDRESS] [bridge|private|vepa] [group GROUP_ID]
 
     # force instance to use IPv6 (this option is deprecated since
     # the virtual ip addresses determine whether IPv4 or IPv6 is used).
@@ -1677,14 +1755,14 @@ The syntax for vrrp_instance is :
     }
 
     # add a tracking script to the interface
-    # (<SCRIPT_NAME> is the name of the vrrp_track_script entry)
+    # (<SCRIPT_NAME> is the name of the vrrp_script entry)
     # The same principle as track_interface can be applied to track_script entries,
     # except that an unspecified weight means that the default weight declared in
     # the script will be used (which itself defaults to 0).
     # reverse causes the direction of the adjustment of the priority to be reversed.
     \fBtrack_script \fR{
         <SCRIPT_NAME>
-        <SCRIPT_NAME> weight <-253..253> [reverse|no_reverse]
+        <SCRIPT_NAME> weight <-253..253> [reverse|noreverse]
     }
 
     # Files whose state we monitor, value is added to effective priority.
@@ -1790,11 +1868,13 @@ The syntax for vrrp_instance is :
     #  of `keepalived -v` for OLD_CHKSUM_COMPAT.]
     \fBold_unicast_checksum \fR[never]
 
-    # Some manufacturers (e.g. Cisco) interpret RFC5798 5.2.8 as applying
-    #  only to IPv6, since the pseudo-header in RFC2460 is specified only
-    #  for IPv6. Keepalived by default uses a pseudo-header for VRRPv3 IPv4
-    #  as well. Setting this option turns off including the pseudo-header
-    #  in the checksum calculation for VRRPv3 IPv4.
+    # Some manufacturers (e.g. Cisco and Juniper) interpret RFC5798 5.2.8
+    #  as applying only to IPv6, since the pseudo-header in RFC2460 is
+    #  specified only for IPv6, although most open source implementations,
+    #  including tcpdump/wireshark, include the pseudo-header for IPv4.
+    #  Keepalived by default uses a pseudo-header for VRRPv3 IPv4 as well.
+    #  Setting this option turns off including the pseudo-header in the
+    #  checksum calculation for VRRPv3 IPv4.
     \fBv3_checksum_as_v2\fR [<BOOL>]
 
     # interface specific settings, same as global parameters.
@@ -1815,7 +1895,7 @@ The syntax for vrrp_instance is :
     # VRRP instance MUST use the same value.
     \fBdown_timer_adverts \fR[1-100]
 
-    # Some users experience "thread_timer_expired" log messages. These are caused
+    # Some users experience "thread timer expired" log messages. These are caused
     # by the kernel not scheduling keepalived quickly enough after a timer expired,
     # which is always due to insufficient CPU resources being available (if running
     # keepalived in a VM it could be due to the VM itself not being scheduled), or
@@ -1828,9 +1908,9 @@ The syntax for vrrp_instance is :
     # whether another instance may have taken over (based on the advert interval and
     # the highest priority of the other instances - default 254 unless specified with
     # this option), and if that time has expired since the last advert has been sent,
-    # the VRRP instance will revert to backup state (remember to include and track_script
+    # the VRRP instance will revert to backup state (remember to include any track_script
     # etc. weights when calculating the highest priority of other instances).
-    \fbthread_timer_expired \fR[HIGHEST_PRIORITY_OF_OTHER_INSTANCES]
+    \fBtimer_expired_backup \fR[HIGHEST_PRIORITY_OF_OTHER_INSTANCES]
 
     # If keepalived is late running by more than 2 advert intervals for a VRRP instance,
     # it is possible that another instance has taken over as master.
@@ -2049,12 +2129,12 @@ The syntax for vrrp_instance is :
 
     # See description of global vrrp_skip_check_adv_addr, which
     # sets the default value. Defaults to vrrp_skip_check_adv_addr
-    \fBskip_check_adv_addr \fR[on|off|true|false|yes|no]
+    \fBskip_check_adv_addr \fR[<BOOL>]
 
     # See description of global vrrp_strict
     # If strict_mode is not specified, it takes the value of vrrp_strict.
     # If strict_mode without a parameter is specified, it defaults to on.
-    \fBstrict_mode \fR[on|off|true|false|yes|no]
+    \fBstrict_mode \fR[<BOOL>]
 
     # Debug level, not implemented yet.
     # LEVEL is a number in the range 0 to 4
@@ -2319,6 +2399,9 @@ The syntax for virtual_server is :
     #  replaced with the sorry server.
     \fBsorry_server \fR<IPADDR> [<PORT>]
     # applies inhibit_on_failure behaviour to the sorry_server
+    # It is very unlikely that you want to use this, since if you
+    # have a real server available, you almost certainly want to use
+    # it.
     \fBsorry_server_inhibit\fR
     # Sorry server LVS forwarding method. Default is the virtual
     #  server's default.

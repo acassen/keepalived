@@ -54,14 +54,14 @@ alloc_bfd(const char *name)
 			    " name too long (maximum length is %zu"
 			    " characters) - ignoring", name,
 			    sizeof(bfd->iname) - 1);
-		return false;
+		return NULL;
 	}
 
 	if (find_bfd_by_name(name)) {
 		report_config_error(CONFIG_GENERAL_ERROR,
 			    "Configuration error: BFD instance %s"
 			    " already configured - ignoring", name);
-		return false;
+		return NULL;
 	}
 
 	PMALLOC(bfd);
@@ -110,7 +110,7 @@ static void
 conf_write_sands(FILE *fp, const char *text, unsigned long sands)
 {
 	char time_str[26];
-	long secs;
+	time_t secs;
 
 	if (sands == TIMER_NEVER) {
 		conf_write(fp, "   %s = [disabled]", text);
@@ -120,7 +120,7 @@ conf_write_sands(FILE *fp, const char *text, unsigned long sands)
 	secs = sands / TIMER_HZ;
 	if (!ctime_r(&secs, time_str))
 		strcpy(time_str, "invalid time ");
-	conf_write(fp, "   %s = %ld.%6.6lu (%.19s.%6.6lu)", text, secs, sands % TIMER_HZ, time_str, sands % TIMER_HZ);
+	conf_write(fp, "   %s = %" PRI_time_t ".%6.6lu (%.19s.%6.6lu)", text, secs, sands % TIMER_HZ, time_str, sands % TIMER_HZ);
 }
 
 /* Dump BFD instance configuration parameters */
@@ -186,7 +186,7 @@ dump_bfd(FILE *fp, const bfd_t *bfd)
 			conf_write(fp, "   last_seen = [never]");
 		else {
 			ctime_r(&bfd->last_seen.tv_sec, time_str);
-			conf_write(fp, "   last seen = %ld.%6.6ld (%.24s.%6.6ld)", bfd->last_seen.tv_sec, bfd->last_seen.tv_usec, time_str, bfd->last_seen.tv_usec);
+			conf_write(fp, "   last seen = %" PRI_tv_sec ".%6.6" PRI_tv_usec " (%.24s.%6.6" PRI_tv_usec ")", bfd->last_seen.tv_sec, bfd->last_seen.tv_usec, time_str, bfd->last_seen.tv_usec);
 		}
 	}
 }
@@ -252,12 +252,16 @@ alloc_bfd_data(void)
 }
 
 void
-free_bfd_data(bfd_data_t *data)
+free_bfd_data(bfd_data_t **datap)
 {
+	bfd_data_t *data = *datap;
+
 	assert(data);
 
 	free_bfd_list(&data->bfd);
 	FREE(data);
+
+	*datap = NULL;
 }
 
 void
@@ -295,7 +299,7 @@ bfd_print_data(void)
 {
 	FILE *fp;
 
-	fp = open_dump_file("keepalived_bfd.data");
+	fp = open_dump_file("_bfd");
 
 	if (!fp)
 		return;

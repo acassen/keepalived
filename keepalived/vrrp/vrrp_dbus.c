@@ -127,7 +127,7 @@ static pthread_mutex_t cond_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t startup_cond = PTHREAD_COND_INITIALIZER;
 
 /* Global file variables */
-static const char * const no_interface = "none";
+const char *dbus_no_interface_name = "none";
 static GDBusNodeInfo *vrrp_introspection_data = NULL;
 static GDBusNodeInfo *vrrp_instance_introspection_data = NULL;
 static GDBusConnection *global_connection;
@@ -136,8 +136,8 @@ static GMainLoop *loop;
 
 /* Data passing between main vrrp thread and dbus thread */
 dbus_queue_ent_t *ent_ptr;
-static int dbus_in_pipe[2] = {-1, -1};
-static int dbus_out_pipe[2] = {-1, -1};
+static int dbus_in_pipe[2] = { -1 };	// [0] == -1 indicates pipe is closed
+static int dbus_out_pipe[2] = { -1 };	// Ditto
 static sem_t thread_end;
 
 /* The only characters that are valid in a dbus path are A-Z, a-z, 0-9, _ */
@@ -207,13 +207,18 @@ static vrrp_t * __attribute__ ((pure))
 get_vrrp_instance(const char *ifname, int vrid, int family)
 {
 	vrrp_t *vrrp;
+	bool no_if = !strcmp(ifname, dbus_no_interface_name);
 
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
-		if (vrrp->ifp &&
-		    vrrp->vrid == vrid &&
-		    vrrp->family == family &&
-		    !valid_path_cmp(VRRP_CONFIGURED_IFP(vrrp)->ifname, ifname))
-			return vrrp;
+		if (vrrp->vrid == vrid &&
+		    vrrp->family == family) {
+			if (no_if) {
+				if (!vrrp->ifp)
+					return vrrp;
+			} else if (vrrp->ifp &&
+				   !valid_path_cmp(VRRP_CONFIGURED_IFP(vrrp)->ifname, ifname))
+				return vrrp;
+		}
 	}
 
 	return NULL;
@@ -482,7 +487,7 @@ static const GDBusInterfaceVTable interface_vtable =
 	handle_method_call,
 	handle_get_property,
 	NULL, /* handle_set_property is null because we have no writeable property */
-	{}
+	{0}
 };
 
 static int
@@ -520,7 +525,7 @@ dbus_create_object_params(const char *instance_name, const char *interface_name,
 static void
 dbus_create_object(vrrp_t *vrrp)
 {
-	dbus_create_object_params(vrrp->iname, vrrp->ifp ? IF_NAME(VRRP_CONFIGURED_IFP(vrrp)) : no_interface, vrrp->vrid, vrrp->family, false);
+	dbus_create_object_params(vrrp->iname, vrrp->ifp ? IF_NAME(VRRP_CONFIGURED_IFP(vrrp)) : dbus_no_interface_name, vrrp->vrid, vrrp->family, false);
 }
 
 static bool
@@ -692,6 +697,9 @@ dbus_main(void *param)
 		return free_wait();
 	}
 
+	if (global_data->dbus_no_interface_name)
+		dbus_no_interface_name = global_data->dbus_no_interface_name;
+
 	service_name = global_data->dbus_service_name ? global_data->dbus_service_name : DBUS_SERVICE_NAME;
 	owner_id = g_bus_own_name(G_BUS_TYPE_SYSTEM,
 				  service_name,
@@ -736,7 +744,7 @@ dbus_send_state_signal(vrrp_t *vrrp)
 	if (global_connection == NULL)
 		return;
 
-	object_path = dbus_object_create_path_instance(vrrp->ifp ? IF_NAME(VRRP_CONFIGURED_IFP(vrrp)) : no_interface, vrrp->vrid, vrrp->family);
+	object_path = dbus_object_create_path_instance(vrrp->ifp ? IF_NAME(VRRP_CONFIGURED_IFP(vrrp)) : dbus_no_interface_name, vrrp->vrid, vrrp->family);
 
 	args = g_variant_new("(u)", vrrp->state);
 	dbus_emit_signal(global_connection, object_path, DBUS_VRRP_INSTANCE_INTERFACE, "VrrpStatusChange", args);
@@ -867,7 +875,7 @@ dbus_reload(const list_head_t *o, const list_head_t *n)
 		const char *n_name;
 		bool match_found;
 
-		n_name = vrrp_n->ifp ? VRRP_CONFIGURED_IFP(vrrp_n)->ifname : no_interface;
+		n_name = vrrp_n->ifp ? VRRP_CONFIGURED_IFP(vrrp_n)->ifname : dbus_no_interface_name;
 
 		/* Try and find an instance with same vrid/family/interface that existed before and now */
 		match_found = false;
@@ -934,14 +942,12 @@ dbus_start_error(dbus_files_t *files)
 		close(dbus_in_pipe[0]);
 		close(dbus_in_pipe[1]);
 		dbus_in_pipe[0] = -1;
-		dbus_in_pipe[1] = -1;
 	}
 
 	if (dbus_out_pipe[0] != -1) {
 		close(dbus_out_pipe[0]);
 		close(dbus_out_pipe[1]);
 		dbus_out_pipe[0] = -1;
-		dbus_out_pipe[1] = -1;
 	}
 
 	return false;
@@ -1066,10 +1072,8 @@ dbus_stop(void)
 	close(dbus_in_pipe[0]);
 	close(dbus_in_pipe[1]);
 	dbus_in_pipe[0] = -1;
-	dbus_in_pipe[0] = -1;
 	close(dbus_out_pipe[0]);
 	close(dbus_out_pipe[1]);
-	dbus_out_pipe[0] = -1;
 	dbus_out_pipe[0] = -1;
 }
 

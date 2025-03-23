@@ -169,7 +169,7 @@ enum slot_type {
 	ALLOCATED,
 } ;
 
-#define TIME_STR_LEN	9
+#define TIME_STR_LEN	16	/* "00:00:00.000000 " */
 
 #if ULONG_MAX == 0xffffffffffffffffUL
 #define CHECK_VAL	0xa5a55a5aa5a55a5aUL
@@ -200,7 +200,7 @@ static unsigned free_list_size;
 static inline int
 memcheck_ptr_cmp(const void *key, const struct rb_node *a)
 {
-	return (const char *)key - (char *)rb_entry_const(a, MEMCHECK, t)->ptr;
+	return less_equal_greater_than((const char *)key, (char *)rb_entry_const(a, MEMCHECK, t)->ptr);
 }
 
 static inline bool
@@ -213,8 +213,10 @@ static const char *
 format_time(void)
 {
 	static char time_buf[TIME_STR_LEN+1];
+	size_t len;
 
-	strftime(time_buf, sizeof time_buf, "%T ", localtime(&time_now.tv_sec));
+	len = strftime(time_buf, sizeof time_buf, "%T", localtime(&time_now.tv_sec));
+	snprintf(time_buf + len, sizeof(time_buf) - len, ".%6.6" PRI_tv_usec " ", time_now.tv_usec);
 
 	return time_buf;
 }
@@ -253,6 +255,9 @@ get_free_alloc_entry(struct mem_domain *mem)
 	return entry;
 }
 
+#if !defined _NO_UNALIGNED_ACCESS_ && defined _WITH_SANITIZE_UNDEFINED_
+__attribute__((no_sanitize("alignment")))
+#endif
 static void *
 keepalived_malloc_common(struct mem_domain *mem, size_t size, const char *file, const char *function, int line, const char *name)
 {
@@ -355,6 +360,9 @@ keepalived_strndup(const char *str, size_t size, const char *file, const char *f
 	return strncpy(str_p, str, size);
 }
 
+#if !defined _NO_UNALIGNED_ACCESS_ && defined _WITH_SANITIZE_UNDEFINED_
+__attribute__((no_sanitize("alignment")))
+#endif
 static void *
 keepalived_free_realloc_common(struct mem_domain *mem, void *buffer, size_t size, const char *file, const char *function, int line, bool is_realloc)
 {

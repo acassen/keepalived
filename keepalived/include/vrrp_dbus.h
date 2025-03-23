@@ -30,6 +30,7 @@
 #include "vrrp.h"
 #include "list_head.h"
 
+extern const char *dbus_no_interface_name;
 
 void dbus_send_state_signal(vrrp_t *);
 void dbus_remove_object(const vrrp_t *);

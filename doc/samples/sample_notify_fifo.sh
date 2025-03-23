@@ -33,6 +33,10 @@ elif [[ -d /var/run ]]; then
 else
     PID_DIR=/tmp
 fi
+
+# Ensure we have write access to PID_DIR, otherwise use /tmp
+[[ ! -w $PID_DIR ]] && PID_DIR=/tmp
+
 PID_FILE=$PID_DIR/${FIFO##*/}.pid
 
 exiting()

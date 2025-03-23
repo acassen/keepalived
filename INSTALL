@@ -44,6 +44,9 @@ For setting VMAC interfaces unmanaged by NetworkManager. This is not needed for
    NetworkManager >= 1.18, and possibly some earlier versions, but is needed for
    NetworkManager 1.0.6.
 	NetworkManager-libnm-devel
+For building with sanitizers
+	libasan libubsan libhwasan liblsan (gcc)
+	compiler-rt (clang)
 
 For building the documentation, the following packages need to be installed:
 	Fedora: python-sphinx (will pull in: python2-sphinx_rtd_theme)
@@ -94,10 +97,12 @@ For ipset support
 To build using clang/llvm
 	apt install clang llvm
 
-Alpine Linux
+Alpine Linux (apk add ...)
 ------------
+For building packages
+	automake autoconf alpine-sdk
 The following libraries need to be installed:
-	iptables-dev ipset-dev libnl3-dev musl-dev libnftnl-dev and openssl-dev or libressl-dev
+	linux-headers iptables-dev ipset-dev libnl3-dev musl-dev libnftnl-dev and openssl-dev or libressl-dev
 For magic file identification support:
 	file-dev
 For SNMP support:
@@ -129,6 +134,11 @@ For building the documentation, the following packages need to be installed:
    For latex or pdf files, the following are also needed:
 	texlive-core texlive-bin texlive-latexextra
 
+openSUSE
+========
+    1. zypper install -t pattern devel_C_C++
+    2. Install packages with same names as Red Hat variants (except libopenssl-devel instead of openssl-devel and libkmod-devel instead of kmod-devel)
+
 Kernel configuration requirements
 ---------------------------------
 The following list is probably incomplete, and will be updated as other
@@ -150,6 +160,8 @@ NETFILTER_XTABLES - if strict_mode or no_accept.
 NF_TABLES and associated components - to use nftables for strict_mode or no_accept
 IP_ADVANCED_ROUTER and various associated options if static/dynamic routes specified
 FIB_RULES if static or dynamic rules are specified
+PROC_EVENTS for track_process
+
 
 Installing from a git repo
 ==========================

@@ -78,9 +78,12 @@ typedef struct _garp_delay {
 	bool			have_gna_interval;	/* True if delay */
 	timeval_t		garp_next_time;		/* Time when next gratuitous ARP message can be sent */
 	timeval_t		gna_next_time;		/* Time when next gratuitous NA message can be sent */
-	int			aggregation_group;	/* Index of multi-interface group */
 
-	/* linked list member */
+	/* linked list of ip_address_t that have GARP/NAs pending */
+	list_head_t		garp_list;
+	list_head_t		gna_list;
+
+	/* linked list member of garp_delay_t */
 	list_head_t		e_list;
 } garp_delay_t;
 
@@ -159,10 +162,8 @@ typedef struct _interface {
 #endif
 	struct _interface	*base_ifp;		/* Base interface (if interface is a VMAC interface),
 							   otherwise the physical interface */
-#ifdef _HAVE_VRRP_VMAC_
 	bool			is_ours;		/* keepalived created the interface */
 	bool			deleting;		/* Set when we are deleting the interface */
-#endif
 	bool			seen_interface;		/* The interface has existed at some point since we started */
 	bool			changeable_type;	/* The interface type or underlying interface can be changed */
 #ifdef _HAVE_VRF_
@@ -174,6 +175,7 @@ typedef struct _interface {
 	bool			arp_ignore;		/* Original value of arp_ignore to be restored */
 	bool			arp_filter;		/* Original value of arp_filter to be restored */
 	unsigned		rp_filter;		/* < UINT_MAX if we have changed the value */
+	uint32_t		group;			/* GROUP for this interface_t */
 #endif
 	garp_delay_t		*garp_delay;		/* Delays for sending gratuitous ARP/NA */
 	timeval_t		last_gna_router_check;	/* Time we last checked if IPv6 forwarding set on interface */

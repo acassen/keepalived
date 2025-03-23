@@ -68,7 +68,7 @@ static void
 send_html_resp(int fd, struct cmd_resp *p)
 {
 	char time_buf[30];	// Mon, 26 Oct 2020 22:18:55 GMT
-	char header_buf[strlen(html_hdr) + 6 + 30];
+	char header_buf[strlen(html_hdr) + 6 + sizeof(time_buf)];
 	time_t t;
 	struct tm *tm_p;
 
@@ -85,7 +85,7 @@ send_html_resp(int fd, struct cmd_resp *p)
 }
 
 static void
-find_resp(int fd, const char *cmd)
+find_resp(int in_fd, int out_fd, const char *cmd)
 {
 	struct cmd_resp *p;
 	const char *s, *e;
@@ -103,13 +103,14 @@ find_resp(int fd, const char *cmd)
 		if (!e)
 			e = s + strlen(s);
 		len = e - s;
-//printf("(%d) Looking at %p, len 0x%x (%d)\n", getpid(), s, len, len);
+// printf("(%d) Looking at %p, len 0x%x (%d)\n", getpid(), s, len, len);
 
 		if (debug)
 			printf("(%d) Looking at '%.*s'\n", getpid(), (int)len, s);
 
 		resp = s;
 		for (p = cmd_resp_list; p; p = p->next) {
+// printf("(%d) Comparing '%s' len %zu\n", getpid(), p->cmd, strlen(p->cmd));
 			if (len == strlen(p->cmd) &&
 			    !strncmp(p->cmd, s, len)) {
 				if (debug)
@@ -142,21 +143,23 @@ printf("(%d) Exit for !len\n", getpid());
 		}
 
 		if (use_p && p->type == TYPE_HTML)
-			send_html_resp(fd, p);
+			send_html_resp(out_fd, p);
 
 		if (debug_data)
 			printf("(%d) Replying '%.*s'\n", getpid(), (int)len, resp);
 
-		write(fd, resp, len);
+		write(out_fd, resp, len);
 
 		if (use_p && p->close_conn) {
 			char buf[1024];
 
 			/* Strip any remaining received data, otherwise RST gets sent instead of FIN */
-			fcntl(fd, F_SETFL, O_NONBLOCK);
-			while (read(fd, buf, 1024) > 0);
+			fcntl(in_fd, F_SETFL, O_NONBLOCK);
+			while (read(in_fd, buf, 1024) > 0);
 
-			close(fd);
+			close(in_fd);
+			if (in_fd != out_fd)
+				close(out_fd);
 //printf("(%d) Exiting\n", getpid());
 			exit(0);
 		}
@@ -184,13 +187,16 @@ new_cr(const char *cmd, const char *resp, bool close_after_send, cr_t type)
 static void
 new_html_cr(const char *url, const char *resp, const char *html_version, bool close_after_send)
 {
-	char *cmd = malloc(14 + strlen(url));	// GET %s HTTP/1.1";
+	char *cmd = malloc(11 + strlen(url) + strlen(html_version));	// GET %s HTTP/%s";
 	struct cmd_resp *cr;
 
 	sprintf(cmd, "GET %s HTTP/%s", url, html_version);
 
 	cr = new_cr(cmd, resp, close_after_send, TYPE_HTML);
 	cr->html_version = strdup(html_version);
+
+	if (!close_after_send)
+		fprintf(stderr, "Warning close after send (-Z) should be set\n");
 }
 
 static void
@@ -229,15 +235,19 @@ process_data(int fd, bool swallow)
 {
 	char buf[1024];
 	int len;
+	int out_fd = fd == fileno(stdin) ? fileno(stdout) : fd;
 
 	if (email_server) {
 		buf[0] = '\0';
-		send_email_response(fd, buf);
+		send_email_response(out_fd, buf);
 	}
 
 	while ((len = read(fd, buf, sizeof(buf) - 1)) > 0) {
 printf("(%d) Read %d bytes\n", getpid(),  len);
 		buf[len] = '\0';
+		if (fd == fileno(stdin) && len && buf[len - 1] == '\n')
+			buf[--len] = '\0';
+
 
 		/* Exit if receive ^D */
 		if (len == 1 && buf[0] == 4)
@@ -246,11 +256,11 @@ printf("(%d) Read %d bytes\n", getpid(),  len);
 			return;
 //}
 		if (email_server)
-			send_email_response(fd, buf);
+			send_email_response(out_fd, buf);
 		else if (cmd_resp_list)
-			find_resp(fd, buf);
+			find_resp(fd, out_fd, buf);
 		else if (!swallow)
-			write(fd, buf, len);
+			write(out_fd, buf, len);
 printf("(%d) Going to read again\n", getpid());
 	}
 printf("(%d) Process_data returning, len = %d, errno %d - %m\n", getpid(),  len, errno);
@@ -265,6 +275,7 @@ print_usage(FILE *fp, const char *name)
 	fprintf(fp, "\t-a addr\t\tbind to addr\n");
 	fprintf(fp, "\t-p port\t\tlisten on port\n");
 	fprintf(fp, "\t-s\t\tsilent\n");
+	fprintf(fp, "\t-P\t\tuse stdin/out\n");
 	fprintf(fp, "\t-u\t\tuse UDP\n");
 	fprintf(fp, "\t-e\t\techo\n");
 	fprintf(fp, "\t-S\t\tswallow received data\n");
@@ -273,8 +284,10 @@ print_usage(FILE *fp, const char *name)
 	fprintf(fp, "\t-v ver\t\tset HTML version to use (default 1.1)\n");
 	fprintf(fp, "\t-w url resp\tsend HTTP response for url\n");
 	fprintf(fp, "\t-W\t\tsend a pre-build HTTP response for GET /\n");
+	fprintf(fp, "\t-x url\t\tsend a pre-build HTTP response for url /\n");
 	fprintf(fp, "\t-M[server_name]\tbe an email server\n");
 	fprintf(fp, "\t-l val\t\tASCII value to use for EOL char\n");
+	fprintf(fp, "\t-L val\t\tSO_LINGER timeout (default none)\n");
 	fprintf(fp, "\t-d delay\tdelay in ms before replying\n");
 	fprintf(fp, "\t-r\t\tuse random delay\n");
 	fprintf(fp, "\t-m mod\t\tOnly report every mod'th connection\n");
@@ -318,8 +331,11 @@ int main(int argc, char **argv)
 	unsigned immediate_data_len;
 	char *immediate_data = NULL;
 	bool immediate_data_malloc = false;
+	char client_addr_buf[40];
+	unsigned client_port;
+	unsigned linger_timeout = 0;
 
-	while ((opt = getopt(argc, argv, ":h46a:p:sueb:c:l:d:rm:v:WM::w:ZDgGi:S"
+	while ((opt = getopt(argc, argv, ":h46a:p:suPeb:c:l:L:d:rm:v:WM::w:x:ZDgGi:S"
 #ifdef TCP_FASTOPEN
 					"f:"
 #endif
@@ -347,6 +363,9 @@ int main(int argc, char **argv)
 			break;
 		case 'u':
 			sock_type = SOCK_DGRAM;
+			break;
+		case 'P':
+			sock_type = SOCK_RAW;
 			break;
 		case 'e':
 			echo_data = true;
@@ -388,8 +407,19 @@ int main(int argc, char **argv)
 
 			new_html_cr(optarg, argv[optind++], html_version, close_after_send);
 			break;
+		case 'x':
+			if (optind >= argc + 1) {
+				fprintf(stderr, "-%c '%s' missing response\n", optind, optarg);
+				exit(EXIT_FAILURE);
+			}
+
+			new_html_cr(optarg, html_resp, html_version, close_after_send);
+			break;
 		case 'l':
 			EOL = strtoul(optarg, &endptr, 10);
+			break;
+		case 'L':
+			linger_timeout = strtoul(optarg, &endptr, 10);
 			break;
 		case 'd':
 			rep_delay.tv_nsec = strtoul(optarg, &endptr, 10);
@@ -450,66 +480,71 @@ int main(int argc, char **argv)
 		srandom(random_seed);
 	}
 
-	if (addr_str) {
-		if (family == AF_UNSPEC) {
-			if (strchr(addr_str, ':'))
-				family = AF_INET6;
-			else
-				family = AF_INET;
+	if (sock_type != SOCK_RAW) {
+		if (addr_str) {
+			if (family == AF_UNSPEC) {
+				if (strchr(addr_str, ':'))
+					family = AF_INET6;
+				else
+					family = AF_INET;
+			}
+
+			if (inet_pton(family, addr_str, addr_buf) != 1) {
+				printf("(%d) Invalid IPv%d address - %s\n", getpid(),  family == AF_INET ? 4 : 6, addr_str);
+				exit (1);
+			}
+		}
+		else if (family == AF_UNSPEC)
+			family = AF_INET6;
+
+		if ((listenfd = socket(family, sock_type, 0)) == -1) {
+			printf ("Unable to create socket, errno %d (%m)\n", errno);
+			exit(1);
 		}
 
-		if (inet_pton(family, addr_str, addr_buf) != 1) {
-			printf("(%d) Invalid IPv%d address - %s\n", getpid(),  family == AF_INET ? 4 : 6, addr_str);
-			exit (1);
+		if (linger_timeout) {
+			struct linger li = { .l_onoff = 1, .l_linger = linger_timeout };
+			if (setsockopt(listenfd, SOL_SOCKET, SO_LINGER, (char *)&li, sizeof (struct linger))) {
+				printf("(%d) Set SO_LINGER failed, errno %d (%m)\n", getpid(),  errno);
+				exit(1);
+			}
 		}
-	}
-	else if (family == AF_UNSPEC)
-		family = AF_INET6;
 
-	if ((listenfd = socket(family, sock_type, 0)) == -1) {
-		printf ("Unable to create socket, errno %d (%m)\n", errno);
-		exit(1);
-	}
-
-	struct linger li = { .l_onoff = 1, .l_linger = 1 };
-	if (setsockopt(listenfd, SOL_SOCKET, SO_LINGER, (char *)&li, sizeof (struct linger))) {
-		printf("(%d) Set SO_LINGER failed, errno %d (%m)\n", getpid(),  errno);
-		exit(1);
-	}
-
-	if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &li.l_onoff, sizeof (li.l_onoff))) {
-		printf("(%d) Set SO_REUSEADDR failed, errno %d (%m)\n", getpid(),  errno);
-		exit(1);
-	}
+		int reuse = 1;
+		if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof (reuse))) {
+			printf("(%d) Set SO_REUSEADDR failed, errno %d (%m)\n", getpid(),  errno);
+			exit(1);
+		}
 
 #ifdef TCP_FASTOPEN
-	if (tcp_fastopen) {
-		if (setsockopt(listenfd, SOL_TCP, TCP_FASTOPEN, &tcp_fastopen, sizeof(tcp_fastopen))) {
-			printf("(%d) Set TCP_FASTOPEN failed, errno %d (%m)\n", getpid(),  errno);
-			exit(1);
+		if (tcp_fastopen) {
+			if (setsockopt(listenfd, SOL_TCP, TCP_FASTOPEN, &tcp_fastopen, sizeof(tcp_fastopen))) {
+				printf("(%d) Set TCP_FASTOPEN failed, errno %d (%m)\n", getpid(),  errno);
+				exit(1);
+			}
 		}
-	}
 #endif
 
-	if (family == AF_INET) {
-		bzero(&servaddr, sizeof(servaddr));
-		servaddr.sin_family = AF_INET;
-		servaddr.sin_addr.s_addr = addr_str ? *(uint32_t*)addr_buf : htonl(INADDR_ANY);
-		servaddr.sin_port = htons(port);
+		if (family == AF_INET) {
+			bzero(&servaddr, sizeof(servaddr));
+			servaddr.sin_family = AF_INET;
+			servaddr.sin_addr.s_addr = addr_str ? *(uint32_t*)addr_buf : htonl(INADDR_ANY);
+			servaddr.sin_port = htons(port);
 
-		if (bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr))) {
-			printf ("bind returned %d (%m)\n", errno);
-			exit(1);
-		}
-	} else {
-		bzero(&servaddr6, sizeof(servaddr6));
-		servaddr6.sin6_family = AF_INET6;
-		servaddr6.sin6_addr = addr_str ? *(struct in6_addr *)addr_buf : in6addr_any;
-		servaddr6.sin6_port = htons(port);
+			if (bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr))) {
+				printf ("bind returned %d (%m)\n", errno);
+				exit(1);
+			}
+		} else {
+			bzero(&servaddr6, sizeof(servaddr6));
+			servaddr6.sin6_family = AF_INET6;
+			servaddr6.sin6_addr = addr_str ? *(struct in6_addr *)addr_buf : in6addr_any;
+			servaddr6.sin6_port = htons(port);
 
-		if (bind(listenfd, (struct sockaddr *)&servaddr6, sizeof(servaddr6))) {
-			printf ("bind returned %d (%m)\n", errno);
-			exit(1);
+			if (bind(listenfd, (struct sockaddr *)&servaddr6, sizeof(servaddr6))) {
+				printf ("bind returned %d (%m)\n", errno);
+				exit(1);
+			}
 		}
 	}
 
@@ -525,14 +560,17 @@ int main(int argc, char **argv)
 			if (family == AF_INET) {
 				clilen = sizeof (cliaddr);
 				connfd = accept(listenfd, (struct sockaddr *)&cliaddr, &clilen);
-			}
-			else {
+				client_port = ntohs(cliaddr.sin_port);
+				inet_ntop(AF_INET, &cliaddr.sin_addr, client_addr_buf, sizeof(client_addr_buf));
+			} else {
 				clilen = sizeof (cliaddr6);
 				connfd = accept(listenfd, (struct sockaddr *)&cliaddr6, &clilen);
+				client_port = ntohs(cliaddr6.sin6_port);
+				inet_ntop(AF_INET6, &cliaddr6.sin6_addr, client_addr_buf, sizeof(client_addr_buf));
 			}
 
 			if (!silent && (!(++connection_num % connection_mod) || connection_num == 1))
-				printf("(%d) Received connection %lu\n", getpid(), connection_num);
+				printf("(%d) Received connection %lu from %s:%u\n", getpid(), connection_num, client_addr_buf, client_port);
 			if ((childpid = fork()) == 0) {
 				close(listenfd);
 
@@ -548,24 +586,29 @@ int main(int argc, char **argv)
 
 			close(connfd);
 		}
-	}
-	else
-	{
+	} else if (sock_type == SOCK_DGRAM) {
 		for (;;) {
 			if (family == AF_INET) {
 				clilen = sizeof (cliaddr);
 				n = recvfrom(listenfd, buf, sizeof(buf), 0, (struct sockaddr *)&cliaddr, &clilen);
+				client_port = ntohs(cliaddr.sin_port);
+				inet_ntop(AF_INET, &cliaddr.sin_addr, client_addr_buf, sizeof(client_addr_buf));
 				if (echo_data)
 					sendto(listenfd, buf, n, 0, (struct sockaddr *)&cliaddr, clilen);
 			}
 			else {
 				clilen = sizeof (cliaddr6);
 				n = recvfrom(listenfd, buf, sizeof(buf), 0, (struct sockaddr *)&cliaddr6, &clilen);
+				client_port = ntohs(cliaddr6.sin6_port);
+				inet_ntop(AF_INET, &cliaddr6.sin6_addr, client_addr_buf, sizeof(client_addr_buf));
 				if (echo_data)
 					sendto(listenfd, buf, n, 0, (struct sockaddr *)&cliaddr6, clilen);
 			}
 			if (!silent)
-				printf("(%d) Received %d bytes\n", getpid(),  n);
+				printf("(%d) Received %d bytes from %s:%u\n", getpid(), n, client_addr_buf, client_port);
 		}
+	} else {
+		/* SOCK_RAW => stdin/out */
+		process_data(fileno(stdin), swallow_data);
 	}
 }

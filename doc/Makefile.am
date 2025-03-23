@@ -10,9 +10,9 @@ endif
 EXTRA_DIST	= source samples keepalived.conf.SYNOPSIS NOTE_vrrp_vmac.txt KEEPALIVED-MIB.txt VRRP-MIB.txt VRRPv3-MIB.txt
 
 sampledir	= @SAMPLES_DIR@
-sample_DATA	= $(srcdir)/samples/*
+sample_DATA	= @srcdir@/samples/*
 
-mibsdir		= $(datarootdir)/snmp/mibs
+mibsdir		= @datarootdir@/snmp/mibs
 mibs_DATA	=
 if SNMP_KEEPALIVED
 mibs_DATA	+= KEEPALIVED-MIB.txt
@@ -53,7 +53,7 @@ BUILDDIR	= build
 
 
 # Internal variables.
-PAPEROPT	= -D latex_paper_size=$(PAPER)
+PAPEROPT	= -D latexelements.papersize=$(PAPER)paper
 ALLSPHINXOPTS   = -d $(BUILDDIR)/doctrees $(PAPEROPT) $(SPHINXOPTS) source
 # the i18n builder cannot share the environment and doctrees with the others
 I18NSPHINXOPTS  = $(PAPEROPT) $(SPHINXOPTS) source

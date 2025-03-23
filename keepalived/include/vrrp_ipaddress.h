@@ -77,7 +77,8 @@ typedef struct _ip_address {
 #ifdef _WITH_NFTABLES_
 	bool			nftable_rule_set;	/* TRUE if in nftables set */
 #endif
-	bool			garp_gna_pending;	/* Is a gratuitous ARP/NA message still to be sent */
+	unsigned		garp_gna_pending;	/* Number of GARPs/GNAs still to be sent */
+	list_head_t		garp_gna_list;
 	uint32_t		preferred_lft;		/* IPv6 preferred_lft (0 means address deprecated) */
 
 	/* linked list member */
@@ -116,5 +117,6 @@ extern void get_diff_address(vrrp_t *, vrrp_t *, list_head_t *);
 extern void clear_address_list(list_head_t *, bool);
 extern void clear_diff_static_addresses(void);
 extern void reinstate_static_address(ip_address_t *);
+extern void set_addrproto(void);
 
 #endif

@@ -158,25 +158,20 @@ ssize_t send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
 	return len;
 }
 
-static void queue_garp(vrrp_t *vrrp, interface_t *ifp, ip_address_t *ipaddress)
+static void
+queue_garp(interface_t *ifp, ip_address_t *ipaddress)
 {
-	timeval_t next_time = timer_add_now(ifp->garp_delay->garp_interval);
 
-	vrrp->garp_pending = true;
-	ipaddress->garp_gna_pending = true;
+	ipaddress->garp_gna_pending = 1;
 
-	/* Do we need to reschedule the garp thread? */
-	if (!garp_thread || timercmp(&next_time, &garp_next_time, <)) {
-		if (garp_thread)
-			thread_cancel(garp_thread);
+	if (list_empty(&ifp->garp_delay->garp_list))
+		thread_add_timer(master, vrrp_arp_thread, ifp, timer_long(timer_sub_now(ifp->garp_delay->garp_next_time)));
 
-		garp_next_time = next_time;
-
-		garp_thread = thread_add_timer(master, vrrp_arp_thread, NULL, timer_long(timer_sub_now(garp_next_time)));
-	}
+	list_add_tail(&ipaddress->garp_gna_list, &ifp->garp_delay->garp_list);
 }
 
-void send_gratuitous_arp(vrrp_t *vrrp, ip_address_t *ipaddress)
+void
+send_gratuitous_arp(ip_address_t *ipaddress, unsigned rep)
 {
 	interface_t *ifp = IF_BASE_IFP(ipaddress->ifp);
 
@@ -184,19 +179,22 @@ void send_gratuitous_arp(vrrp_t *vrrp, ip_address_t *ipaddress)
 	if (ifp->ifi_flags & IFF_NOARP)
 		return;
 
+	if (ipaddress->garp_gna_pending) {
+		if (ipaddress->garp_gna_pending < rep)
+			ipaddress->garp_gna_pending++;
+		return;
+	}
+
 	set_time_now();
 
 	/* Do we need to delay sending the garp? */
 	if (ifp->garp_delay &&
 	    ifp->garp_delay->have_garp_interval &&
-	    ifp->garp_delay->garp_next_time.tv_sec) {
-		if (timercmp(&time_now, &ifp->garp_delay->garp_next_time, <)) {
-			queue_garp(vrrp, ifp, ipaddress);
-			return;
-		}
-	}
-
-	send_gratuitous_arp_immediate(ifp, ipaddress);
+	    ifp->garp_delay->garp_next_time.tv_sec &&
+	    timercmp(&time_now, &ifp->garp_delay->garp_next_time, <))
+		queue_garp(ifp, ipaddress);
+	else
+		send_gratuitous_arp_immediate(ifp, ipaddress);
 }
 
 /*

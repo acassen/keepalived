@@ -43,7 +43,6 @@
 #include "main.h"
 #include "global_data.h"
 #include "daemon.h"
-#include "config.h"
 #ifndef _ONE_PROCESS_DEBUG_
 #include "config_notify.h"
 #endif
@@ -83,7 +82,6 @@
 #include "namespaces.h"
 #include "scheduler.h"
 #include "keepalived_netlink.h"
-#include "git-commit.h"
 #if defined THREAD_DUMP || defined _EPOLL_DEBUG_ || defined _EPOLL_THREAD_DUMP_ || defined _SCRIPT_DEBUG_
 #include "scheduler.h"
 #endif
@@ -118,6 +116,9 @@
 #ifdef _USE_SYSTEMD_NOTIFY_
 #include "systemd.h"
 #endif
+#ifdef _WITH_SANITIZER_
+#include "sanitizer.h"
+#endif
 #include "warnings.h"
 
 #define CHILD_WAIT_SECS	5
@@ -148,22 +149,18 @@ static const struct child_term children_term[] = {
 const char *version_string = VERSION_STRING;		/* keepalived version */
 const char *conf_file;					/* Configuration file */
 bool reload;						/* Set during a reload */
-const char *main_pidfile;				/* overrule default pidfile */
-static bool free_main_pidfile;
+struct pidfile main_pidfile = { .fd = -1 };		/* overrule default pidfile */
 #ifdef _WITH_LVS_
 pid_t checkers_child;					/* Healthcheckers child process ID */
-const char *checkers_pidfile;				/* overrule default pidfile */
-static bool free_checkers_pidfile;
+struct pidfile checkers_pidfile = { .fd = -1 };		/* overrule default pidfile */
 #endif
 #ifdef _WITH_VRRP_
 pid_t vrrp_child;					/* VRRP child process ID */
-const char *vrrp_pidfile;				/* overrule default pidfile */
-static bool free_vrrp_pidfile;
+struct pidfile vrrp_pidfile = { .fd = -1 };		/* overrule default pidfile */
 #endif
 #ifdef _WITH_BFD_
 pid_t bfd_child;					/* BFD child process ID */
-const char *bfd_pidfile;				/* overrule default pidfile */
-static bool free_bfd_pidfile;
+struct pidfile bfd_pidfile = { .fd = -1 };		/* overrule default pidfile */
 #endif
 unsigned long daemon_mode;				/* VRRP/CHECK/BFD subsystem selection */
 #ifdef _WITH_SNMP_
@@ -172,6 +169,7 @@ const char *snmp_socket;				/* Socket to use for SNMP agent */
 #endif
 static const char *syslog_ident;			/* syslog ident if not default */
 bool use_pid_dir;					/* Put pid files in /run/keepalived or @localstatedir@/run/keepalived */
+bool children_started;					/* Set once children have been run first time */
 
 unsigned os_major;					/* Kernel version */
 unsigned os_minor;
@@ -210,6 +208,9 @@ static bool set_core_dump_pattern = false;
 static bool create_core_dump = false;
 static const char *core_dump_pattern = "core";
 static char *orig_core_dump_pattern = NULL;
+
+/* Signal handling */
+bool ignore_sigint = false;
 
 /* debug flags */
 #if defined _TIMER_CHECK_ || \
@@ -315,30 +316,16 @@ free_parent_mallocs_startup(bool am_child)
 		free_notify_script(&global_data->startup_script);
 		free_notify_script(&global_data->shutdown_script);
 	}
-
-	if (free_main_pidfile) {
-		FREE_CONST_PTR(main_pidfile);
-		free_main_pidfile = false;
-	}
 }
 
 void
 free_parent_mallocs_exit(void)
 {
-#ifdef _WITH_VRRP_
-	if (free_vrrp_pidfile)
-		FREE_CONST_PTR(vrrp_pidfile);
-#endif
-#ifdef _WITH_LVS_
-	if (free_checkers_pidfile)
-		FREE_CONST_PTR(checkers_pidfile);
-#endif
-#ifdef _WITH_BFD_
-	if (free_bfd_pidfile)
-		FREE_CONST_PTR(bfd_pidfile);
-#endif
-
 	FREE_CONST_PTR(config_id);
+
+#ifdef _REPRODUCIBLE_BUILD_
+	FREE_CONST_PTR(config_opts);
+#endif
 }
 
 const char *
@@ -506,20 +493,20 @@ stop_keepalived(void)
 
 #ifdef _WITH_VRRP_
 	if (__test_bit(DAEMON_VRRP, &daemon_mode))
-		pidfile_rm(vrrp_pidfile);
+		pidfile_close(&vrrp_pidfile, true);
 #endif
 
 #ifdef _WITH_LVS_
 	if (__test_bit(DAEMON_CHECKERS, &daemon_mode))
-		pidfile_rm(checkers_pidfile);
+		pidfile_close(&checkers_pidfile, true);
 #endif
 
 #ifdef _WITH_BFD_
 	if (__test_bit(DAEMON_BFD, &daemon_mode))
-		pidfile_rm(bfd_pidfile);
+		pidfile_close(&bfd_pidfile, true);
 #endif
 
-	pidfile_rm(main_pidfile);
+	pidfile_rm(&main_pidfile);
 #endif
 }
 
@@ -552,7 +539,8 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 		start_check_child();
 		have_child = true;
 		num_reloading++;
-	}
+	} else
+		pidfile_rm(&checkers_pidfile);
 #endif
 #ifdef _WITH_VRRP_
 	/* start vrrp child */
@@ -560,7 +548,8 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 		start_vrrp_child();
 		have_child = true;
 		num_reloading++;
-	}
+	} else
+		pidfile_rm(&vrrp_pidfile);
 #endif
 #ifdef _WITH_BFD_
 	/* start bfd child */
@@ -568,8 +557,11 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 		start_bfd_child();
 		have_child = true;
 		num_reloading++;
-	}
+	} else
+		pidfile_rm(&bfd_pidfile);
 #endif
+
+	children_started = true;
 
 #ifndef _ONE_PROCESS_DEBUG_
 	/* Do we have a reload file to monitor */
@@ -839,7 +831,7 @@ static bool reload_config(void)
 
 	if (unsupported_change) {
 		/* We cannot reload the configuration, so continue with the old config */
-		free_global_data (global_data);
+		free_global_data(&global_data);
 		global_data = old_global_data;
 	}
 	else {
@@ -848,7 +840,7 @@ static bool reload_config(void)
 		    (global_data->process_name && strcmp(global_data->process_name, old_global_data->process_name)))
 			set_process_name(global_data->process_name);
 
-		free_global_data (old_global_data);
+		free_global_data(&old_global_data);
 	}
 
 	/* There is no point checking the script security of the
@@ -884,7 +876,7 @@ print_parent_data(__attribute__((unused)) thread_ref_t thread)
 
 	log_message(LOG_INFO, "Printing parent data for process(%d) on signal", getpid());
 
-	fp = open_dump_file("keepalived_parent.data");
+	fp = open_dump_file("_parent");
 
 	if (!fp)
 		return;
@@ -990,7 +982,7 @@ reload_check_child_thread(thread_ref_t thread)
 static void
 start_validate_reload_conf_child(void)
 {
-	notify_script_t script;
+	notify_script_t script = { .path = NULL };
 	int i;
 	int ret;
 	int argc;
@@ -1001,6 +993,7 @@ start_validate_reload_conf_child(void)
 	int fd;
 	int len;
 	char exe_buf[128];
+	struct stat sb;
 
 	exe_buf[sizeof(exe_buf) - 1] = '\0';
 	ret = readlink("/proc/self/exe", exe_buf, sizeof(exe_buf));
@@ -1055,8 +1048,13 @@ start_validate_reload_conf_child(void)
 	script.uid = 0;
 	script.gid = 0;
 
-	if (truncate(global_data->reload_check_config, 0) && errno != ENOENT)
-		log_message(LOG_INFO, "truncate of config check log %s failed (%d) - %m", global_data->reload_check_config, errno);
+	if (truncate(global_data->reload_check_config, 0) && errno != ENOENT) {
+		/* The file exists, but truncate failed. It might be a character
+		 * device like /dev/null. truncate() returns EINVAL in this case. */
+		if (stat(global_data->reload_check_config, &sb) ||
+		    !S_ISCHR(sb.st_mode))
+			log_message(LOG_INFO, "truncate of config check log %s failed (%d) - %m", global_data->reload_check_config, errno);
+	}
 
 	create_reload_file();
 
@@ -1279,7 +1277,10 @@ signal_init(void)
 #ifdef _WITH_JSON_
 	signal_set(SIGJSON, propagate_signal, NULL);
 #endif
-	signal_set(SIGINT, sigend, NULL);
+	if (ignore_sigint)
+		signal_ignore(SIGINT);
+	else
+		signal_set(SIGINT, sigend, NULL);
 	signal_set(SIGTERM, sigend, NULL);
 #ifdef THREAD_DUMP
 	signal_set(SIGTDUMP, thread_dump_signal, NULL);
@@ -1771,6 +1772,41 @@ report_distro(void)
 	fclose(fp);
 }
 
+#ifdef _REPRODUCIBLE_BUILD_
+static char *
+read_config_opts(const char *filename)
+{
+	struct stat statbuf;
+	int fd;
+	char *opts_buf;
+
+	if (stat(filename, &statbuf))
+		return NULL;
+
+	if ((fd = open(filename, O_RDONLY)) == -1) {
+		fprintf(stderr, "Failed to open %s\n", filename);
+		return NULL;
+	}
+
+	opts_buf = malloc(statbuf.st_size);
+
+	/* Read, skipping trailing \n */
+	if (read(fd, opts_buf, statbuf.st_size - 1) != statbuf.st_size - 1) {
+		fprintf(stderr, "Failed to read %s\n", filename);
+
+		close(fd);
+		free(opts_buf);
+
+		return NULL;
+	}
+
+	opts_buf[statbuf.st_size - 1] = '\0';
+	close(fd);
+
+	return opts_buf;
+}
+#endif
+
 /* Usage function */
 static void
 usage(const char *prog)
@@ -1841,6 +1877,7 @@ usage(const char *prog)
 	fprintf(stderr, "  -i, --config-id id           Skip any configuration lines beginning '@' that don't match id\n"
 			"                                or any lines beginning @^ that do match.\n"
 			"                                The config-id defaults to the node name if option not used\n");
+	fprintf(stderr, "      --ignore-sigint          ignore SIGINT (default means terminate) - used for debugging with GDB\n");
 	fprintf(stderr, "      --signum=SIGFUNC         Return signal number for STOP, RELOAD, DATA, STATS, STATS_CLEAR"
 #ifdef _WITH_JSON_
 								", JSON"
@@ -2006,6 +2043,7 @@ parse_cmdline(int argc, char **argv)
 		{"signum",		required_argument,	NULL,  4 },
 		{"config-test",		optional_argument,	NULL, 't'},
 		{"config-fd",		required_argument,	NULL,  8 },
+		{"ignore-sigint",	no_argument,		NULL,  9 },
 #ifdef _WITH_PERF_
 		{"perf",		optional_argument,	NULL,  5 },
 #endif
@@ -2071,7 +2109,7 @@ parse_cmdline(int argc, char **argv)
 			fprintf(stderr, "Running on %s %s %s\n", uname_buf.sysname, uname_buf.release, uname_buf.version);
 			report_distro();
 			fprintf(stderr, "\n");
-			fprintf(stderr, "configure options: %s\n\n", KEEPALIVED_CONFIGURE_OPTIONS);
+			fprintf(stderr, "configure options: %s\n\n", config_opts);
 			fprintf(stderr, "Config options: %s\n\n", CONFIGURATION_OPTIONS);
 			fprintf(stderr, "System options: %s\n", SYSTEM_OPTIONS);
 			exit(0);
@@ -2201,11 +2239,11 @@ parse_cmdline(int argc, char **argv)
 			break;
 #endif
 		case 'p':
-			main_pidfile = optarg;
+			main_pidfile.path = optarg;
 			break;
 #ifdef _WITH_LVS_
 		case 'c':
-			checkers_pidfile = optarg;
+			checkers_pidfile.path = optarg;
 			break;
 		case 'a':
 			__set_bit(LOG_ADDRESS_CHANGES, &debug);
@@ -2213,12 +2251,12 @@ parse_cmdline(int argc, char **argv)
 #endif
 #ifdef _WITH_VRRP_
 		case 'r':
-			vrrp_pidfile = optarg;
+			vrrp_pidfile.path = optarg;
 			break;
 #endif
 #ifdef _WITH_BFD_
 		case 'b':
-			bfd_pidfile = optarg;
+			bfd_pidfile.path = optarg;
 			break;
 #endif
 #ifdef _WITH_SNMP_
@@ -2233,7 +2271,7 @@ parse_cmdline(int argc, char **argv)
 			set_core_dump_pattern = true;
 			if (optarg && optarg[0])
 				core_dump_pattern = optarg;
-			__fallthrough;
+			/* FALLTHROUGH */
 		case 'm':
 			create_core_dump = true;
 			break;
@@ -2311,6 +2349,9 @@ parse_cmdline(int argc, char **argv)
 		case 8:
 			set_config_fd(atoi(optarg));
 			break;
+		case 9:
+			ignore_sigint = true;
+			break;
 		case '?':
 			if (optopt && argv[curind][1] != '-')
 				fprintf(stderr, "Unknown option -%c\n", optopt);
@@ -2387,6 +2428,7 @@ register_parent_thread_addresses(void)
 	register_thread_address("startup_script_completed", startup_script_completed);
 	register_thread_address("shutdown_script_completed", shutdown_script_completed);
 	register_thread_address("run_startup_script", run_startup_script);
+	register_thread_address("print_parent_data", print_parent_data);
 }
 #endif
 
@@ -2412,6 +2454,33 @@ keepalived_main(int argc, char **argv)
 		check_genhash(true, argc, argv);
 		/* Not reached */
 	}
+#endif
+
+#ifdef _WITH_SANITIZER_
+	sanitizer_init();
+#endif
+
+#ifdef _REPRODUCIBLE_BUILD_
+	char *config_opts_read;
+
+	if (!(config_opts_read = read_config_opts(CONFIG_OPTS_FILE_PRIMARY))) {
+		/* Look for the config-opts file in same location as executable */
+		const char *suffix = ".config-opts";
+		char *file = malloc(strlen(argv[0]) + strlen(suffix) + 1);
+
+		strcpy(file, argv[0]);
+		strcat(file, suffix);
+
+		config_opts_read = read_config_opts(file);
+		free(file);
+	}
+
+	if (!config_opts_read) {
+		fprintf(stderr, "Unable to read build config options file\n");
+		exit(1);
+	}
+
+	config_opts = config_opts_read;
 #endif
 
 #ifdef _MEM_CHECK_
@@ -2514,6 +2583,13 @@ keepalived_main(int argc, char **argv)
 
 	/* Handle any core file requirements */
 	core_dump_init();
+
+#ifdef _REPRODUCIBLE_BUILD_
+	/* We want to use our MALLOC functions */
+	char *new_config_opts_str = STRDUP(config_opts);
+	free(config_opts_read);
+	config_opts = new_config_opts_str;
+#endif
 
 	if (os_major) {
 		if (KERNEL_VERSION(os_major, os_minor, os_release) < LINUX_VERSION_CODE) {
@@ -2642,53 +2718,53 @@ keepalived_main(int argc, char **argv)
 
 	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
 		if (global_data->instance_name) {
-			if (!main_pidfile && (main_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-				free_main_pidfile = true;
+			if (!main_pidfile.path && (main_pidfile.path = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, global_data->instance_name, PID_EXTENSION)))
+				main_pidfile.free_path = true;
 #ifdef _WITH_LVS_
-			if (!checkers_pidfile && (checkers_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR CHECKERS_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-				free_checkers_pidfile = true;
+			if (!checkers_pidfile.path && (checkers_pidfile.path = make_pidfile_name(KEEPALIVED_PID_DIR CHECKERS_PID_FILE, global_data->instance_name, PID_EXTENSION)))
+				checkers_pidfile.free_path = true;
 #endif
 #ifdef _WITH_VRRP_
-			if (!vrrp_pidfile && (vrrp_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-				free_vrrp_pidfile = true;
+			if (!vrrp_pidfile.path && (vrrp_pidfile.path = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, global_data->instance_name, PID_EXTENSION)))
+				vrrp_pidfile.free_path = true;
 #endif
 #ifdef _WITH_BFD_
-			if (!bfd_pidfile && (bfd_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR BFD_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-				free_bfd_pidfile = true;
+			if (!bfd_pidfile.path && (bfd_pidfile.path = make_pidfile_name(KEEPALIVED_PID_DIR BFD_PID_FILE, global_data->instance_name, PID_EXTENSION)))
+				bfd_pidfile.free_path = true;
 #endif
 		}
 
 		if (use_pid_dir) {
-			if (!main_pidfile)
-				main_pidfile = KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
+			if (!main_pidfile.path)
+				main_pidfile.path = KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
 #ifdef _WITH_LVS_
-			if (!checkers_pidfile)
-				checkers_pidfile = KEEPALIVED_PID_DIR CHECKERS_PID_FILE PID_EXTENSION;
+			if (!checkers_pidfile.path)
+				checkers_pidfile.path = KEEPALIVED_PID_DIR CHECKERS_PID_FILE PID_EXTENSION;
 #endif
 #ifdef _WITH_VRRP_
-			if (!vrrp_pidfile)
-				vrrp_pidfile = KEEPALIVED_PID_DIR VRRP_PID_FILE PID_EXTENSION;
+			if (!vrrp_pidfile.path)
+				vrrp_pidfile.path = KEEPALIVED_PID_DIR VRRP_PID_FILE PID_EXTENSION;
 #endif
 #ifdef _WITH_BFD_
-			if (!bfd_pidfile)
-				bfd_pidfile = KEEPALIVED_PID_DIR BFD_PID_FILE PID_EXTENSION;
+			if (!bfd_pidfile.path)
+				bfd_pidfile.path = KEEPALIVED_PID_DIR BFD_PID_FILE PID_EXTENSION;
 #endif
 		}
 		else
 		{
-			if (!main_pidfile)
-				main_pidfile = RUNSTATEDIR "/" KEEPALIVED_PID_FILE PID_EXTENSION;
+			if (!main_pidfile.path)
+				main_pidfile.path = RUNSTATEDIR "/" KEEPALIVED_PID_FILE PID_EXTENSION;
 #ifdef _WITH_LVS_
-			if (!checkers_pidfile)
-				checkers_pidfile = RUNSTATEDIR "/" CHECKERS_PID_FILE PID_EXTENSION;
+			if (!checkers_pidfile.path)
+				checkers_pidfile.path = RUNSTATEDIR "/" CHECKERS_PID_FILE PID_EXTENSION;
 #endif
 #ifdef _WITH_VRRP_
-			if (!vrrp_pidfile)
-				vrrp_pidfile = RUNSTATEDIR "/" VRRP_PID_FILE PID_EXTENSION;
+			if (!vrrp_pidfile.path)
+				vrrp_pidfile.path = RUNSTATEDIR "/" VRRP_PID_FILE PID_EXTENSION;
 #endif
 #ifdef _WITH_BFD_
-			if (!bfd_pidfile)
-				bfd_pidfile = RUNSTATEDIR "/" BFD_PID_FILE PID_EXTENSION;
+			if (!bfd_pidfile.path)
+				bfd_pidfile.path = RUNSTATEDIR "/" BFD_PID_FILE PID_EXTENSION;
 #endif
 		}
 
@@ -2706,12 +2782,26 @@ keepalived_main(int argc, char **argv)
 	}
 
 	/* daemonize process */
-	if (!__test_bit(DONT_FORK_BIT, &debug) && xdaemon() > 0) {
-		closelog();
-		FREE_CONST_PTR(config_id);
-		FREE_PTR(orig_core_dump_pattern);
-		close_std_fd();
-		exit(0);
+	if (!__test_bit(DONT_FORK_BIT, &debug)) {
+		pid_t old_ppid = getpid();
+
+		if (xdaemon() > 0) {
+			/* Parent process */
+			closelog();
+			FREE_CONST_PTR(config_id);
+			FREE_PTR(orig_core_dump_pattern);
+			close_std_fd();
+			exit(0);
+		}
+
+		/* Child process */
+
+		/* check_start_stop_script_secure() called below makes a check
+		 * that our parent process hasn't changed, but it can take a while
+		 * for the parent of the fork to exit which is when our parent pid
+		 * changes. We need to loop until that has happened. */
+		while (old_ppid == getppid())
+			usleep(10);
 	}
 
 #ifdef _MEM_CHECK_
@@ -2719,6 +2809,9 @@ keepalived_main(int argc, char **argv)
 #endif
 
 	if (global_data->startup_script || global_data->shutdown_script) {
+		/* This is a workaround for the check in check_start_stop_script_secure() */
+		main_pid = getppid();
+
 		magic = ka_magic_open();
 		script_flags = 0;
 		if (global_data->startup_script)
@@ -2741,7 +2834,7 @@ keepalived_main(int argc, char **argv)
 	}
 
 	/* write the father's pidfile */
-	if (!pidfile_write(main_pidfile, getpid()))
+	if (!pidfile_write(&main_pidfile))
 		goto end;
 
 	if (!global_data->max_auto_priority)
@@ -2793,7 +2886,8 @@ end:
 			getrusage(RUSAGE_SELF, &usage);
 			getrusage(RUSAGE_CHILDREN, &child_usage);
 
-			log_message(LOG_INFO, "CPU usage (self/children) user: %ld.%6.6ld/%ld.%6.6ld system: %ld.%6.6ld/%ld.%6.6ld",
+			log_message(LOG_INFO, "CPU usage (self/children) user: %" PRI_tv_sec ".%6.6" PRI_tv_usec "/%" PRI_tv_sec ".%6.6" PRI_tv_usec
+					" system: %" PRI_tv_sec ".%6.6" PRI_tv_usec "/%" PRI_tv_sec ".%6.6" PRI_tv_usec,
 					usage.ru_utime.tv_sec, usage.ru_utime.tv_usec, child_usage.ru_utime.tv_sec, child_usage.ru_utime.tv_usec,
 					usage.ru_stime.tv_sec, usage.ru_stime.tv_usec, child_usage.ru_stime.tv_sec, child_usage.ru_stime.tv_usec);
 		}
@@ -2817,7 +2911,7 @@ end:
 
 	free_parent_mallocs_startup(false);
 	free_parent_mallocs_exit();
-	free_global_data(global_data);
+	free_global_data(&global_data);
 
 	closelog();
 
@@ -2828,6 +2922,11 @@ end:
 	FREE_CONST_PTR(syslog_ident);
 #endif
 	close_std_fd();
+
+#ifdef _REPRODUCIBLE_BUILD_
+	FREE_CONST_PTR(config_opts);
+	config_opts = "removed";
+#endif
 
 	return exit_code;
 }

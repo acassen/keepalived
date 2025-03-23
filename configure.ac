@@ -94,9 +94,10 @@ m4_ifndef([AS_VAR_COPY],
 
 dnl ----[ Process this file with autoconf to produce a configure script ]----
 AC_PREREQ([2.63])
-AC_INIT([Keepalived], [2.2.7], [keepalived-users@groups.io], [], [http://www.keepalived.org/])
+AC_INIT([Keepalived], [2.3.2], [keepalived-users@groups.io], [], [http://www.keepalived.org/])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
+AC_LANG([C])
 AM_INIT_AUTOMAKE([-Wall -Werror -Woverride foreign])
 
 AC_CONFIG_SRCDIR([keepalived/core/main.c])
@@ -189,6 +190,8 @@ AC_ARG_ENABLE(clang,
   [AS_HELP_STRING([--enable-clang], [use clang compiler])])
 AC_ARG_ENABLE(lto,
   [AS_HELP_STRING([--enable-lto], [use Link Time Optimisation])])
+AC_ARG_ENABLE(reproducible-build,
+  [AS_HELP_STRING([--enable-reproducible-build], [make builds reproducible])])
 AC_ARG_WITH(init,
   [AS_HELP_STRING([--with-init=(upstart|systemd|SYSV|SUSE|openrc)], [specify init type])],
   [init_type="$withval"], [init_type=""])
@@ -231,6 +234,10 @@ AC_ARG_WITH(run-dir,
 AC_ARG_WITH(tmp-dir,
   [AS_HELP_STRING([--with-tmp-dir=PATH_TO_TMP], [specify directory where run-time temporary files are to be located])],
   [TMP_DIR_SPECIFIED=Y], [TMP_DIR_SPECIFIED=N])
+AC_ARG_WITH(iproute-usr-dir,
+  [AS_HELP_STRING([--with-iproute-usr-dir=PATH_TO_CONFIG_FILES], [specify usr directory iproute2 uses for config files])])
+AC_ARG_WITH(iproute-etc-dir,
+  [AS_HELP_STRING([--with-iproute-etc-dir=PATH_TO_CONFIG_FILES], [specify etc directory iproute2 uses for config files])])
 AC_ARG_ENABLE(strict-config-checks,
   [AS_HELP_STRING([--enable-strict-config-checks], [build with strict configuration checking])])
 AC_ARG_ENABLE(hardening,
@@ -261,6 +268,30 @@ AC_ARG_ENABLE(stacktrace,
   [AS_HELP_STRING([--enable-stacktrace], [compile with stacktrace support])])
 AC_ARG_ENABLE(perf,
   [AS_HELP_STRING([--enable-perf], [compile with perf performance data recording support for vrrp process])])
+AC_ARG_ENABLE(sanitize-address,
+  [AS_HELP_STRING([--enable-sanitize-address], [compile with sanitize=address (ASAN) support])])
+AC_ARG_ENABLE(sanitize-address-options,
+  [AS_HELP_STRING([--enable-sanitize-address-options], [compile with sanitize=address (ASAN) default options])])
+AC_ARG_ENABLE(sanitize-hwaddress,
+  [AS_HELP_STRING([--enable-sanitize-hwaddress], [compile with sanitize=hwaddress (HWASAN) support])])
+AC_ARG_ENABLE(sanitize-hwaddress-options,
+  [AS_HELP_STRING([--enable-sanitize-hwaddress-options], [compile with sanitize=hwaddress (HWASAN) default options])])
+AC_ARG_ENABLE(sanitize-undefined,
+  [AS_HELP_STRING([--enable-sanitize-undefined], [compile with sanitize=undefined (UBSAN) support])])
+AC_ARG_ENABLE(sanitize-undefined-options,
+  [AS_HELP_STRING([--enable-sanitize-undefined-options], [compile with sanitize=undefined (UBSAN) default options])])
+AC_ARG_ENABLE(sanitize-memory,
+  [AS_HELP_STRING([--enable-sanitize-memory], [compile with sanitize=memory (MSAN) support])])
+AC_ARG_ENABLE(sanitize-memory-options,
+  [AS_HELP_STRING([--enable-sanitize-memory-options], [compile with sanitize=memory (MSAN) default options])])
+AC_ARG_ENABLE(sanitize-leak,
+  [AS_HELP_STRING([--enable-sanitize-leak], [compile with sanitize=leak (LSAN) support])])
+AC_ARG_ENABLE(sanitize-leak-options,
+  [AS_HELP_STRING([--enable-sanitize-leak-options], [compile with sanitize=leak (LSAN) default options])])
+AC_ARG_ENABLE(sanitize-scudo,
+  [AS_HELP_STRING([--enable-sanitize-scudo], [compile with sanitize=scudo support])])
+AC_ARG_ENABLE(sanitize-scudo-options,
+  [AS_HELP_STRING([--enable-sanitize-scudo-options], [compile with sanitize=scudo default options])])
 AC_ARG_ENABLE(log-file,
   [AS_HELP_STRING([--enable-log-file], [enable logging to file (-g)])])
 AC_ARG_ENABLE(dump-threads,
@@ -329,6 +360,13 @@ AC_ARG_WITH([systemdsystemunitdir],
   [with_systemdsystemunitdir=auto])
 AC_ARG_WITH([dbus-data-dir],
   [AS_HELP_STRING([--with-dbus-data-dir=DIR], [Directory for Dbus interface files])])
+AC_ARG_ENABLE([cflags],
+  [AS_HELP_STRING([--enable-cflags=flags], [additional CFLAGS])])
+AC_ARG_ENABLE([cppflags],
+  [AS_HELP_STRING([--enable-cppflags=flags], [additional CPPFLAGS])])
+AC_ARG_ENABLE([ldflags],
+  [AS_HELP_STRING([--enable-ldflags=flags], [additional LDFLAGS])])
+
 
 # Set the kernel headers path
 if test -n "$kernel_src_path"; then
@@ -356,7 +394,7 @@ AS_IF([test -n "$with_samples_dir"],
     AS_IF([test $with_samples_dir = yes -o $with_samples_dir = no],
 	  [AC_MSG_ERROR([--with-samples-dir requires a directory])])
     SAMPLES_DIR=$with_samples_dir
-  ],[SAMPLES_DIR="\$(sysconfdir)/$PACKAGE/samples"])
+  ],[SAMPLES_DIR="\${sysconfdir}/$PACKAGE/samples"])
 AC_SUBST([SAMPLES_DIR])
 
 CPPFLAGS="$kernelinc $CPPFLAGS"
@@ -391,10 +429,69 @@ ENABLE_LOG_FILE_APPEND=No
 
 # AC_PROG_LIBTOOL
 
+# Ensure we don't override FORTIFY_SOURCE
+ADD_FORTIFY_SOURCE=1
+AC_MSG_CHECKING([if _FORTIFY_SOURCE is enabled])
+SAV_CFLAGS=$CFLAGS
+CFLAGS="$CFLAGS -O2"
+SAV_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS=$(echo $SAV_CPPFLAGS | sed -e "s/ [^ ]*-D *_FORTIFY_SOURCE=[0-9]*//")
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+  #include <stdio.h>
+  int main(void)
+  {
+    printf("%d", _FORTIFY_SOURCE);
+  }
+  ]])],
+  [
+    AC_MSG_RESULT([yes])
+    ADD_FORTIFY_SOURCE=0
+    FORTIFY_SOURCE=$(echo | $CC -O3 -dM -E - | grep _FORTIFY_SOURCE | sed -e "s/.* //")
+  ],
+  [
+    AC_MSG_RESULT([no])
+  ])
+CPPFLAGS=$SAV_CPPFLAGS
+CFLAGS=$SAV_CFLAGS
+AS_IF([test $ADD_FORTIFY_SOURCE -eq 1],
+  [
+    echo $CPPFLAGS | grep -q -- "-D *_FORTIFY_SOURCE="
+    AS_IF([test $? -eq 0],
+      [
+	FORTIFY_SOURCE=$(echo $CPPFLAGS | $SED -e "s/.*-D *_FORTIFY_SOURCE=//" -e "s/ .*//")
+	ADD_FORTIFY_SOURCE=0
+      ],
+      [
+	SAV_CFLAGS=$CFLAGS
+	SAV_CPPFLAGS=$CPPFLAGS
+	CFLAGS="$CFLAGS -Werror -O2"
+	CPPFLAGS="$SAV_CPPFLAGS -D_FORTIFY_SOURCE=3"
+	AC_COMPILE_IFELSE([
+	  AC_LANG_SOURCE([[
+	      #include <stdio.h>
+	      int main(void) {}
+	    ]])],
+	  [FORTIFY_SOURCE=3],
+	  [
+	    CPPFLAGS="$SAV_CPPFLAGS -D_FORTIFY_SOURCE=2"
+	    AC_COMPILE_IFELSE([
+	      AC_LANG_SOURCE([[
+		  #include <stdio.h>
+		  int main(void) {}
+		]])],
+	      [FORTIFY_SOURCE=2],
+	      [FORTIFY_SOURCE=1])
+	  ])
+	CPPFLAGS=$SAV_CPPFLAGS
+	CFLAGS=$SAV_CFLAGS
+      ])
+  ])
+
 #
 # save the configure arguments
 #
 args=`echo $ac_configure_args | $SED -e "s/'//g"`
+AS_IF([test .$enable_reproducible_build = .yes], [`echo $ac_configure_args | $SED -e "s/-ffile-prefix-map=[[^ ]]*//g"`])
 AC_DEFINE_UNQUOTED(KEEPALIVED_CONFIGURE_OPTIONS,"$args", [configure options specified])
 
 AS_IF([test .$enable_lto = .yes],
@@ -407,6 +504,11 @@ KA_CPPFLAGS="$kernelinc -D_GNU_SOURCE $CPPFLAGS"
 KA_CFLAGS="-g $CFLAGS"
 KA_LDFLAGS=$LDFLAGS
 KA_LIBS=$LDLIBS
+
+# Set any additional compiler flags
+AS_IF([test -n "$enable_cflags" -a "$enable_cflags" != no], [add_to_var([KA_CFLAGS], ["$enable_cflags"])])
+AS_IF([test -n "$enable_cppflags" -a "$enable_cppflags" != no], [add_to_var([KA_CPPFLAGS], ["$enable_cppflags"])])
+AS_IF([test -n "$enable_ldflags" -a "$enable_ldflags" != no], [add_to_var([KA_LDFLAGS], ["$enable_ldflags"])])
 
 # For reporting GCC bugs, uncomment the next two lines
 #KA_CPPFLAGS="$KA_CPPFLAGS -v -save-temps"
@@ -617,6 +719,61 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   ])
 CFLAGS=$SAV_CFLAGS
 
+dnl -- printing time types (32 bit Ubuntu uses long long int for time_t timeval tv_sec/tv_usec and timespec tv_sec - but timespec tv_nsec is long int!)
+dnl -- normally all the fields are long int
+AC_MSG_CHECKING([time print types])
+AH_TEMPLATE([PRI_time_t], [Define for print format for time_t])
+AH_TEMPLATE([PRI_tv_sec], [Define for print format for struct timeval tv_sec])
+AH_TEMPLATE([PRI_tv_usec], [Define for print format for struct timeval tv_usec])
+AH_TEMPLATE([PRI_ts_sec], [Define for print format for struct timespec tv_sec])
+AH_TEMPLATE([PRI_ts_nsec], [Define for print format for struct timespec tv_nsec])
+SAV_CFLAGS=$CFLAGS
+CFLAGS="$CFLAGS -Wformat -Wformat-signedness"
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+  int main(void)
+  {
+  }
+  ]])],
+  [
+    signs="d u"
+    WARN_SIGN="-Werror=format-signedness"
+  ],
+  [
+    signs="d"
+    WARN_SIGN=""
+  ])
+CFLAGS="$SAV_CFLAGS -Werror=format $WARN_SIGN"
+for field in t tv.tv_sec tv.tv_usec ts.tv_sec ts.tv_nsec; do
+  for sign in $signs; do
+    for len in "" l ll; do
+      AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+	#include <time.h>
+	#include <sys/time.h>
+	#include <stdio.h>
+
+	int main(void)
+	{
+	  time_t t = 1;
+	  struct timeval tv = { .tv_sec = 2 };
+	  struct timespec ts = { .tv_sec = 3 };
+
+	  printf("%$len$sign", $field);
+	}
+	]])],
+	[
+	  if [[ $field = t ]]; then
+	    name=time_t
+	  else
+	    name=$(echo $field | $SED -e "s/\.tv//")
+	  fi
+	  AC_DEFINE_UNQUOTED([PRI_$name], [ "$len$sign" ])
+	], [])
+    done
+  done
+done
+CFLAGS=$SAV_CFLAGS
+AC_MSG_RESULT([done])
+
 dnl -- Check for diagnostic pragmas in functions - GCC 4.6.0
 AC_MSG_CHECKING([diagnostic pragmas in functions])
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
@@ -667,7 +824,8 @@ if test "$enable_conversion_checks" = yes; then
   # Check if we can sensibly enable -Wconversion
   AC_MSG_CHECKING([for usable -Wconversion])
   SAV_CFLAGS="$CFLAGS"
-  CFLAGS="$CFLAGS -Wconversion -O2 -Wp,-D_FORTIFY_SOURCE=2 -Werror"
+  CFLAGS="$CFLAGS -Wconversion -O2 -Werror"
+  AS_IF([test $ADD_FORTIFY_SOURCE -eq 1], [CFLAGS="$CFLAGS -D_FORTIFY_SOURCE=$FORTIFY_SOURCE"])
   AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
     #include <sys/types.h>
     #include <sys/select.h>
@@ -901,7 +1059,6 @@ if test "$enable_hardening" != no; then
 
   for FLAG in \
 	  "-Wformat -Werror=format-security" \
-	  "-Wp,-D_FORTIFY_SOURCE=2" \
 	  "-fexceptions" \
 	  "-fstack-protector-strong" \
 	  "--param=ssp-buffer-size=4" \
@@ -916,6 +1073,19 @@ if test "$enable_hardening" != no; then
       [AC_MSG_RESULT([no])])
     CFLAGS=$SAV_CFLAGS
   done
+
+  AS_IF([test $ADD_FORTIFY_SOURCE -eq 1],
+    [
+      FLAG="-D_FORTIFY_SOURCE=$FORTIFY_SOURCE"
+      AC_MSG_CHECKING([for $FLAG support])
+      CFLAGS="$CFLAGS -O2 $FLAG"
+      AC_COMPILE_IFELSE(
+	[AC_LANG_SOURCE([[ ]])],
+	[AC_MSG_RESULT([yes])]
+	  add_to_var([KA_CFLAGS], [$FLAG]),
+	[AC_MSG_RESULT([no])])
+      CFLAGS=$SAV_CFLAGS
+    ])
 
   WL_FLAGS=
   for FLAG in \
@@ -1140,37 +1310,49 @@ AC_LINK_IFELSE([AC_LANG_SOURCE([[
 # Checks for header files.
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdint.h stdlib.h string.h sys/ioctl.h sys/param.h sys/prctl.h sys/socket.h sys/time.h syslog.h unistd.h],
   [], [AC_MSG_ERROR([Missing/unusable system header file <$ac_header>])])
+AS_IF([test .$enable_lvs != .no],
+  [AC_CHECK_HEADERS([net/if_arp.h],
+    [], [AC_MSG_ERROR([Missing/unusable <$ac_header> - is glibc headers package installed?])])
+  ])
 
 # check for kernel headers
 SAV_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $kernelinc"
 
-dnl -- linux/errqueue.h need sys/time.h before Linux < v5.1
-AC_MSG_CHECKING([linux/errqueue.h needs sys/time.h])
-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-  #include <fcntl.h>
-  #include <linux/errqueue.h>
+AC_CHECK_HEADERS([linux/types.h],
+  [], [AC_MSG_ERROR([Missing/unusable kernel header file <$ac_header> - is kernel headers package installed?])])
+AS_IF([test .$enable_vrrp != .no],
+  [
+    AC_CHECK_HEADERS([linux/ethtool.h linux/if_ether.h linux/if_packet.h linux/ip.h linux/sockios.h],
+      [], [AC_MSG_ERROR([Missing/unusable kernel header file <$ac_header> - is kernel headers package installed?])])
+    AC_CHECK_HEADERS([linux/fib_rules.h linux/if_addr.h linux/if_link.h],
+      [], [AC_MSG_ERROR([Missing/unusable kernel header file <$ac_header> - is kernel headers package installed?])],
+      [[$NETLINK_EXTRA_INCLUDE]])
+  ])
+AS_IF([test .$enable_lvs != .no],
+  [
+    AC_CHECK_HEADERS([linux/icmp.h linux/icmpv6.h linux/errqueue.h],
+      [], [AC_MSG_ERROR([Missing/unusable kernel header file <$ac_header> - is kernel headers package installed?])])
 
-  int main(void)
-  {
-  }
-  ]])],
-  [
-    AC_MSG_RESULT([no])
-  ],
-  [
-    AC_MSG_RESULT([yes])
-    AC_DEFINE([ERRQUEUE_NEEDS_SYS_TIME], [ 1 ], [Define to 1 if linux/errqueue.h needs sys/time.h])
+    dnl -- linux/errqueue.h need sys/time.h before Linux < v5.1
+    AC_MSG_CHECKING([linux/errqueue.h needs sys/time.h])
+    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+      #include <fcntl.h>
+      #include <linux/errqueue.h>
+
+      int main(void)
+      {
+      }
+      ]])],
+      [
+	AC_MSG_RESULT([no])
+      ],
+      [
+	AC_MSG_RESULT([yes])
+	AC_DEFINE([ERRQUEUE_NEEDS_SYS_TIME], [ 1 ], [Define to 1 if linux/errqueue.h needs sys/time.h])
+      ])
   ])
 
-AC_CHECK_HEADERS([asm/types.h linux/ethtool.h linux/icmpv6.h linux/if_ether.h linux/if_packet.h linux/ip.h linux/sockios.h linux/types.h],
-  [], [AC_MSG_ERROR([Missing/unusable kernel header file <$ac_header>])])
-AC_CHECK_HEADERS([linux/fib_rules.h linux/if_addr.h linux/if_link.h],
-  [], [AC_MSG_ERROR([Missing/unusable kernel header file <$ac_header>])],
-  [[$NETLINK_EXTRA_INCLUDE]])
-AC_CHECK_HEADERS([linux/if_arp.h],
-  [], [AC_MSG_ERROR([Missing/unusable <$ac_header>])],
-  [[#include <sys/socket.h>]])
 CPPFLAGS="$SAV_CPPFLAGS"
 
 # Checks for typedefs, structures, and compiler characteristics.
@@ -1298,12 +1480,21 @@ AC_CHECK_DECLS([ETHERTYPE_IPV6], [],
   ],
   [[#include <net/ethernet.h>]])
 
+# IPV6_FREEBIND - added Linux v4.15
+AS_IF([test .$enable_vrrp != .no],
+  [
+    AC_CHECK_DECLS([IPV6_FREEBIND],
+      [add_system_opt([IPV6_FREEBIND])],
+      [],
+      [[#include <linux/in6.h>]])
+  ])
+
 # IPV6_MULTICAST_ALL - added Linux v4.20
 AC_CHECK_DECLS([IPV6_MULTICAST_ALL],
   [
     add_system_opt([IPV6_MULTICAST_ALL])
 
-    # We can't include <linux/in6.h> before <netinet/in.h> otherwise there a a lot of
+    # We can't include <linux/in6.h> before <netinet/in.h> otherwise there are a lot of
     #   duplicate definitions. If we include them the other way around and <netinet/in.h>
     #   doesn't define IPV6_MULTICAST_ALL, then we don't get the definition from
     #   <linux/in6.h> due to the UAPI guards to stop compile errors.
@@ -1493,6 +1684,7 @@ dnl ----[ Checks for libraries ]----
 NETLINK_VER=0
 IPVS_USE_NL=No
 if test .$enable_lvs != .no -a .${enable_libnl} != .no; then
+  dnl -- IPVS netlink support since linux 2.6.28 - 24/12/08
   $PKG_CONFIG --exists libnl-3.0
   if test $? -eq 0; then
     add_pkg_config([libnl-3.0], [NL3], [remove-requires])
@@ -1573,7 +1765,7 @@ AC_CHECK_LIB(magic, magic_open,
 AM_CONDITIONAL([MAGIC], [test $MAGIC -eq 1])
 unset LIBS
 
-dnl -- Check for the following variables introduced at various times into Linux
+dnl -- Check for the following definitions introduced at various times into Linux
 dnl --RTAX_QUICKACK		dnl -- Linux 3.11
 dnl --FRA_SUPPRESS_PREFIXLEN	dnl -- Linux 3.12
 dnl --FRA_SUPPRESS_IFGROUP	dnl -- Linux 3.12
@@ -1608,6 +1800,28 @@ done
 dnl - Introduced in Linux 3.14
 AC_CHECK_DECLS([IFA_FLAGS], [], [], [[#include <linux/if_addr.h>]])
 for flag in IFA_FLAGS; do
+  AS_VAR_COPY([decl_var], [ac_cv_have_decl_$flag])
+  if test ${decl_var} = yes; then
+    add_system_opt[${flag}]
+  fi
+done
+
+dnl -- Linux 3.15
+AC_CHECK_DECLS([F_OFD_SETLK], [], [],
+  [[
+    #include <unistd.h>
+    #include <fcntl.h>
+  ]])
+for flag in F_OFD_SETLK; do
+  AS_VAR_COPY([decl_var], [ac_cv_have_decl_$flag])
+  if test ${decl_var} = yes; then
+    add_system_opt[${flag}]
+  fi
+done
+
+dnl - Introduced in Linux 5.18
+AC_CHECK_DECLS([IFA_PROTO], [], [], [[#include <linux/if_addr.h>]])
+for flag in IFA_PROTO; do
   AS_VAR_COPY([decl_var], [ac_cv_have_decl_$flag])
   if test ${decl_var} = yes; then
     add_system_opt[${flag}]
@@ -2608,6 +2822,60 @@ fi
 AC_DEFINE_UNQUOTED([KA_TMP_DIR], [ "${KA_TMP_DIR}" ], [Location for temporary files])
 AC_SUBST([KA_TMP_DIR], [${KA_TMP_DIR}])
 
+dnl -- iproute2 can have directories other than /usr/share/iproute2 and /etc/iproute2 configured
+dnl -- for config files if options for the paths are specified. Otherwise try to find the paths
+dnl -- in the ip-route man page, and if that fails, try finding the strings in the executable.
+dnl -- The latter two options are not very nice, but I can't think of a better way.
+dnl -- Finally, there are runtime configuration options to override these defaults.
+AS_IF([test .${with_iproute_usr_dir} != . ], [iproute_usr_dir="$with_iproute_usr_dir"])
+AS_IF([test .${with_iproute_etc_dir} != . ], [iproute_etc_dir="$with_iproute_etc_dir"])
+AS_IF([test .${with_iproute_usr_dir} = . && test .${with_iproute_etc_dir} = . ],
+  [
+    dnl -- try the man page
+    man ip-route | grep -q /rt_tables
+    AS_IF([test $? = 0],
+      [
+	IPROUTE_DIRS=$(man ip route | tr " \t" "\n\n" | $SED -e "s/[[\.,;:?\!]]*//g" | grep "/rt_tables$" | $SED -e "s:/rt_tables$::")
+	set $(echo $IPROUTE_DIRS | sort -u)
+	second_route=$2
+	set $IPROUTE_DIRS
+	AS_IF([test .$second_route = .],
+	  [
+	    iproute_etc_dir=$1
+	    iproute_usr_dir=
+	  ],
+	  [
+	    iproute_usr_dir=$1
+	    iproute_etc_dir=$2
+	  ])
+      ],
+      [
+        # try finding the paths in the executable
+	set $(strings $(type -p ip) | grep /rt_tables | $SED -e "s:/rt_tables::")
+	for i in $1 $2; do
+	  echo $i | grep -q /etc
+	  AS_IF([test $? -eq 0], [iproute_etc_dir=$i])
+	  echo $i | grep -q /usr
+	  AS_IF([test $? -eq 0], [iproute_usr_dir=$i])
+	done
+      ])
+    AS_IF([test .${iproute_etc_dir}${iproute_usr_dir} = . ],
+      [
+	iproute_etc_dir=/etc/iproute2
+	iproute_usr_dir=/usr/share/iproute2
+      ])
+  ])
+AS_IF([test .${iproute_etc_dir} != . ],
+  [
+    AC_DEFINE_UNQUOTED([IPROUTE_ETC_DIR], ["$iproute_etc_dir"], [etc path to iproute2 config files])
+    add_config_opt([IPROUTE_ETC_DIR=$iproute_etc_dir])
+  ])
+AS_IF([test .${iproute_usr_dir} != . ],
+  [
+    AC_DEFINE_UNQUOTED([IPROUTE_USR_DIR], ["$iproute_usr_dir"], [usr path to iproute2 config files])
+    add_config_opt([IPROUTE_USR_DIR=$iproute_usr_dir])
+  ])
+
 dnl - Check type of rlim_t for printf() - this check needs to be late on
 dnl - since _FILE_OFFSET_BITS (set when using netsnmp) alters sizeof(rlim_t)
 SAV_CFLAGS="$CFLAGS"
@@ -2815,9 +3083,11 @@ fi
 dnl ----[ Profiling or not ? ]----
 WITH_PROFILING=No
 if test "${enable_profile}" = yes; then
+  # gprof keepalived/keepalived /gmon.keepalived.PID >/tmp/prof.PID.op to generate profile
   WITH_PROFILING=Yes
   add_config_opt([PROFILING])
   add_to_var([KA_CFLAGS], [-pg])
+  AC_DEFINE([_WITH_PROFILING_], [ 1 ], [Define to 1 to build with profiling support])
 fi
 AM_CONDITIONAL([PROFILE], [test $WITH_PROFILING = Yes])
 
@@ -2830,6 +3100,92 @@ if test "${enable_perf}" = yes; then
 else
   ENABLE_PERF=No
 fi
+
+# consider -fsanitize-recover=all or -fsanitize-recover=address -fsanitize=pointer-compare -fsanitize=pointer-subtract (pointer-subtract needs option detect_invalid_pointer_pairs=2)
+SANITIZERS=
+dnl ----[ sanitize=address testing or not? ]----
+AS_IF([test "${enable_sanitize_address}" = yes],
+  [
+    AC_DEFINE([_WITH_SANITIZE_ADDRESS_], [ 1 ], [Define to 1 to build with sanitize=address support])
+    ENABLE_SANITIZE_ADDRESS=Yes
+    add_config_opt([SANITIZE_ADDRESS])
+    SANITIZERS="$SANITIZERS,address"
+    AS_IF([test "${enable_sanitize_address_options}" != no -a -n "${enable_sanitize_address_options}"],
+      [AC_DEFINE_UNQUOTED([_ASAN_DEFAULT_OPTIONS_], ["${enable_sanitize_address_options}"], [default options for ASAN])])
+  ],[
+    ENABLE_SANITIZE_ADDRESS=No
+  ]
+)
+
+dnl ----[ sanitize=hwaddress testing or not? ]----
+if test "${enable_sanitize_hwaddress}" = yes; then
+  AC_DEFINE([_WITH_SANITIZE_HWADDRESS_], [ 1 ], [Define to 1 to build with sanitize=hwaddress support])
+  ENABLE_SANITIZE_HWADDRESS=Yes
+  add_config_opt([SANITIZE_HWADDRESS])
+  SANITIZERS="$SANITIZERS,hwaddress"
+    AS_IF([test "${enable_sanitize_hwaddress_options}" != no -a -n "${enable_sanitize_hwaddress_options}"],
+      [AC_DEFINE_UNQUOTED([_HWASAN_DEFAULT_OPTIONS_], ["${enable_sanitize_hwaddress_options}"], [default options for HWASAN])])
+else
+  ENABLE_SANITIZE_HWADDRESS=No
+fi
+
+dnl ----[ sanitize=undefined testing or not? ]----
+echo enable_Sanitize_undefined = $enable_sanitize_undefined
+if test "${enable_sanitize_undefined}" = yes; then
+  AC_DEFINE([_WITH_SANITIZE_UNDEFINED_], [ 1 ], [Define to 1 to build with sanitize=undefined support])
+  ENABLE_SANITIZE_UNDEFINED=Yes
+  add_config_opt([SANITIZE_UNDEFINED])
+  add_to_var([KA_CFLAGS], ["--param=max-inline-insns-single=100000"])
+  add_to_var([KA_CFLAGS], ["--param=large-function-growth=500"])
+  SANITIZERS="$SANITIZERS,undefined"
+    AS_IF([test "${enable_sanitize_undefined_options}" != no -a -n "${enable_sanitize_undefined_options}"],
+      [AC_DEFINE_UNQUOTED([_UBSAN_DEFAULT_OPTIONS_], ["${enable_sanitize_undefined_options}"], [default options for UBSAN])])
+else
+  ENABLE_SANITIZE_UNDEFINED=No
+fi
+
+dnl ----[ sanitize=memory testing or not? ]----
+if test "${enable_sanitize_memory}" = yes; then
+  AC_DEFINE([_WITH_SANITIZE_MEMORY_], [ 1 ], [Define to 1 to build with sanitize=memory support])
+  ENABLE_SANITIZE_MEMORY=Yes
+  add_config_opt([SANITIZE_MEMORY])
+  SANITIZERS="$SANITIZERS,memory"
+    AS_IF([test "${enable_sanitize_memory_options}" != no -a -n "${enable_sanitize_memory_options}"],
+      [AC_DEFINE_UNQUOTED([_MSAN_DEFAULT_OPTIONS_], ["${enable_sanitize_memory_options}"], [default options for MSAN])])
+else
+  ENABLE_SANITIZE_MEMORY=No
+fi
+
+dnl ----[ sanitize=leak testing or not? ]----
+if test "${enable_sanitize_leak}" = yes; then
+  AC_DEFINE([_WITH_SANITIZE_LEAK_], [ 1 ], [Define to 1 to build with sanitize=leak support])
+  ENABLE_SANITIZE_LEAK=Yes
+  add_config_opt([SANITIZE_LEAK])
+  SANITIZERS="$SANITIZERS,leak"
+    AS_IF([test "${enable_sanitize_leak_options}" != no -a -n "${enable_sanitize_leak_options}"],
+      [AC_DEFINE_UNQUOTED([_LSAN_DEFAULT_OPTIONS_], ["${enable_sanitize_leak_options}"], [default options for LSAN])])
+else
+  ENABLE_SANITIZE_LEAK=No
+fi
+
+dnl ----[ sanitize=scudo testing or not? ]----
+if test "${enable_sanitize_scudo}" = yes; then
+  AC_DEFINE([_WITH_SANITIZE_SCUDO_], [ 1 ], [Define to 1 to build with sanitize=scudo support])
+  ENABLE_SANITIZE_SCUDO=Yes
+  add_config_opt([SANITIZE_SCUDO])
+  SANITIZERS="$SANITIZERS,scudo"
+    AS_IF([test "${enable_sanitize_scudo_options}" != no -a -n "${enable_sanitize_scudo_options}"],
+      [AC_DEFINE_UNQUOTED([_SCUDO_DEFAULT_OPTIONS_], ["${enable_sanitize_scudo_options}"], [default options for SCUDO])])
+else
+  ENABLE_SANITIZE_SCUDO=No
+fi
+AS_IF([test -n "$SANITIZERS"],
+  [
+    add_to_var([KA_CFLAGS], ["-fsanitize=${SANITIZERS:1}"])	# Skip leading ,
+    add_to_var([KA_CFLAGS], ["-g"])
+    AC_DEFINE([_WITH_SANITIZER_], [ 1 ], [Define to 1 if any sanitizer is enabled])
+  ])
+AM_CONDITIONAL([WITH_SANITIZER], [test -n "$SANITIZERS"])
 
 if test "${enable_log_file}" = yes; then
   AC_DEFINE([ENABLE_LOG_TO_FILE], [ 1 ], [Define if enabling logging to files])
@@ -3076,6 +3432,20 @@ AS_IF([test $? -eq 0],
   ])
 WANT_PREFIX=0
 FOUND_PREFIX=0
+
+# $prefix defaults to NONE, which we need to get rid of
+sysconfdir_real=${sysconfdir}
+# while [[[ $sysconfdir_real =~ '\${' ]]]; do
+# 	eval sysconfdir_real=$sysconfdir_real
+# done
+sysconfdir_sav=${sysconfdir_real}
+eval sysconfdir_real=$sysconfdir_real
+while [[ $sysconfdir_real != $sysconfdir_sav ]]; do
+	sysconfdir_sav=${sysconfdir_real}
+	eval sysconfdir_real=$sysconfdir_real
+done
+
+AS_IF([test ${sysconfdir_real:0:5} = "NONE/"], [ sysconfdir_real=${sysconfdir_real:4} ])
 AS_IF([test -n "$default_config_file"],
   [
     AS_IF([test $default_config_file = yes -o $default_config_file = no],
@@ -3086,11 +3456,15 @@ AS_IF([test -n "$default_config_file"],
 	CONFIG_FILE="$default_config_file"
 	WANT_PREFIX=1
       ],
-      [CONFIG_FILE="\$(sysconfdir)/$PACKAGE/$default_config_file"])
+      [
+        CONFIG_FILE=${sysconfdir_real}/$PACKAGE/$default_config_file
+      ])
     add_config_opt([DEFAULT_CONFIG_FILE=$CONFIG_FILE])
     default_config_file=$CONFIG_FILE
   ],
-  [default_config_file="\$(sysconfdir)/$PACKAGE/$PACKAGE.conf"])
+  [
+    default_config_file=${sysconfdir_real}/$PACKAGE/$PACKAGE.conf
+  ])
 dir=`echo $default_config_file | $SED -e "s|/[[^/]]*$||"`
 name=`echo $default_config_file | $SED -e "s|.*/||"`
 AC_SUBST([DEFAULT_CONFIG_FILE], [$default_config_file])
@@ -3119,12 +3493,22 @@ AC_DEFINE_UNQUOTED([DEFAULT_CONFIG_FILE], ["$dcf"], [The default configuration f
 
 # Remove a leading ${prefix} since that is not part of the old file name
 eval dcf_old=`echo $default_config_file`
-dcf_old=`echo $dcf_old | $SED -e "s|^\\\${prefix}||"`
+dcf_old=`echo $dcf_old | $SED -e "s|^${prefix}||"`
 AS_IF([test .$dcf != .$dcf_old],
   [
     AC_DEFINE_UNQUOTED([OLD_DEFAULT_CONFIG_FILE], ["$dcf_old"], [The old default configuration file])
     AC_SUBST([OLD_DEFAULT_CONFIG_FILE], [$dcf_old])
   ])
+
+AS_IF([test .$enable_reproducible_build = .yes],
+  [
+    AC_DEFINE([_REPRODUCIBLE_BUILD_], [ 1 ], [Make the build reproducible])
+    KEEPALIVED_CONFIG_OPTIONS="$args"
+    AC_SUBST([KEEPALIVED_CONFIG_OPTIONS])
+    primary_config_opts=${sysconfdir_real}/$PACKAGE/$PACKAGE.config-opts
+    AC_DEFINE_UNQUOTED([CONFIG_OPTS_FILE_PRIMARY], ["$primary_config_opts"], [Primary file to read build config options from])
+  ])
+AM_CONDITIONAL([REPRODUCIBLE_BUILD], [test .$enable_reproducible_build = .yes])
 
 if test -z "$INIT_TYPE"; then
   INIT_TYPE=undetected
@@ -3220,11 +3604,31 @@ echo "init type                : ${INIT_TYPE}"
 echo "systemd notify           : ${USE_SYSTEMD_NOTIFY}"
 echo "Strict config checks     : ${STRICT_CONFIG}"
 echo "Build documentation      : ${HAVE_SPHINX_BUILD}"
+echo "iproute usr directory    : ${iproute_usr_dir}"
+echo "iproute etc directory    : ${iproute_etc_dir}"
 if test ${ENABLE_STACKTRACE} = Yes; then
   echo "Stacktrace support       : Yes"
 fi
 if test ${ENABLE_PERF} = Yes; then
   echo "Perf support             : Yes"
+fi
+if test ${ENABLE_SANITIZE_ADDRESS} = Yes; then
+  echo "sanitize=address         : Yes"
+fi
+if test ${ENABLE_SANITIZE_HWADDRESS} = Yes; then
+  echo "sanitize=hwaddress       : Yes"
+fi
+if test ${ENABLE_SANITIZE_UNDEFINED} = Yes; then
+  echo "sanitize=undefined       : Yes"
+fi
+if test ${ENABLE_SANITIZE_MEMORY} = Yes; then
+  echo "sanitize=memory          : Yes"
+fi
+if test ${ENABLE_SANITIZE_LEAK} = Yes; then
+  echo "sanitize=leak            : Yes"
+fi
+if test ${ENABLE_SANITIZE_SCUDO} = Yes; then
+  echo "sanitize=scudo           : Yes"
 fi
 if test ${MEM_CHECK} = Yes; then
   echo "Memory alloc check       : Yes"

@@ -44,6 +44,7 @@ keepalived \- load\-balancing and high\-availability service
 [\fB\-\-perf\fP[={all|run|end}]]
 [\fB\-\-debug\fP[=debug-options]]
 [\fB\-\-no-mem-check\fP]
+[\fB\-\-ignore-sigint\fP]
 [\fB\-v\fP|\fB\-\-version\fP]
 [\fB\-h\fP|\fB\-\-help\fP]
 
@@ -216,6 +217,10 @@ The data recorded is for use with the perf tool.
 \fB --no-mem-check\fP
 Disable malloc() etc mem-checks if they have been compiled into keepalived.
 .TP
+\fB --ignore-sigint\fP
+Disable SIGINT handling (defaults to terminating keepalived). This is needed
+for running keepalived under GDB.
+.TP
 \fB --debug\fP[=debug-options]]
 Enables debug options if they have been compiled into keepalived.
 \fIdebug-options\fP is made up of a sequence of strings of the form Ulll.
@@ -367,20 +372,20 @@ will shut down.
 .TP
 .B USR1\fP or \fBSIGFUNC=DATA
 Write configuration data to
-.B @KA_TMP_DIR@/keepalived.data
+.B @KA_TMP_DIR@/keepalived.data or file configured by state_dump_file
 .TP
 .B USR2\fP or \fBSIGFUNC=STATS
 Write statistics info to
-.B @KA_TMP_DIR@/keepalived.stats
+.B @KA_TMP_DIR@/keepalived.stats or file configured by stats_dump_file
 .TP
 .B SIGFUNC=STATS_CLEAR
 Write statistics info to
-.B @KA_TMP_DIR@/keepalived.stats
+.B @KA_TMP_DIR@/keepalived.stats or file configured by stats_dump_file
 and clear the statistics counters
 .TP
 .B SIGFUNC=JSON
 Write configuration data in JSON format to
-.B @KA_TMP_DIR@/keepalived.json
+.B @KA_TMP_DIR@/keepalived.json or file configured  by json_dump_file
 .TP
 .B SIGFUNC=TDATA
 This causes

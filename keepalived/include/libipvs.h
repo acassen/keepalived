@@ -34,7 +34,7 @@ typedef struct ip_vs_dest_entry_app	ipvs_dest_entry_t;
 
 
 /* init socket and get ipvs info */
-extern int ipvs_init(void);
+extern int ipvs_init(bool);
 
 /* Set timeout parameters */
 extern int ipvs_set_timeout(const ipvs_timeout_t *to);
@@ -71,7 +71,8 @@ extern int ipvs_stop_daemon(ipvs_daemon_t *dm);
 
 #ifdef _WITH_SNMP_CHECKER_
 /* get the destination array of the specified service */
-extern struct ip_vs_get_dests_app *ipvs_get_dests(ipvs_service_entry_t *svc);
+extern struct ip_vs_get_dests_app *ipvs_get_dests(__u32, __u16, __u16, union nf_inet_addr *, __u16, unsigned);
+
 
 /* get an ipvs service entry */
 extern ipvs_service_entry_t *
