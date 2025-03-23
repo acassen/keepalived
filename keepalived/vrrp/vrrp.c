@@ -2454,6 +2454,7 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool reverse, 
 {
 	char addr_str[INET6_ADDRSTRLEN];
 	tracking_obj_t *top = NULL;
+	track_t old_type;
 
 	if (list_empty(&ifp->tracking_vrrp)) {
 		if (log_addr && __test_bit(LOG_DETAIL_BIT, &debug)) {
@@ -2468,11 +2469,11 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool reverse, 
 						    , addr_str, ifp->ifname);
 			}
 		}
-	}
-	else if (type != TRACK_VRRP_DYNAMIC) {
+	} else {
 		/* Check if this is already in the list, and adjust the weight appropriately */
 		list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
 			if (top->obj.vrrp == vrrp) {
+				old_type = top->type;
 				if (top->type & (TRACK_VRRP | TRACK_IF | TRACK_SG) &&
 				    type & (TRACK_VRRP | TRACK_IF | TRACK_SG) &&
 				    top->weight != VRRP_NOT_TRACK_IF &&
@@ -2482,12 +2483,18 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool reverse, 
 
 				/* Update the weight appropriately. We will use the sync group's
 				 * weight unless the vrrp setting is unweighted. */
-				if (top->weight && weight != VRRP_NOT_TRACK_IF) {
+				if (type != TRACK_VRRP_DYNAMIC && top->weight && weight != VRRP_NOT_TRACK_IF) {
 					top->weight = weight;
 					top->weight_multiplier = reverse ? -1 : 1;
 				}
 
 				top->type |= type;
+
+				/* If we have set the dynamic bit, move top to head of list */
+				if (!(old_type & TRACK_VRRP_DYNAMIC) && type == TRACK_VRRP_DYNAMIC) {
+					list_del_init(&top->e_list);
+					list_head_add(&top->e_list, &ifp->tracking_vrrp);
+				}
 
 				return;
 			}
@@ -2516,23 +2523,34 @@ del_vrrp_from_interface(vrrp_t *vrrp, interface_t *ifp)
 	tracking_obj_t *top, *top_tmp;
 
 	list_for_each_entry_safe(top, top_tmp, &ifp->tracking_vrrp, e_list) {
-		if (top->obj.vrrp == vrrp && top->type == TRACK_VRRP_DYNAMIC) {
+		if (top->obj.vrrp == vrrp && (top->type & TRACK_VRRP_DYNAMIC)) {
 			if (!IF_ISUP(ifp) && !__test_bit(VRRP_FLAG_DONT_TRACK_PRIMARY, &vrrp->flags)) {
 #ifdef _HAVE_VRRP_VMAC_
-					if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) && VRRP_CONFIGURED_IFP(vrrp) == ifp)
-							__clear_bit(VRRP_FAULT_FL_BASE_INTERFACE_DOWN, &vrrp->flags_if_fault);
-					else
+				if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) && VRRP_CONFIGURED_IFP(vrrp) == ifp)
+					__clear_bit(VRRP_FAULT_FL_BASE_INTERFACE_DOWN, &vrrp->flags_if_fault);
+				else
 #endif
+				{
 					   /* assuming there is only one tracked interface per vrrp : to be checked */
-						__clear_bit(VRRP_FAULT_FL_INTERFACE_DOWN, &vrrp->flags_if_fault);
+					__clear_bit(VRRP_FAULT_FL_INTERFACE_DOWN, &vrrp->flags_if_fault);
+				}
 			}
-			free_tracking_obj(top);
-			break;
+
+			top->type &= ~TRACK_VRRP_DYNAMIC;
+
+			if (!top->type)
+				free_tracking_obj(top);
+			else {
+				list_del_init(&top->e_list);
+				list_add_tail(&top->e_list, &ifp->tracking_vrrp);
+			}
+
+			return;
 		}
 
 		/* The dynamic entries are at the start of the list */
-		if (top->type != TRACK_VRRP_DYNAMIC)
-			break;
+		if (!(top->type & TRACK_VRRP_DYNAMIC))
+			return;
 	}
 }
 

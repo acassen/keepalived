@@ -262,7 +262,7 @@ dump_tracking_vrrp(FILE *fp, const void *obj)
 	conf_write(fp, "     %s, weight %d%s%s"
 		     , vrrp->iname, top->weight
 		     , top->weight_multiplier == -1 ? " reverse" : ""
-		     , top->type == TRACK_VRRP_DYNAMIC ? " (dynamic)" : "");
+		     , top->type & TRACK_VRRP_DYNAMIC ? " (dynamic)" : "");
 }
 void
 dump_tracking_vrrp_list(FILE *fp, const list_head_t *l)
