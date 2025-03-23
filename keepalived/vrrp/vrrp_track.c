@@ -550,6 +550,11 @@ down_instance(vrrp_t *vrrp, bool down_tracker,
 	 */
 	assert(!(down_tracker && down_flag != VRRP_IF_FAULT_FLAG_UNSPECIFIED));
 
+#ifdef _FAULT_FLAGS_CHECK_
+	if (!down_tracker && __test_bit(down_flag, &vrrp->flags_if_fault))
+		log_message(LOG_INFO, "(%s) BUG - down_instance flag %u already set in 0x%lx", vrrp->iname, down_flag, vrrp->flags_if_fault);
+#endif
+
 	if ((vrrp->num_track_fault == 0 && vrrp->flags_if_fault == 0) ||
 			vrrp->state == VRRP_STATE_INIT) {
 		if (down_tracker)

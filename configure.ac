@@ -258,6 +258,8 @@ AC_ARG_ENABLE(malloc-check,
   [AS_HELP_STRING([--enable-malloc-check], [compile with malloc checking - i.e. malloc etc returning NULL])])
 AC_ARG_ENABLE(timer-check,
   [AS_HELP_STRING([--enable-timer-check], [compile with set time logging])])
+AC_ARG_ENABLE(fault-flags-check,
+  [AS_HELP_STRING([--enable-fault-flags-check], [compile with checking VRRP fault flags])])
 AC_ARG_ENABLE(debug,
   [AS_HELP_STRING([--enable-debug], [compile with most debugging options])])
 AC_ARG_ENABLE(netlink-timers,
@@ -621,6 +623,7 @@ AS_IF([test .$enable_debug = .yes],
 	AS_IF([test .$enable_checksum_debug = .], [enable_checksum_debug=yes])
 	AS_IF([test .$enable_netlink_timers = .], [enable_netlink_timers=yes])
 	AS_IF([test .$enable_network_timestamp = .], [enable_network_timestamp=yes])
+	AS_IF([test .$enable_fault_flags_check = .], [enable_fault_flags_check=yes])
       ])
 
     AS_IF([test .$enable_lvs != .no],
@@ -2961,6 +2964,17 @@ if test "${enable_timer_check}" = "yes"; then
   add_config_opt([TIMER_CHECK])
 fi
 
+AS_IF([test .$enable_vrrp != .no],
+  [
+    FAULT_FLAGS_CHECK=No
+    AS_IF([test .${enable_fault_flags_check} = .yes],
+      [
+	FAULT_FLAGS_CHECK=Yes
+	AC_DEFINE([_FAULT_FLAGS_CHECK_], [ 1 ], [Define to 1 to build with vrrp fault flag checking])
+	add_config_opt([FAULT_FLAGS_CHECK])
+     ])
+  ])
+
 dnl ----[ Debug in one process or not ? ]----
 if test "${enable_one_process_debug}" = yes; then
   AC_DEFINE([_ONE_PROCESS_DEBUG_], [ 1 ], [Define to 1 to build with debugging support])
@@ -3641,6 +3655,8 @@ AS_IF([test ${OPENSSL_MEM_CHECK} = Yes],
 if test ${TIMER_CHECK} = Yes; then
   echo "Set time logging         : Yes"
 fi
+AS_IF([test ${FAULT_FLAGS_CHECK} = Yes],
+  [echo "VRRP fault flags checks  : Yes"])
 if test ${ENABLE_DUMP_THREADS} = Yes; then
   echo "Thread debugging         : Yes"
 fi

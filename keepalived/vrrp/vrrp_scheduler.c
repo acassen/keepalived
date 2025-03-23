@@ -703,6 +703,11 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init,
 	 */
 	assert(!(resolved_script && resolved_flag != VRRP_IF_FAULT_FLAG_UNSPECIFIED));
 
+#ifdef _FAULT_FLAGS_CHECK_
+	if (!resolved_script && !__test_bit(resolved_flag, &vrrp->flags_if_fault))
+		log_message(LOG_INFO, "(%s) BUG - try_up_instance flag %u not set in 0x%lx, leaving_init %d", vrrp->iname, resolved_flag, vrrp->flags_if_fault, leaving_init);
+#endif
+
 	if (leaving_init) {
 		if (vrrp->num_track_fault || vrrp->flags_if_fault)
 			return;
