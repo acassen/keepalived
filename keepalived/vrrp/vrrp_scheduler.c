@@ -690,9 +690,7 @@ vrrp_gratuitous_arp_vmac_update_thread(thread_ref_t thread)
 #endif
 
 void
-try_up_instance(vrrp_t *vrrp, bool leaving_init,
-		__attribute__((unused)) bool resolved_script,
-		enum vrrp_if_fault_flags_bits resolved_flag)
+try_up_instance(vrrp_t *vrrp, bool leaving_init, enum vrrp_if_fault_flags_bits resolved_flag)
 {
 	int wantstate;
 	ip_address_t ip_addr = {0};
@@ -852,9 +850,9 @@ vrrp_handle_bfd_event(bfd_event_t * evt)
 			}
 
 			if (!!vbfd->bfd_up == (tbfd->weight_multiplier == 1))
-				try_up_instance(vrrp, false, true, VRRP_FAULT_FL_TRACKER);
+				try_up_instance(vrrp, false, VRRP_FAULT_FL_TRACKER);
 			else
-				down_instance(vrrp, true, VRRP_FAULT_FL_TRACKER);
+				down_instance(vrrp, VRRP_FAULT_FL_TRACKER);
 		}
 
 		break;

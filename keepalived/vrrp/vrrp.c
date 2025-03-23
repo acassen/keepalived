@@ -2780,7 +2780,7 @@ open_sockpool_socket(sock_t *sock)
 		rb_for_each_entry(vrrp, &sock->rb_vrid, rb_vrid) {
 			if (vrrp->state != VRRP_STATE_FAULT)
 				log_message(LOG_INFO, "(%s): entering FAULT state (src address not configured)", vrrp->iname);
-			down_instance(vrrp, false, VRRP_FAULT_FL_NO_SOURCE_IP);
+			down_instance(vrrp, VRRP_FAULT_FL_NO_SOURCE_IP);
 			if ((__num_bit(&vrrp->flags_if_fault) + vrrp->num_track_fault) == 1)
 				send_instance_notifies(vrrp);
 		}

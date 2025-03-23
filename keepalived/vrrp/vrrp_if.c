@@ -1416,10 +1416,10 @@ interface_down(interface_t *ifp)
 			/* Bring down vrrp instance/sync group */
 #ifdef _HAVE_VRRP_VMAC_
 			if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) && VRRP_CONFIGURED_IFP(vrrp) == ifp)
-				down_instance(vrrp, false, VRRP_FAULT_FL_BASE_INTERFACE_DOWN);
+				down_instance(vrrp, VRRP_FAULT_FL_BASE_INTERFACE_DOWN);
 			else
 #endif
-				down_instance(vrrp, false, VRRP_FAULT_FL_INTERFACE_DOWN);
+				down_instance(vrrp, VRRP_FAULT_FL_INTERFACE_DOWN);
 		}
 	}
 
@@ -1460,10 +1460,10 @@ cleanup_lost_interface(interface_t *ifp)
 #ifdef _HAVE_VRRP_VMAC_
 					if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
 							VRRP_CONFIGURED_IFP(vrrp) == ifp)
-						down_instance(vrrp, false, VRRP_FAULT_FL_BASE_INTERFACE_DOWN);
+						down_instance(vrrp, VRRP_FAULT_FL_BASE_INTERFACE_DOWN);
 					else
 #endif
-						down_instance(vrrp, false, VRRP_FAULT_FL_INTERFACE_DOWN);
+						down_instance(vrrp, VRRP_FAULT_FL_INTERFACE_DOWN);
 				}
 			}
 			continue;
@@ -1525,10 +1525,10 @@ cleanup_lost_interface(interface_t *ifp)
 #ifdef _HAVE_VRRP_VMAC_
 			if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
 					VRRP_CONFIGURED_IFP(vrrp) == ifp)
-				down_instance(vrrp, false, VRRP_FAULT_FL_BASE_INTERFACE_DOWN);
+				down_instance(vrrp, VRRP_FAULT_FL_BASE_INTERFACE_DOWN);
 			else
 #endif
-				down_instance(vrrp, false, VRRP_FAULT_FL_INTERFACE_DOWN);
+				down_instance(vrrp, VRRP_FAULT_FL_INTERFACE_DOWN);
 		}
 	}
 
