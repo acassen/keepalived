@@ -1585,7 +1585,7 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 {
 	unicast_peer_t *peer;
 
-	if (!vrrp->sockets)
+	if (!vrrp->sockets || vrrp->sockets->fd_out == -1)
 		return;
 
 #ifdef _HAVE_VRRP_VMAC_
