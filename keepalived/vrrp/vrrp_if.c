@@ -1414,7 +1414,12 @@ interface_down(interface_t *ifp)
 
 		if (route_found) {
 			/* Bring down vrrp instance/sync group */
-			down_instance(vrrp);
+#ifdef _HAVE_VRRP_VMAC_
+			if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) && VRRP_CONFIGURED_IFP(vrrp) == ifp)
+				down_instance(vrrp, false, VRRP_IF_FAULT_FLAG_BASE_INTERFACE_DOWN);
+			else
+#endif
+				down_instance(vrrp, false, VRRP_IF_FAULT_FLAG_INTERFACE_DOWN);
 		}
 	}
 
@@ -1451,8 +1456,15 @@ cleanup_lost_interface(interface_t *ifp)
 				if (top->weight) {
 					vrrp->total_priority -= top->weight * top->weight_multiplier;
 					vrrp_set_effective_priority(vrrp);
-				} else
-					down_instance(vrrp);
+				} else {
+#ifdef _HAVE_VRRP_VMAC_
+					if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
+							VRRP_CONFIGURED_IFP(vrrp) == ifp)
+						down_instance(vrrp, false, VRRP_IF_FAULT_FLAG_BASE_INTERFACE_DOWN);
+					else
+#endif
+						down_instance(vrrp, false, VRRP_IF_FAULT_FLAG_INTERFACE_DOWN);
+				}
 			}
 			continue;
 		}
@@ -1492,7 +1504,7 @@ cleanup_lost_interface(interface_t *ifp)
 		    vrrp->configured_ifp == ifp &&
 		    __test_bit(VRRP_FLAG_DUPLICATE_VRID_FAULT, &vrrp->flags)) {
 			__clear_bit(VRRP_FLAG_DUPLICATE_VRID_FAULT, &vrrp->flags);
-			vrrp->num_script_if_fault--;
+			__clear_bit(VRRP_IF_FAULT_FLAG_DUPLICATE_VRID, &vrrp->flags_if_fault);
 		}
 #endif
 
@@ -1509,8 +1521,15 @@ cleanup_lost_interface(interface_t *ifp)
 			}
 		}
 
-		if (IF_ISUP(ifp))
-			down_instance(vrrp);
+		if (IF_ISUP(ifp)) {
+#ifdef _HAVE_VRRP_VMAC_
+			if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
+					VRRP_CONFIGURED_IFP(vrrp) == ifp)
+				down_instance(vrrp, false, VRRP_IF_FAULT_FLAG_BASE_INTERFACE_DOWN);
+			else
+#endif
+				down_instance(vrrp, false, VRRP_IF_FAULT_FLAG_INTERFACE_DOWN);
+		}
 	}
 
 	interface_down(ifp);
@@ -1566,7 +1585,7 @@ setup_interface(vrrp_t *vrrp)
 		open_sockpool_socket(vrrp->sockets);
 
 		if (vrrp_initialised) {
-			vrrp->state = vrrp->num_script_if_fault ? VRRP_STATE_FAULT : VRRP_STATE_BACK;
+			vrrp->state = (vrrp->num_track_fault || vrrp->flags_if_fault) ? VRRP_STATE_FAULT : VRRP_STATE_BACK;
 			vrrp_init_instance_sands(vrrp);
 			vrrp_thread_add_read(vrrp);
 		}
@@ -1679,7 +1698,7 @@ update_added_interface(interface_t *ifp)
 				if (IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp)) == IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp1)) &&
 				    vrrp->family == vrrp1->family &&
 				    vrrp->vrid == vrrp1->vrid) {
-					vrrp->num_script_if_fault++;
+					__set_bit(VRRP_IF_FAULT_FLAG_DUPLICATE_VRID, &vrrp->flags_if_fault);
 					__set_bit(VRRP_FLAG_DUPLICATE_VRID_FAULT, &vrrp->flags);
 					log_message(LOG_INFO, "VRID conflict between %s and %s IPv%d vrid %d",
 							vrrp->iname, vrrp1->iname, vrrp->family == AF_INET ? 4 : 6, vrrp->vrid);
@@ -1701,7 +1720,7 @@ update_added_interface(interface_t *ifp)
 				if (!IF_ISUP(vrrp->configured_ifp->base_ifp) && !__test_bit(VRRP_FLAG_DONT_TRACK_PRIMARY, &vrrp->flags)) {
 					log_message(LOG_INFO, "(%s) interface %s is down",
 							vrrp->iname, vrrp->configured_ifp->base_ifp->ifname);
-					vrrp->num_script_if_fault++;
+					__set_bit(VRRP_IF_FAULT_FLAG_BASE_INTERFACE_DOWN, &vrrp->flags_if_fault);
 				}
 			}
 
