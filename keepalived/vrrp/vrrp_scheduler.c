@@ -691,7 +691,7 @@ vrrp_gratuitous_arp_vmac_update_thread(thread_ref_t thread)
 #endif
 
 void
-try_up_instance(vrrp_t *vrrp,bool leaving_init,
+try_up_instance(vrrp_t *vrrp, bool leaving_init,
 		bool resolved_script,
 		enum vrrp_if_fault_flags_bits resolved_flag)
 {
@@ -848,7 +848,7 @@ vrrp_handle_bfd_event(bfd_event_t * evt)
 			if (!!vbfd->bfd_up == (tbfd->weight_multiplier == 1))
 				try_up_instance(vrrp, false, true, VRRP_IF_FAULT_FLAG_UNSPECIFIED);
 			else
-				down_instance(vrrp, false, VRRP_IF_FAULT_FLAG_UNSPECIFIED);
+				down_instance(vrrp, true, VRRP_IF_FAULT_FLAG_UNSPECIFIED);
 		}
 
 		break;
