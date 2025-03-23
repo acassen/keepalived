@@ -541,6 +541,22 @@ alloc_track_bfd(const char *name, list_head_t *l, const vector_t *strvec)
 }
 #endif
 
+static void
+set_fault(vrrp_t *vrrp, unsigned flag)
+{
+#ifdef _FAULT_FLAGS_CHECK_
+	if (flag != VRRP_FAULT_FL_TRACKER && __test_bit(flag, &vrrp->flags_if_fault))
+		log_message(LOG_INFO, "(%s) BUG - down_instance flag %u already set in 0x%lx", vrrp->iname, flag, vrrp->flags_if_fault);
+
+	if (!__test_bit(VRRP_FAULT_FL_TRACKER, &vrrp->flags_if_fault) != !vrrp->num_track_fault)
+		log_message(LOG_INFO, "(%s) BUG - set_fault - tracker flag 0x%lx does not match num_track_fault %u", vrrp->iname, vrrp->flags_if_fault, vrrp->num_track_fault);
+#endif
+
+	__set_bit(flag, &vrrp->flags_if_fault);
+	if (flag == VRRP_FAULT_FL_TRACKER)
+		vrrp->num_track_fault++;
+}
+
 void
 down_instance(vrrp_t *vrrp, unsigned down_flag)		// last param should be vrrp_fault_fl_t down_flag
 {
@@ -549,17 +565,7 @@ down_instance(vrrp_t *vrrp, unsigned down_flag)		// last param should be vrrp_fa
 	/* We can not use down_instance() for several down reasons
 	 * at the same time
 	 */
-#ifdef _FAULT_FLAGS_CHECK_
-	if (down_flag != VRRP_FAULT_FL_TRACKER && __test_bit(down_flag, &vrrp->flags_if_fault))
-		log_message(LOG_INFO, "(%s) BUG - down_instance flag %u already set in 0x%lx", vrrp->iname, down_flag, vrrp->flags_if_fault);
-
-	if (!__test_bit(VRRP_FAULT_FL_TRACKER, &vrrp->flags_if_fault) != !vrrp->num_track_fault)
-		log_message(LOG_INFO, "(%s) BUG - set_fault - tracker flag 0x%lx does not match num_track_fault %u", vrrp->iname, vrrp->flags_if_fault, vrrp->num_track_fault);
-#endif
-
-	__set_bit(down_flag, &vrrp->flags_if_fault);
-	if (down_flag == VRRP_FAULT_FL_TRACKER)
-		vrrp->num_track_fault++;
+	set_fault(vrrp, down_flag);
 
 	if (!already_down || vrrp->state == VRRP_STATE_INIT) {
 		vrrp->wantstate = VRRP_STATE_FAULT;
@@ -687,7 +693,7 @@ initialise_track_script_state(tracked_sc_t *tsc, vrrp_t *vrrp)
 			 (tsc->scr->init_state != SCRIPT_INIT_STATE_INIT_RELOAD &&
 			  (tsc->scr->result >= 0 && tsc->scr->result < tsc->scr->rise))) {
 			/* The script is in fault state */
-			vrrp->num_track_fault++;
+			set_fault(vrrp, VRRP_FAULT_FL_TRACKER);
 			log_message(LOG_INFO, "(%s): entering FAULT state due to script %s", vrrp->iname, tsc->scr->sname);
 			vrrp->state = VRRP_STATE_FAULT;
 		}
@@ -725,12 +731,12 @@ initialise_track_bfd_state(tracked_bfd_t *tbfd, vrrp_t *vrrp)
 			if (tbfd->weight < 0)
 				vrrp->total_priority += tbfd->weight * multiplier;
 			else if (!tbfd->weight) {
-				vrrp->num_track_fault++;
+				set_fault(vrrp, VRRP_FAULT_FL_TRACKER);
 				vrrp->state = VRRP_STATE_FAULT;
 			}
 		}
 	} else if (tbfd->bfd->bfd_up == tbfd->weight_reverse) {
-		vrrp->num_track_fault++;
+		set_fault(vrrp, VRRP_FAULT_FL_TRACKER);
 		vrrp->state = VRRP_STATE_FAULT;
 	}
 }
@@ -792,7 +798,7 @@ initialise_vrrp_file_tracking_priorities(void)
 				/* The instance is down */
 				log_message(LOG_INFO, "(%s): entering FAULT state (tracked file %s has status %i)", vrrp->iname, tfile->fname, status);
 				vrrp->state = VRRP_STATE_FAULT;
-				vrrp->num_track_fault++;
+				set_fault(vrrp, VRRP_FAULT_FL_TRACKER);
 			}
 			else
 				vrrp->total_priority += (status > 253 ? 253 : status);
@@ -821,8 +827,8 @@ initialise_process_tracking_priorities(void)
 					log_message(LOG_INFO, "(%s) entering FAULT state (tracked process %s"
 							      " quorum not achieved)"
 							    , vrrp->iname, tprocess->pname);
+					set_fault(vrrp, VRRP_FAULT_FL_TRACKER);
 					vrrp->state = VRRP_STATE_FAULT;
-					vrrp->num_track_fault++;
 				}
 			}
 			else if (tprocess->have_quorum) {
