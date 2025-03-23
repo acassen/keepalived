@@ -1611,8 +1611,10 @@ process_if_status_change(interface_t *ifp)
 				try_up_instance(vrrp, false, VRRP_FAULT_FL_BASE_INTERFACE_DOWN);
 			else
 #endif
+			{
 				/* assuming there is only one tracked interface per vrrp : to be checked */
 				try_up_instance(vrrp, false, VRRP_FAULT_FL_INTERFACE_DOWN);
+			}
 		} else {
 #ifdef _HAVE_VRRP_VMAC_
 			if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
@@ -2217,7 +2219,6 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 			if (strcmp(ifp->ifname, name)) {
 				/* The name can change, so handle that here */
 				log_message(LOG_INFO, "Interface name has changed from %s to %s", ifp->ifname, name);
-
 #ifndef _ONE_PROCESS_DEBUG_
 				if (prog_type != PROG_TYPE_VRRP) {
 					ifp->ifi_flags = 0;
