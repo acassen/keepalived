@@ -1031,6 +1031,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 							 !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags) &&
 							 ifa->ifa_family == AF_INET6 &&
 							 vrrp->ifp->is_ours) {
+							if (vrrp->saddr.ss_family == AF_UNSPEC) {
 								inet_ip6tosockaddr(addr.in6, &vrrp->saddr);
 #if 0
 								if (IN6_IS_ADDR_UNSPECIFIED(&vrrp->ifp->sin6_addr)) {
@@ -1041,12 +1042,13 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 									 * does not have one, then we will need the following code
 									 */
 									if (add_link_local_address(vrrp->ifp, addr.in6) &&
-								            vrrp->flags_if_fault &&
+									    vrrp->flags_if_fault &&
 									    (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) || is_tracking_saddr))
 										try_up_instance(vrrp, false, VRRP_FAULT_FL_NO_SOURCE_IP);
 								} else
 #endif
-									reset_link_local_address(&vrrp->ifp->sin6_addr, vrrp);
+								reset_link_local_address(&vrrp->ifp->sin6_addr, vrrp);
+							}
 						}
 #endif
 					}

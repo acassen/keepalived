@@ -2774,26 +2774,22 @@ void
 open_sockpool_socket(sock_t *sock)
 {
 	vrrp_t *vrrp;
-	sockaddr_t unicast_src;
-	const sockaddr_t *unicast_src_p = sock->unicast_src;
 	bool already_fault;
 
 	if (sock->unicast_src &&
 	    sock->unicast_src->ss_family == AF_INET6 &&
 	    IN6_IS_ADDR_LINKLOCAL(&PTR_CAST_CONST(struct sockaddr_in6, sock->unicast_src)->sin6_addr)) {
 		/* For an IPv6 link local address, we need to set the ifindex */
-		unicast_src = *sock->unicast_src;
-		unicast_src_p = &unicast_src;
-
 		/* coverity[deref_param] - since the address is IPv6 link local, sock->ifp != NULL */
-		PTR_CAST(struct sockaddr_in6, &unicast_src)->sin6_scope_id = sock->ifp->ifindex;
-	}
+		PTR_CAST(struct sockaddr_in6, sock->unicast_src)->sin6_scope_id = sock->ifp->ifindex;
+	} else if (sock->mcast_daddr && sock->mcast_daddr->ss_family == AF_INET6)
+		PTR_CAST(struct sockaddr_in6, sock->mcast_daddr)->sin6_scope_id = sock->ifp->ifindex;
 
 	sock->fd_in = open_vrrp_read_socket(sock->family, sock->proto, sock->ifp,
 #ifdef _HAVE_VRF_
 					    sock->vrf_ifp,
 #endif
-					    sock->mcast_daddr, unicast_src_p, sock->rx_buf_size);
+					    sock->mcast_daddr, sock->unicast_src, sock->rx_buf_size);
 
 	if (sock->fd_in == -2) {
 		rb_for_each_entry(vrrp, &sock->rb_vrid, rb_vrid) {
@@ -2814,7 +2810,7 @@ open_sockpool_socket(sock_t *sock)
 #ifdef _HAVE_VRF_
 						     sock->vrf_ifp,
 #endif
-						     unicast_src_p);
+						     sock->unicast_src);
 }
 
 /* Try to find a VRRP instance */
