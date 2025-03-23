@@ -455,7 +455,7 @@ alloc_sock(list_head_t *l, sa_family_t family, int proto, interface_t *ifp,
 #ifdef _HAVE_VRF_
 	   const interface_t *vrf_ifp,
 #endif
-	   const sockaddr_t *mcast_daddr, const sockaddr_t *unicast_src)
+	   sockaddr_t *mcast_daddr, sockaddr_t *unicast_src)
 {
 	sock_t *new;
 
