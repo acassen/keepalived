@@ -2758,6 +2758,7 @@ open_sockpool_socket(sock_t *sock)
 	vrrp_t *vrrp;
 	sockaddr_t unicast_src;
 	const sockaddr_t *unicast_src_p = sock->unicast_src;
+	bool already_fault;
 
 	if (sock->unicast_src &&
 	    sock->unicast_src->ss_family == AF_INET6 &&
@@ -2780,8 +2781,9 @@ open_sockpool_socket(sock_t *sock)
 		rb_for_each_entry(vrrp, &sock->rb_vrid, rb_vrid) {
 			if (vrrp->state != VRRP_STATE_FAULT)
 				log_message(LOG_INFO, "(%s): entering FAULT state (src address not configured)", vrrp->iname);
+			already_fault = vrrp->flags_if_fault;
 			down_instance(vrrp, VRRP_FAULT_FL_NO_SOURCE_IP);
-			if ((__num_bit(&vrrp->flags_if_fault) + vrrp->num_track_fault) == 1)
+			if (!already_fault)
 				send_instance_notifies(vrrp);
 		}
 		sock->fd_in = -1;
