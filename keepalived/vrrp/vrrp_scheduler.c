@@ -690,7 +690,7 @@ vrrp_gratuitous_arp_vmac_update_thread(thread_ref_t thread)
 #endif
 
 void
-try_up_instance(vrrp_t *vrrp, bool leaving_init, enum vrrp_if_fault_flags_bits resolved_flag)
+try_up_instance(vrrp_t *vrrp, bool leaving_init, vrrp_fault_fl_t resolved_flag)
 {
 	int wantstate;
 	ip_address_t ip_addr = {0};

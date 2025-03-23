@@ -271,7 +271,7 @@ typedef struct _unicast_peer_t {
 	list_head_t		e_list;
 } unicast_peer_t;
 
-enum vrrp_if_fault_flags_bits {
+typedef enum vrrp_fault_fl {
 	VRRP_FAULT_FL_TRACKER = 0,
 	VRRP_FAULT_FL_INTERFACE_DOWN,
 #ifdef _HAVE_VRRP_VMAC_
@@ -280,7 +280,7 @@ enum vrrp_if_fault_flags_bits {
 	VRRP_FAULT_FL_DUPLICATE_VRID,
 	VRRP_FAULT_FL_NO_SOURCE_IP,
 	VRRP_FAULT_FL_CONFIG_ERROR,
-};
+} vrrp_fault_fl_t;
 
 /* parameters per virtual router -- rfc2338.6.1.2 */
 typedef struct _vrrp_t {

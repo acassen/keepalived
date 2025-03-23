@@ -72,7 +72,7 @@ extern void vrrp_gratuitous_arp_vmac_update_thread(thread_ref_t);
 #endif
 extern void vrrp_arp_thread(thread_ref_t);
 extern void vrrp_gna_thread(thread_ref_t);
-extern void try_up_instance(vrrp_t *, bool, enum vrrp_if_fault_flags_bits);
+extern void try_up_instance(vrrp_t *, bool, vrrp_fault_fl_t);
 #ifdef _WITH_DUMP_THREADS_
 extern void dump_threads(void);
 #endif
