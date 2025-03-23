@@ -495,7 +495,7 @@ enum vrrp_packet_status {
 #endif
 #define VRRP_PKT_SADDR(V) (((V)->saddr.ss_family) ? ((struct sockaddr_in *) &(V)->saddr)->sin_addr.s_addr : IF_ADDR(VRRP_CONFIGURED_IFP(V)))
 
-#define VRRP_ISUP(V)		(!(V)->num_track_fault && !(V)->flags_if_fault)
+#define VRRP_ISUP(V)		(!(V)->flags_if_fault)
 
 
 /* Configuration summary flags */

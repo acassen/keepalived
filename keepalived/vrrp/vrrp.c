@@ -2508,9 +2508,6 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool reverse, 
 		list_head_add(&top->e_list, &ifp->tracking_vrrp);
 	else
 		list_add_tail(&top->e_list, &ifp->tracking_vrrp);
-
-	/* if vrrp->num_if_script_fault needs incrementing, it will be
-	 * done in initialise_tracking_priorities() */
 }
 
 void

@@ -545,6 +545,8 @@ void
 down_instance(vrrp_t *vrrp, bool down_tracker,
 		unsigned down_flag)
 {
+	bool already_down = vrrp->flags_if_fault;
+
 	/* We can not use down_instance() for several down reasons
 	 * at the same time
 	 */
@@ -553,15 +555,17 @@ down_instance(vrrp_t *vrrp, bool down_tracker,
 #ifdef _FAULT_FLAGS_CHECK_
 	if (!down_tracker && __test_bit(down_flag, &vrrp->flags_if_fault))
 		log_message(LOG_INFO, "(%s) BUG - down_instance flag %u already set in 0x%lx", vrrp->iname, down_flag, vrrp->flags_if_fault);
+
+	if (!__test_bit(VRRP_FAULT_FL_TRACKER, &vrrp->flags_if_fault) != !vrrp->num_track_fault)
+		log_message(LOG_INFO, "(%s) BUG - set_fault - tracker flag 0x%lx does not match num_track_fault %u", vrrp->iname, vrrp->flags_if_fault, vrrp->num_track_fault);
 #endif
 
-	if ((vrrp->num_track_fault == 0 && vrrp->flags_if_fault == 0) ||
-			vrrp->state == VRRP_STATE_INIT) {
-		if (down_tracker)
-			vrrp->num_track_fault++;
-		if (down_flag != VRRP_FAULT_FL_TRACKER)
-			__set_bit(down_flag, &vrrp->flags_if_fault);
+	if (down_tracker)
+		vrrp->num_track_fault++;
+	if (down_flag != VRRP_FAULT_FL_TRACKER)
+		__set_bit(down_flag, &vrrp->flags_if_fault);
 
+	if (!already_down || vrrp->state == VRRP_STATE_INIT) {
 		vrrp->wantstate = VRRP_STATE_FAULT;
 		if (vrrp->state == VRRP_STATE_MAST)
 			vrrp_state_leave_master(vrrp, true);
@@ -570,11 +574,6 @@ down_instance(vrrp_t *vrrp, bool down_tracker,
 
 		if (vrrp->sync && vrrp->sync->num_member_fault++ == 0)
 			vrrp_sync_fault(vrrp);
-	} else {
-		if (down_tracker)
-			vrrp->num_track_fault++;
-		if (down_flag != VRRP_FAULT_FL_TRACKER)
-			__set_bit(down_flag, &vrrp->flags_if_fault);
 	}
 }
 

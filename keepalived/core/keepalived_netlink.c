@@ -1010,7 +1010,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 							    vrrp->family == AF_INET ? VRRP_CONFIGURED_IFP(vrrp) :
 #endif
 							    vrrp->ifp) &&
-						    (vrrp->num_track_fault || vrrp->flags_if_fault) &&
+						    vrrp->flags_if_fault &&
 						    vrrp->family == ifa->ifa_family &&
 						    vrrp->saddr.ss_family == AF_UNSPEC &&
 						    (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) || is_tracking_saddr)) {
@@ -1041,7 +1041,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 									 * does not have one, then we will need the following code
 									 */
 									if (add_link_local_address(vrrp->ifp, addr.in6) &&
-								            (vrrp->num_track_fault || vrrp->flags_if_fault) &&
+								            vrrp->flags_if_fault &&
 									    (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) || is_tracking_saddr))
 										try_up_instance(vrrp, false, false, VRRP_FAULT_FL_NO_SOURCE_IP);
 								} else

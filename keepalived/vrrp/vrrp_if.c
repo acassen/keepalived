@@ -1585,7 +1585,7 @@ setup_interface(vrrp_t *vrrp)
 		open_sockpool_socket(vrrp->sockets);
 
 		if (vrrp_initialised) {
-			vrrp->state = (vrrp->num_track_fault || vrrp->flags_if_fault) ? VRRP_STATE_FAULT : VRRP_STATE_BACK;
+			vrrp->state = vrrp->flags_if_fault ? VRRP_STATE_FAULT : VRRP_STATE_BACK;
 			vrrp_init_instance_sands(vrrp);
 			vrrp_thread_add_read(vrrp);
 		}

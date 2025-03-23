@@ -289,8 +289,7 @@ vrrp_init_state(list_head_t *l)
 			if (vrrp_begin_state != vrrp->state)
 				vrrp->last_transition = timer_now();
 			if (vrrp_begin_state != vrrp->state &&
-			    (vrrp->state != VRRP_STATE_FAULT ||
-			     vrrp->num_track_fault || vrrp->flags_if_fault))
+			    (vrrp->state != VRRP_STATE_FAULT || vrrp->flags_if_fault))
 				send_instance_notifies(vrrp);
 			else if (reload && global_data->fifo_write_vrrp_states_on_reload)
 				notify_instance_fifo(vrrp);
@@ -692,7 +691,7 @@ vrrp_gratuitous_arp_vmac_update_thread(thread_ref_t thread)
 
 void
 try_up_instance(vrrp_t *vrrp, bool leaving_init,
-		bool resolved_script,
+		__attribute__((unused)) bool resolved_script,
 		enum vrrp_if_fault_flags_bits resolved_flag)
 {
 	int wantstate;
@@ -701,28 +700,30 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init,
 	/* We can not use try_up_instance() for several resolution
 	 * at the same time
 	 */
-	assert(!(resolved_script && resolved_flag != VRRP_FAULT_FL_TRACKER));
-
 #ifdef _FAULT_FLAGS_CHECK_
-	if (!resolved_script && !__test_bit(resolved_flag, &vrrp->flags_if_fault))
+	if (resolved_flag != VRRP_FAULT_FL_TRACKER && !__test_bit(resolved_flag, &vrrp->flags_if_fault))
 		log_message(LOG_INFO, "(%s) BUG - try_up_instance flag %u not set in 0x%lx, leaving_init %d", vrrp->iname, resolved_flag, vrrp->flags_if_fault, leaving_init);
+
+	if (!__test_bit(VRRP_FAULT_FL_TRACKER, &vrrp->flags_if_fault) != !vrrp->num_track_fault)
+		log_message(LOG_INFO, "(%s) BUG - clear_fault - tracker flag 0x%lx does not match num_track_fault %u", vrrp->iname, vrrp->flags_if_fault, vrrp->num_track_fault);
 #endif
 
 	if (leaving_init) {
-		if (vrrp->num_track_fault || vrrp->flags_if_fault)
+		if (vrrp->flags_if_fault)
 			return;
 	} else {
-		if (resolved_script)
-			vrrp->num_track_fault--;
-		if (resolved_flag != VRRP_FAULT_FL_TRACKER)
+		if (resolved_flag == VRRP_FAULT_FL_TRACKER) {
+			if (!--vrrp->num_track_fault)
+				__clear_bit(VRRP_FAULT_FL_TRACKER, &vrrp->flags_if_fault);
+		} else
 			__clear_bit(resolved_flag, &vrrp->flags_if_fault);
 	}
 
-	if (vrrp->num_track_fault || vrrp->flags_if_fault)
+	if (vrrp->flags_if_fault)
 		return;
 
 	if (vrrp->num_script_init) {
-		if (!vrrp->num_track_fault && !vrrp->flags_if_fault) {
+		if (!vrrp->flags_if_fault) {
 			if (vrrp->sync) {
 				vrrp->sync->num_member_fault--;
 				vrrp->sync->state = VRRP_STATE_INIT;
