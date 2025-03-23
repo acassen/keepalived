@@ -271,23 +271,16 @@ typedef struct _unicast_peer_t {
 	list_head_t		e_list;
 } unicast_peer_t;
 
-
-enum vrrp_if_fault_flags_bits {
-	VRRP_IF_FAULT_FLAG_UNSPECIFIED = 0,
-	VRRP_IF_FAULT_FLAG_INTERFACE_DOWN,
+typedef enum vrrp_fault_fl {
+	VRRP_FAULT_FL_TRACKER = 0,
+	VRRP_FAULT_FL_INTERFACE_DOWN,
 #ifdef _HAVE_VRRP_VMAC_
-	VRRP_IF_FAULT_FLAG_BASE_INTERFACE_DOWN,
-	VRRP_IF_FAULT_FLAG_DUPLICATE_VRID,
+	VRRP_FAULT_FL_BASE_INTERFACE_DOWN,
 #endif /* _HAVE_VRRP_VMAC_ */
-	VRRP_IF_FAULT_FLAG_NO_SOURCE_IP,
-	VRRP_IF_FAULT_FLAG_CONFIG_ERROR,
-};
-
-#define VRRP_IF_FAULT_INTERFACE_DOWN 0x1
-#ifdef _HAVE_VRRP_VMAC_
-#define VRRP_IF_FAULT_BASE_INTERFACE_DOWN 0x2
-#endif
-#define VRRP_IF_FAULT_DUPLICATE_VRID 0x4
+	VRRP_FAULT_FL_DUPLICATE_VRID,
+	VRRP_FAULT_FL_NO_SOURCE_IP,
+	VRRP_FAULT_FL_CONFIG_ERROR,
+} vrrp_fault_fl_t;
 
 /* parameters per virtual router -- rfc2338.6.1.2 */
 typedef struct _vrrp_t {
@@ -502,7 +495,7 @@ enum vrrp_packet_status {
 #endif
 #define VRRP_PKT_SADDR(V) (((V)->saddr.ss_family) ? ((struct sockaddr_in *) &(V)->saddr)->sin_addr.s_addr : IF_ADDR(VRRP_CONFIGURED_IFP(V)))
 
-#define VRRP_ISUP(V)		(!(V)->num_track_fault && !(V)->flags_if_fault)
+#define VRRP_ISUP(V)		(!(V)->flags_if_fault)
 
 
 /* Configuration summary flags */

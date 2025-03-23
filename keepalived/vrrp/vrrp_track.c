@@ -541,22 +541,33 @@ alloc_track_bfd(const char *name, list_head_t *l, const vector_t *strvec)
 }
 #endif
 
-void
-down_instance(vrrp_t *vrrp, bool down_tracker,
-		unsigned down_flag)
+static void
+set_fault(vrrp_t *vrrp, unsigned flag)
 {
+#ifdef _FAULT_FLAGS_CHECK_
+	if (flag != VRRP_FAULT_FL_TRACKER && __test_bit(flag, &vrrp->flags_if_fault))
+		log_message(LOG_INFO, "(%s) BUG - down_instance flag %u already set in 0x%lx", vrrp->iname, flag, vrrp->flags_if_fault);
+
+	if (!__test_bit(VRRP_FAULT_FL_TRACKER, &vrrp->flags_if_fault) != !vrrp->num_track_fault)
+		log_message(LOG_INFO, "(%s) BUG - set_fault - tracker flag 0x%lx does not match num_track_fault %u", vrrp->iname, vrrp->flags_if_fault, vrrp->num_track_fault);
+#endif
+
+	__set_bit(flag, &vrrp->flags_if_fault);
+	if (flag == VRRP_FAULT_FL_TRACKER)
+		vrrp->num_track_fault++;
+}
+
+void
+down_instance(vrrp_t *vrrp, unsigned down_flag)		// last param should be vrrp_fault_fl_t down_flag
+{
+	bool already_down = vrrp->flags_if_fault;
+
 	/* We can not use down_instance() for several down reasons
 	 * at the same time
 	 */
-	assert(!(down_tracker && down_flag != VRRP_IF_FAULT_FLAG_UNSPECIFIED));
+	set_fault(vrrp, down_flag);
 
-	if ((vrrp->num_track_fault == 0 && vrrp->flags_if_fault == 0) ||
-			vrrp->state == VRRP_STATE_INIT) {
-		if (down_tracker)
-			vrrp->num_track_fault++;
-		if (down_flag != VRRP_IF_FAULT_FLAG_UNSPECIFIED)
-			__set_bit(down_flag, &vrrp->flags_if_fault);
-
+	if (!already_down || vrrp->state == VRRP_STATE_INIT) {
 		vrrp->wantstate = VRRP_STATE_FAULT;
 		if (vrrp->state == VRRP_STATE_MAST)
 			vrrp_state_leave_master(vrrp, true);
@@ -565,11 +576,6 @@ down_instance(vrrp_t *vrrp, bool down_tracker,
 
 		if (vrrp->sync && vrrp->sync->num_member_fault++ == 0)
 			vrrp_sync_fault(vrrp);
-	} else {
-		if (down_tracker)
-			vrrp->num_track_fault++;
-		if (down_flag != VRRP_IF_FAULT_FLAG_UNSPECIFIED)
-			__set_bit(down_flag, &vrrp->flags_if_fault);
 	}
 }
 
@@ -630,14 +636,14 @@ process_script_update_priority(int weight, int multiplier, vrrp_script_t *vscrip
 
 		if (script_ok != (multiplier == 1)) {
 			/* The instance needs to go down */
-			down_instance(vrrp, true, VRRP_IF_FAULT_FLAG_UNSPECIFIED);
+			down_instance(vrrp, VRRP_FAULT_FL_TRACKER);
 		} else if (!vrrp->num_script_init &&
 			   vscript->init_state != SCRIPT_INIT_STATE_INIT_RELOAD &&
 			   (!vrrp->sync || !vrrp->sync->num_member_init)) {
 			/* The instance can come up
 			 * Set want_state = BACKUP/MASTER, and check i/fs and sync groups
 			 */
-			try_up_instance(vrrp, instance_left_init, true, VRRP_IF_FAULT_FLAG_UNSPECIFIED);
+			try_up_instance(vrrp, instance_left_init, VRRP_FAULT_FL_TRACKER);
 		}
 		return;
 	}
@@ -687,7 +693,7 @@ initialise_track_script_state(tracked_sc_t *tsc, vrrp_t *vrrp)
 			 (tsc->scr->init_state != SCRIPT_INIT_STATE_INIT_RELOAD &&
 			  (tsc->scr->result >= 0 && tsc->scr->result < tsc->scr->rise))) {
 			/* The script is in fault state */
-			vrrp->num_track_fault++;
+			set_fault(vrrp, VRRP_FAULT_FL_TRACKER);
 			log_message(LOG_INFO, "(%s): entering FAULT state due to script %s", vrrp->iname, tsc->scr->sname);
 			vrrp->state = VRRP_STATE_FAULT;
 		}
@@ -725,12 +731,12 @@ initialise_track_bfd_state(tracked_bfd_t *tbfd, vrrp_t *vrrp)
 			if (tbfd->weight < 0)
 				vrrp->total_priority += tbfd->weight * multiplier;
 			else if (!tbfd->weight) {
-				vrrp->num_track_fault++;
+				set_fault(vrrp, VRRP_FAULT_FL_TRACKER);
 				vrrp->state = VRRP_STATE_FAULT;
 			}
 		}
 	} else if (tbfd->bfd->bfd_up == tbfd->weight_reverse) {
-		vrrp->num_track_fault++;
+		set_fault(vrrp, VRRP_FAULT_FL_TRACKER);
 		vrrp->state = VRRP_STATE_FAULT;
 	}
 }
@@ -758,11 +764,11 @@ initialise_interface_tracking_priorities(void)
 					vrrp->state = VRRP_STATE_FAULT;
 #ifdef _HAVE_VRRP_VMAC_
 					if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) && VRRP_CONFIGURED_IFP(vrrp) == ifp)
-							__set_bit(VRRP_IF_FAULT_FLAG_BASE_INTERFACE_DOWN, &vrrp->flags_if_fault);
+							__set_bit(VRRP_FAULT_FL_BASE_INTERFACE_DOWN, &vrrp->flags_if_fault);
 					else
 #endif
 					   /* assuming there is only one tracked interface per vrrp : to be checked */
-						__set_bit(VRRP_IF_FAULT_FLAG_INTERFACE_DOWN, &vrrp->flags_if_fault);
+						__set_bit(VRRP_FAULT_FL_INTERFACE_DOWN, &vrrp->flags_if_fault);
 				}
 			} else if (IF_FLAGS_UP(ifp)) {
 				if (top->weight > 0)
@@ -792,7 +798,7 @@ initialise_vrrp_file_tracking_priorities(void)
 				/* The instance is down */
 				log_message(LOG_INFO, "(%s): entering FAULT state (tracked file %s has status %i)", vrrp->iname, tfile->fname, status);
 				vrrp->state = VRRP_STATE_FAULT;
-				vrrp->num_track_fault++;
+				set_fault(vrrp, VRRP_FAULT_FL_TRACKER);
 			}
 			else
 				vrrp->total_priority += (status > 253 ? 253 : status);
@@ -821,8 +827,8 @@ initialise_process_tracking_priorities(void)
 					log_message(LOG_INFO, "(%s) entering FAULT state (tracked process %s"
 							      " quorum not achieved)"
 							    , vrrp->iname, tprocess->pname);
+					set_fault(vrrp, VRRP_FAULT_FL_TRACKER);
 					vrrp->state = VRRP_STATE_FAULT;
-					vrrp->num_track_fault++;
 				}
 			}
 			else if (tprocess->have_quorum) {
@@ -853,7 +859,7 @@ initialise_vrrp_tracking_priorities(vrrp_t *vrrp)
 		log_message(LOG_INFO, "(%s) entering FAULT state (no IPv%d address for interface)"
 				    , vrrp->iname, vrrp->family == AF_INET ? 4 : 6);
 		vrrp->state = VRRP_STATE_FAULT;
-		__set_bit(VRRP_IF_FAULT_FLAG_NO_SOURCE_IP, &vrrp->flags_if_fault);
+		__set_bit(VRRP_FAULT_FL_NO_SOURCE_IP, &vrrp->flags_if_fault);
 	}
 
 	/* Initialise the vrrp instance's tracked scripts */
@@ -931,9 +937,9 @@ process_update_track_process_status(vrrp_tracked_process_t *tprocess, bool now_u
 		vrrp = top->obj.vrrp;
 		if (!top->weight) {
 			if (now_up == (top->weight_multiplier == 1))
-				try_up_instance(vrrp, false, true, VRRP_IF_FAULT_FLAG_UNSPECIFIED);
+				try_up_instance(vrrp, false, VRRP_FAULT_FL_TRACKER);
 			else
-				down_instance(vrrp, true, VRRP_IF_FAULT_FLAG_UNSPECIFIED);
+				down_instance(vrrp, VRRP_FAULT_FL_TRACKER);
 		}
 		else if (vrrp->base_priority != VRRP_PRIO_OWNER) {
 			if ((top->weight > 0) == now_up)

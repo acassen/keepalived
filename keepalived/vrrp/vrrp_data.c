@@ -262,7 +262,7 @@ dump_tracking_vrrp(FILE *fp, const void *obj)
 	conf_write(fp, "     %s, weight %d%s%s"
 		     , vrrp->iname, top->weight
 		     , top->weight_multiplier == -1 ? " reverse" : ""
-		     , top->type == TRACK_VRRP_DYNAMIC ? " (dynamic)" : "");
+		     , top->type & TRACK_VRRP_DYNAMIC ? " (dynamic)" : "");
 }
 void
 dump_tracking_vrrp_list(FILE *fp, const list_head_t *l)
@@ -643,7 +643,25 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 	conf_write(fp, "   Number of config faults = %u", vrrp->num_config_faults);
 	if (fp) {
 		conf_write(fp, "   Number of tracker faults = %u", vrrp->num_track_fault);
-		conf_write(fp, "   Flags of interface faults = %#lx", vrrp->flags_if_fault);
+		if (!vrrp->flags_if_fault)
+			conf_write(fp, "   Flags of interface faults - (none)");
+		else {
+			conf_write(fp, "   Flags of interface faults:");
+			if (__test_bit(VRRP_FAULT_FL_TRACKER, &vrrp->flags_if_fault))
+				conf_write(fp, "     unspecified");
+			if (__test_bit(VRRP_FAULT_FL_INTERFACE_DOWN, &vrrp->flags_if_fault))
+				conf_write(fp, "     i/f down");
+#ifdef _HAVE_VRRP_VMAC_
+			if (__test_bit(VRRP_FAULT_FL_BASE_INTERFACE_DOWN, &vrrp->flags_if_fault))
+				conf_write(fp, "     base i/f down");
+#endif
+			if (__test_bit(VRRP_FAULT_FL_DUPLICATE_VRID, &vrrp->flags_if_fault))
+				conf_write(fp, "     duplicate VRID");
+			if (__test_bit(VRRP_FAULT_FL_NO_SOURCE_IP, &vrrp->flags_if_fault))
+				conf_write(fp, "     no source IP address");
+			if (__test_bit(VRRP_FAULT_FL_CONFIG_ERROR, &vrrp->flags_if_fault))
+				conf_write(fp, "     config error");
+		}
 #ifdef _HAVE_VRRP_VMAC_
 		if (__test_bit(VRRP_FLAG_DUPLICATE_VRID_FAULT, &vrrp->flags))
 			conf_write(fp, "   Duplicate VRID");

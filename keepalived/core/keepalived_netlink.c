@@ -1010,7 +1010,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 							    vrrp->family == AF_INET ? VRRP_CONFIGURED_IFP(vrrp) :
 #endif
 							    vrrp->ifp) &&
-						    (vrrp->num_track_fault || vrrp->flags_if_fault) &&
+						    vrrp->flags_if_fault &&
 						    vrrp->family == ifa->ifa_family &&
 						    vrrp->saddr.ss_family == AF_UNSPEC &&
 						    (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) || is_tracking_saddr)) {
@@ -1019,7 +1019,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 								inet_ip4tosockaddr(addr.in, &vrrp->saddr);
 							else
 								inet_ip6tosockaddr(addr.in6, &vrrp->saddr);
-							try_up_instance(vrrp, false, false, VRRP_IF_FAULT_FLAG_NO_SOURCE_IP);
+							try_up_instance(vrrp, false, VRRP_FAULT_FL_NO_SOURCE_IP);
 						}
 #ifdef _HAVE_VRRP_VMAC_
 						/* If IPv6 link local and vmac doesn't have an address or we have
@@ -1041,9 +1041,9 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 									 * does not have one, then we will need the following code
 									 */
 									if (add_link_local_address(vrrp->ifp, addr.in6) &&
-								            (vrrp->num_track_fault || vrrp->flags_if_fault) &&
+								            vrrp->flags_if_fault &&
 									    (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) || is_tracking_saddr))
-										try_up_instance(vrrp, false, false, VRRP_IF_FAULT_FLAG_NO_SOURCE_IP);
+										try_up_instance(vrrp, false, VRRP_FAULT_FL_NO_SOURCE_IP);
 								} else
 #endif
 									reset_link_local_address(&vrrp->ifp->sin6_addr, vrrp);
@@ -1167,7 +1167,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 						}
 						else if (IF_ISUP(ifp)) {
 							/* We failed to add an address, so down the instance */
-							down_instance(vrrp, false, VRRP_IF_FAULT_FLAG_NO_SOURCE_IP);
+							down_instance(vrrp, VRRP_FAULT_FL_NO_SOURCE_IP);
 							vrrp->saddr.ss_family = AF_UNSPEC;
 						}
 					}
@@ -1187,7 +1187,10 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 						  IF_ISUP(ifp)) &&
 #endif
 						 (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) || is_tracking_saddr)) {
-						/* Don't attempt to send an IPv6 advert if no address on the interface */
+						/* Don't attempt to send an IPv6 advert if no address on the interface, but we can
+						 * for IPv4. So we want to clear the saddr before calling down_instance for IPv6,
+						 * but after for IPv4.
+						 */
 						if (vrrp->saddr.ss_family == AF_INET6
 #ifdef _HAVE_VRRP_VMAC_
 						    && !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags)
@@ -1195,7 +1198,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 											)
 							vrrp->saddr.ss_family = AF_UNSPEC;
 
-						down_instance(vrrp, false, VRRP_IF_FAULT_FLAG_NO_SOURCE_IP);
+						down_instance(vrrp, VRRP_FAULT_FL_NO_SOURCE_IP);
 						vrrp->saddr.ss_family = AF_UNSPEC;
 					}
 				}
@@ -1605,19 +1608,21 @@ process_if_status_change(interface_t *ifp)
 #ifdef _HAVE_VRRP_VMAC_
 			if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
 					VRRP_CONFIGURED_IFP(vrrp) == ifp)
-				try_up_instance(vrrp, false, false, VRRP_IF_FAULT_FLAG_BASE_INTERFACE_DOWN);
+				try_up_instance(vrrp, false, VRRP_FAULT_FL_BASE_INTERFACE_DOWN);
 			else
 #endif
+			{
 				/* assuming there is only one tracked interface per vrrp : to be checked */
-				try_up_instance(vrrp, false, false, VRRP_IF_FAULT_FLAG_INTERFACE_DOWN);
+				try_up_instance(vrrp, false, VRRP_FAULT_FL_INTERFACE_DOWN);
+			}
 		} else {
 #ifdef _HAVE_VRRP_VMAC_
 			if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
 					VRRP_CONFIGURED_IFP(vrrp) == ifp)
-				down_instance(vrrp, false, VRRP_IF_FAULT_FLAG_BASE_INTERFACE_DOWN);
+				down_instance(vrrp, VRRP_FAULT_FL_BASE_INTERFACE_DOWN);
 			else
 #endif
-				down_instance(vrrp, false, VRRP_IF_FAULT_FLAG_INTERFACE_DOWN);
+				down_instance(vrrp, VRRP_FAULT_FL_INTERFACE_DOWN);
 		}
 	}
 }
@@ -2214,7 +2219,6 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 			if (strcmp(ifp->ifname, name)) {
 				/* The name can change, so handle that here */
 				log_message(LOG_INFO, "Interface name has changed from %s to %s", ifp->ifname, name);
-
 #ifndef _ONE_PROCESS_DEBUG_
 				if (prog_type != PROG_TYPE_VRRP) {
 					ifp->ifi_flags = 0;

@@ -385,11 +385,17 @@ static int ipvs_getinfo_parse_cb(struct nl_msg *msg, __attribute__((unused)) voi
 }
 #endif
 
-static int ipvs_getinfo(bool retry)
+static int ipvs_getinfo(
+#ifndef LIBIPVS_USE_NL
+		        __attribute__((unused))
+#endif
+						bool retry)
 {
 	socklen_t len;
 	struct ip_vs_getinfo ipvs_info;
+#ifdef LIBIPVS_USE_NL
 	unsigned retries = retry ? 1 : 0;
+#endif
 
 	/* It appears that if we need to install the ip_vs module
 	 * (via keepalived_modprobe), then the first ipvs_nl_send_message()
@@ -431,7 +437,11 @@ static int ipvs_getinfo(bool retry)
 	return getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO, &ipvs_info, &len);
 }
 
-int ipvs_init(bool retry)
+int ipvs_init(
+#ifndef LIBIPVS_USE_NL
+	      __attribute__((unused))
+#endif
+				      bool retry)
 {
 	ipvs_func = ipvs_init;
 

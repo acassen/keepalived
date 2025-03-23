@@ -1416,10 +1416,10 @@ interface_down(interface_t *ifp)
 			/* Bring down vrrp instance/sync group */
 #ifdef _HAVE_VRRP_VMAC_
 			if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) && VRRP_CONFIGURED_IFP(vrrp) == ifp)
-				down_instance(vrrp, false, VRRP_IF_FAULT_FLAG_BASE_INTERFACE_DOWN);
+				down_instance(vrrp, VRRP_FAULT_FL_BASE_INTERFACE_DOWN);
 			else
 #endif
-				down_instance(vrrp, false, VRRP_IF_FAULT_FLAG_INTERFACE_DOWN);
+				down_instance(vrrp, VRRP_FAULT_FL_INTERFACE_DOWN);
 		}
 	}
 
@@ -1460,10 +1460,10 @@ cleanup_lost_interface(interface_t *ifp)
 #ifdef _HAVE_VRRP_VMAC_
 					if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
 							VRRP_CONFIGURED_IFP(vrrp) == ifp)
-						down_instance(vrrp, false, VRRP_IF_FAULT_FLAG_BASE_INTERFACE_DOWN);
+						down_instance(vrrp, VRRP_FAULT_FL_BASE_INTERFACE_DOWN);
 					else
 #endif
-						down_instance(vrrp, false, VRRP_IF_FAULT_FLAG_INTERFACE_DOWN);
+						down_instance(vrrp, VRRP_FAULT_FL_INTERFACE_DOWN);
 				}
 			}
 			continue;
@@ -1483,15 +1483,6 @@ cleanup_lost_interface(interface_t *ifp)
 		}
 
 		if (vrrp->configured_ifp == ifp &&
-		    vrrp->configured_ifp->base_ifp == vrrp->ifp->base_ifp &&
-		    vrrp->ifp->is_ours) {
-			/* This is a changeable interface that the vrrp instance
-			 * was configured on. Delete the macvlan/ipvlan we created */
-			netlink_link_del_vmac(vrrp);
-// HERE
-		}
-
-		if (vrrp->configured_ifp == ifp &&
 		    vrrp->configured_ifp->base_ifp != vrrp->configured_ifp)
 			del_vrrp_from_interface(vrrp, vrrp->configured_ifp->base_ifp);
 
@@ -1504,7 +1495,7 @@ cleanup_lost_interface(interface_t *ifp)
 		    vrrp->configured_ifp == ifp &&
 		    __test_bit(VRRP_FLAG_DUPLICATE_VRID_FAULT, &vrrp->flags)) {
 			__clear_bit(VRRP_FLAG_DUPLICATE_VRID_FAULT, &vrrp->flags);
-			__clear_bit(VRRP_IF_FAULT_FLAG_DUPLICATE_VRID, &vrrp->flags_if_fault);
+			__clear_bit(VRRP_FAULT_FL_DUPLICATE_VRID, &vrrp->flags_if_fault);
 		}
 #endif
 
@@ -1525,10 +1516,10 @@ cleanup_lost_interface(interface_t *ifp)
 #ifdef _HAVE_VRRP_VMAC_
 			if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
 					VRRP_CONFIGURED_IFP(vrrp) == ifp)
-				down_instance(vrrp, false, VRRP_IF_FAULT_FLAG_BASE_INTERFACE_DOWN);
+				down_instance(vrrp, VRRP_FAULT_FL_BASE_INTERFACE_DOWN);
 			else
 #endif
-				down_instance(vrrp, false, VRRP_IF_FAULT_FLAG_INTERFACE_DOWN);
+				down_instance(vrrp, VRRP_FAULT_FL_INTERFACE_DOWN);
 		}
 	}
 
@@ -1544,6 +1535,22 @@ cleanup_lost_interface(interface_t *ifp)
 #ifdef _HAVE_VRF_
 	ifp->vrf_master_ifp = NULL;
 	ifp->vrf_master_ifindex = 0;
+#endif
+
+#ifdef _HAVE_VRRP_VMAC_
+	list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
+		vrrp = top->obj.vrrp;
+		if (!vrrp->ifp)
+			continue;
+
+		if (vrrp->configured_ifp == ifp &&
+		    vrrp->configured_ifp->base_ifp == vrrp->ifp->base_ifp &&
+		    vrrp->ifp->is_ours) {
+			/* This is a changeable interface that the vrrp instance
+			 * was configured on. Delete the macvlan/ipvlan we created */
+			netlink_link_del_vmac(vrrp);
+		}
+	}
 #endif
 }
 
@@ -1585,7 +1592,7 @@ setup_interface(vrrp_t *vrrp)
 		open_sockpool_socket(vrrp->sockets);
 
 		if (vrrp_initialised) {
-			vrrp->state = (vrrp->num_track_fault || vrrp->flags_if_fault) ? VRRP_STATE_FAULT : VRRP_STATE_BACK;
+			vrrp->state = vrrp->flags_if_fault ? VRRP_STATE_FAULT : VRRP_STATE_BACK;
 			vrrp_init_instance_sands(vrrp);
 			vrrp_thread_add_read(vrrp);
 		}
@@ -1698,7 +1705,7 @@ update_added_interface(interface_t *ifp)
 				if (IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp)) == IF_BASE_IFP(VRRP_CONFIGURED_IFP(vrrp1)) &&
 				    vrrp->family == vrrp1->family &&
 				    vrrp->vrid == vrrp1->vrid) {
-					__set_bit(VRRP_IF_FAULT_FLAG_DUPLICATE_VRID, &vrrp->flags_if_fault);
+					__set_bit(VRRP_FAULT_FL_DUPLICATE_VRID, &vrrp->flags_if_fault);
 					__set_bit(VRRP_FLAG_DUPLICATE_VRID_FAULT, &vrrp->flags);
 					log_message(LOG_INFO, "VRID conflict between %s and %s IPv%d vrid %d",
 							vrrp->iname, vrrp1->iname, vrrp->family == AF_INET ? 4 : 6, vrrp->vrid);
@@ -1720,7 +1727,7 @@ update_added_interface(interface_t *ifp)
 				if (!IF_ISUP(vrrp->configured_ifp->base_ifp) && !__test_bit(VRRP_FLAG_DONT_TRACK_PRIMARY, &vrrp->flags)) {
 					log_message(LOG_INFO, "(%s) interface %s is down",
 							vrrp->iname, vrrp->configured_ifp->base_ifp->ifname);
-					__set_bit(VRRP_IF_FAULT_FLAG_BASE_INTERFACE_DOWN, &vrrp->flags_if_fault);
+					__set_bit(VRRP_FAULT_FL_BASE_INTERFACE_DOWN, &vrrp->flags_if_fault);
 				}
 			}
 
