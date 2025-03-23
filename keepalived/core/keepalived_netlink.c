@@ -1187,7 +1187,10 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 						  IF_ISUP(ifp)) &&
 #endif
 						 (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) || is_tracking_saddr)) {
-						/* Don't attempt to send an IPv6 advert if no address on the interface */
+						/* Don't attempt to send an IPv6 advert if no address on the interface, but we can
+						 * for IPv4. So we want to clear the saddr before calling down_instance for IPv6,
+						 * but after for IPv4.
+						 */
 						if (vrrp->saddr.ss_family == AF_INET6
 #ifdef _HAVE_VRRP_VMAC_
 						    && !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags)
