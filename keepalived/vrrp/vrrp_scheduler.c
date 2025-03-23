@@ -701,7 +701,7 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init,
 	/* We can not use try_up_instance() for several resolution
 	 * at the same time
 	 */
-	assert(!(resolved_script && resolved_flag != VRRP_IF_FAULT_FLAG_UNSPECIFIED));
+	assert(!(resolved_script && resolved_flag != VRRP_FAULT_FL_TRACKER));
 
 #ifdef _FAULT_FLAGS_CHECK_
 	if (!resolved_script && !__test_bit(resolved_flag, &vrrp->flags_if_fault))
@@ -714,7 +714,7 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init,
 	} else {
 		if (resolved_script)
 			vrrp->num_track_fault--;
-		if (resolved_flag != VRRP_IF_FAULT_FLAG_UNSPECIFIED)
+		if (resolved_flag != VRRP_FAULT_FL_TRACKER)
 			__clear_bit(resolved_flag, &vrrp->flags_if_fault);
 	}
 
@@ -851,9 +851,9 @@ vrrp_handle_bfd_event(bfd_event_t * evt)
 			}
 
 			if (!!vbfd->bfd_up == (tbfd->weight_multiplier == 1))
-				try_up_instance(vrrp, false, true, VRRP_IF_FAULT_FLAG_UNSPECIFIED);
+				try_up_instance(vrrp, false, true, VRRP_FAULT_FL_TRACKER);
 			else
-				down_instance(vrrp, true, VRRP_IF_FAULT_FLAG_UNSPECIFIED);
+				down_instance(vrrp, true, VRRP_FAULT_FL_TRACKER);
 		}
 
 		break;

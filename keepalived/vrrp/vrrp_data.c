@@ -647,19 +647,19 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 			conf_write(fp, "   Flags of interface faults - (none)");
 		else {
 			conf_write(fp, "   Flags of interface faults:");
-			if (__test_bit(VRRP_IF_FAULT_FLAG_UNSPECIFIED, &vrrp->flags_if_fault))
+			if (__test_bit(VRRP_FAULT_FL_TRACKER, &vrrp->flags_if_fault))
 				conf_write(fp, "     unspecified");
-			if (__test_bit(VRRP_IF_FAULT_FLAG_INTERFACE_DOWN, &vrrp->flags_if_fault))
+			if (__test_bit(VRRP_FAULT_FL_INTERFACE_DOWN, &vrrp->flags_if_fault))
 				conf_write(fp, "     i/f down");
 #ifdef _HAVE_VRRP_VMAC_
-			if (__test_bit(VRRP_IF_FAULT_FLAG_BASE_INTERFACE_DOWN, &vrrp->flags_if_fault))
+			if (__test_bit(VRRP_FAULT_FL_BASE_INTERFACE_DOWN, &vrrp->flags_if_fault))
 				conf_write(fp, "     base i/f down");
 #endif
-			if (__test_bit(VRRP_IF_FAULT_FLAG_DUPLICATE_VRID, &vrrp->flags_if_fault))
+			if (__test_bit(VRRP_FAULT_FL_DUPLICATE_VRID, &vrrp->flags_if_fault))
 				conf_write(fp, "     duplicate VRID");
-			if (__test_bit(VRRP_IF_FAULT_FLAG_NO_SOURCE_IP, &vrrp->flags_if_fault))
+			if (__test_bit(VRRP_FAULT_FL_NO_SOURCE_IP, &vrrp->flags_if_fault))
 				conf_write(fp, "     no source IP address");
-			if (__test_bit(VRRP_IF_FAULT_FLAG_CONFIG_ERROR, &vrrp->flags_if_fault))
+			if (__test_bit(VRRP_FAULT_FL_CONFIG_ERROR, &vrrp->flags_if_fault))
 				conf_write(fp, "     config error");
 		}
 #ifdef _HAVE_VRRP_VMAC_

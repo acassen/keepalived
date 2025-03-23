@@ -2523,11 +2523,11 @@ del_vrrp_from_interface(vrrp_t *vrrp, interface_t *ifp)
 			if (!IF_ISUP(ifp) && !__test_bit(VRRP_FLAG_DONT_TRACK_PRIMARY, &vrrp->flags)) {
 #ifdef _HAVE_VRRP_VMAC_
 					if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) && VRRP_CONFIGURED_IFP(vrrp) == ifp)
-							__clear_bit(VRRP_IF_FAULT_FLAG_BASE_INTERFACE_DOWN, &vrrp->flags_if_fault);
+							__clear_bit(VRRP_FAULT_FL_BASE_INTERFACE_DOWN, &vrrp->flags_if_fault);
 					else
 #endif
 					   /* assuming there is only one tracked interface per vrrp : to be checked */
-						__clear_bit(VRRP_IF_FAULT_FLAG_INTERFACE_DOWN, &vrrp->flags_if_fault);
+						__clear_bit(VRRP_FAULT_FL_INTERFACE_DOWN, &vrrp->flags_if_fault);
 			}
 			free_tracking_obj(top);
 			break;
@@ -2783,7 +2783,7 @@ open_sockpool_socket(sock_t *sock)
 		rb_for_each_entry(vrrp, &sock->rb_vrid, rb_vrid) {
 			if (vrrp->state != VRRP_STATE_FAULT)
 				log_message(LOG_INFO, "(%s): entering FAULT state (src address not configured)", vrrp->iname);
-			down_instance(vrrp, false, VRRP_IF_FAULT_FLAG_NO_SOURCE_IP);
+			down_instance(vrrp, false, VRRP_FAULT_FL_NO_SOURCE_IP);
 			if ((__num_bit(&vrrp->flags_if_fault) + vrrp->num_track_fault) == 1)
 				send_instance_notifies(vrrp);
 		}
@@ -4904,7 +4904,7 @@ vrrp_complete_init(void)
 	 * We therefore need to clear num_track_fault and flags_if_fault here. */
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		if (vrrp->num_config_faults)
-			__set_bit(VRRP_IF_FAULT_FLAG_CONFIG_ERROR, &vrrp->flags_if_fault);
+			__set_bit(VRRP_FAULT_FL_CONFIG_ERROR, &vrrp->flags_if_fault);
 		else {
 			vrrp->num_track_fault = 0;
 			vrrp->flags_if_fault = 0;

@@ -548,7 +548,7 @@ down_instance(vrrp_t *vrrp, bool down_tracker,
 	/* We can not use down_instance() for several down reasons
 	 * at the same time
 	 */
-	assert(!(down_tracker && down_flag != VRRP_IF_FAULT_FLAG_UNSPECIFIED));
+	assert(!(down_tracker && down_flag != VRRP_FAULT_FL_TRACKER));
 
 #ifdef _FAULT_FLAGS_CHECK_
 	if (!down_tracker && __test_bit(down_flag, &vrrp->flags_if_fault))
@@ -559,7 +559,7 @@ down_instance(vrrp_t *vrrp, bool down_tracker,
 			vrrp->state == VRRP_STATE_INIT) {
 		if (down_tracker)
 			vrrp->num_track_fault++;
-		if (down_flag != VRRP_IF_FAULT_FLAG_UNSPECIFIED)
+		if (down_flag != VRRP_FAULT_FL_TRACKER)
 			__set_bit(down_flag, &vrrp->flags_if_fault);
 
 		vrrp->wantstate = VRRP_STATE_FAULT;
@@ -573,7 +573,7 @@ down_instance(vrrp_t *vrrp, bool down_tracker,
 	} else {
 		if (down_tracker)
 			vrrp->num_track_fault++;
-		if (down_flag != VRRP_IF_FAULT_FLAG_UNSPECIFIED)
+		if (down_flag != VRRP_FAULT_FL_TRACKER)
 			__set_bit(down_flag, &vrrp->flags_if_fault);
 	}
 }
@@ -635,14 +635,14 @@ process_script_update_priority(int weight, int multiplier, vrrp_script_t *vscrip
 
 		if (script_ok != (multiplier == 1)) {
 			/* The instance needs to go down */
-			down_instance(vrrp, true, VRRP_IF_FAULT_FLAG_UNSPECIFIED);
+			down_instance(vrrp, true, VRRP_FAULT_FL_TRACKER);
 		} else if (!vrrp->num_script_init &&
 			   vscript->init_state != SCRIPT_INIT_STATE_INIT_RELOAD &&
 			   (!vrrp->sync || !vrrp->sync->num_member_init)) {
 			/* The instance can come up
 			 * Set want_state = BACKUP/MASTER, and check i/fs and sync groups
 			 */
-			try_up_instance(vrrp, instance_left_init, true, VRRP_IF_FAULT_FLAG_UNSPECIFIED);
+			try_up_instance(vrrp, instance_left_init, true, VRRP_FAULT_FL_TRACKER);
 		}
 		return;
 	}
@@ -763,11 +763,11 @@ initialise_interface_tracking_priorities(void)
 					vrrp->state = VRRP_STATE_FAULT;
 #ifdef _HAVE_VRRP_VMAC_
 					if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) && VRRP_CONFIGURED_IFP(vrrp) == ifp)
-							__set_bit(VRRP_IF_FAULT_FLAG_BASE_INTERFACE_DOWN, &vrrp->flags_if_fault);
+							__set_bit(VRRP_FAULT_FL_BASE_INTERFACE_DOWN, &vrrp->flags_if_fault);
 					else
 #endif
 					   /* assuming there is only one tracked interface per vrrp : to be checked */
-						__set_bit(VRRP_IF_FAULT_FLAG_INTERFACE_DOWN, &vrrp->flags_if_fault);
+						__set_bit(VRRP_FAULT_FL_INTERFACE_DOWN, &vrrp->flags_if_fault);
 				}
 			} else if (IF_FLAGS_UP(ifp)) {
 				if (top->weight > 0)
@@ -858,7 +858,7 @@ initialise_vrrp_tracking_priorities(vrrp_t *vrrp)
 		log_message(LOG_INFO, "(%s) entering FAULT state (no IPv%d address for interface)"
 				    , vrrp->iname, vrrp->family == AF_INET ? 4 : 6);
 		vrrp->state = VRRP_STATE_FAULT;
-		__set_bit(VRRP_IF_FAULT_FLAG_NO_SOURCE_IP, &vrrp->flags_if_fault);
+		__set_bit(VRRP_FAULT_FL_NO_SOURCE_IP, &vrrp->flags_if_fault);
 	}
 
 	/* Initialise the vrrp instance's tracked scripts */
@@ -936,9 +936,9 @@ process_update_track_process_status(vrrp_tracked_process_t *tprocess, bool now_u
 		vrrp = top->obj.vrrp;
 		if (!top->weight) {
 			if (now_up == (top->weight_multiplier == 1))
-				try_up_instance(vrrp, false, true, VRRP_IF_FAULT_FLAG_UNSPECIFIED);
+				try_up_instance(vrrp, false, true, VRRP_FAULT_FL_TRACKER);
 			else
-				down_instance(vrrp, true, VRRP_IF_FAULT_FLAG_UNSPECIFIED);
+				down_instance(vrrp, true, VRRP_FAULT_FL_TRACKER);
 		}
 		else if (vrrp->base_priority != VRRP_PRIO_OWNER) {
 			if ((top->weight > 0) == now_up)
