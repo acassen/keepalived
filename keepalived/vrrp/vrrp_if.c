@@ -1483,15 +1483,6 @@ cleanup_lost_interface(interface_t *ifp)
 		}
 
 		if (vrrp->configured_ifp == ifp &&
-		    vrrp->configured_ifp->base_ifp == vrrp->ifp->base_ifp &&
-		    vrrp->ifp->is_ours) {
-			/* This is a changeable interface that the vrrp instance
-			 * was configured on. Delete the macvlan/ipvlan we created */
-			netlink_link_del_vmac(vrrp);
-// HERE
-		}
-
-		if (vrrp->configured_ifp == ifp &&
 		    vrrp->configured_ifp->base_ifp != vrrp->configured_ifp)
 			del_vrrp_from_interface(vrrp, vrrp->configured_ifp->base_ifp);
 
@@ -1545,6 +1536,20 @@ cleanup_lost_interface(interface_t *ifp)
 	ifp->vrf_master_ifp = NULL;
 	ifp->vrf_master_ifindex = 0;
 #endif
+
+	list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
+		vrrp = top->obj.vrrp;
+		if (!vrrp->ifp)
+			continue;
+
+		if (vrrp->configured_ifp == ifp &&
+		    vrrp->configured_ifp->base_ifp == vrrp->ifp->base_ifp &&
+		    vrrp->ifp->is_ours) {
+			/* This is a changeable interface that the vrrp instance
+			 * was configured on. Delete the macvlan/ipvlan we created */
+			netlink_link_del_vmac(vrrp);
+		}
+	}
 }
 
 static void
