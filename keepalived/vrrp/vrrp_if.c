@@ -1537,6 +1537,7 @@ cleanup_lost_interface(interface_t *ifp)
 	ifp->vrf_master_ifindex = 0;
 #endif
 
+#ifdef _HAVE_VRRP_VMAC_
 	list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
 		vrrp = top->obj.vrrp;
 		if (!vrrp->ifp)
@@ -1550,6 +1551,7 @@ cleanup_lost_interface(interface_t *ifp)
 			netlink_link_del_vmac(vrrp);
 		}
 	}
+#endif
 }
 
 static void
