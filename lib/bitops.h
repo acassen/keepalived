@@ -29,9 +29,10 @@
 #include <stdbool.h>
 
 /* Defines */
-#define BIT_PER_LONG	(CHAR_BIT * sizeof(unsigned long))
-#define BIT_MASK(idx)	(1UL << ((idx) % BIT_PER_LONG))
-#define BIT_WORD(idx)	((idx) / BIT_PER_LONG)
+#define BIT_PER_LONG		(CHAR_BIT * sizeof(unsigned long))
+#define BIT_MASK(idx)		(1UL << (idx))
+#define BIT_MASK_ARRAY(idx)	(1UL << ((idx) % BIT_PER_LONG))
+#define BIT_WORD(idx)		((idx) / BIT_PER_LONG)
 
 /* Helpers */
 static inline void __set_bit(unsigned idx, unsigned long *bmap)
@@ -61,17 +62,17 @@ static inline bool __test_and_set_bit(unsigned idx, unsigned long *bmap)
 
 static inline void __set_bit_array(unsigned idx, unsigned long bmap[])
 {
-	bmap[BIT_WORD(idx)] |= BIT_MASK(idx);
+	bmap[BIT_WORD(idx)] |= BIT_MASK_ARRAY(idx);
 }
 
 static inline void __clear_bit_array(unsigned idx, unsigned long bmap[])
 {
-	bmap[BIT_WORD(idx)] &= ~BIT_MASK(idx);
+	bmap[BIT_WORD(idx)] &= ~BIT_MASK_ARRAY(idx);
 }
 
 static inline bool __test_bit_array(unsigned idx, const unsigned long bmap[])
 {
-	return !!(bmap[BIT_WORD(idx)] & BIT_MASK(idx));
+	return !!(bmap[BIT_WORD(idx)] & BIT_MASK_ARRAY(idx));
 }
 
 static inline bool __test_and_set_bit_array(unsigned idx, unsigned long bmap[])
