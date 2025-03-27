@@ -2192,8 +2192,8 @@ The syntax for vrrp_instance is :
 
     If up_delay is omitted, it is set to be the same as the down delay.
 
-    The delay on an interface must be less than two (or more precisely one less than
-    down_timer_adverts (default 3)) times the advert interval of any VRRP instance
+    The down delay on an interface must be less than two (or more precisely one less
+    than down_timer_adverts (default 3)) times the advert interval of any VRRP instance
     using that interface (otherwise a backup instance, while not receiving adverts
     may time out and become master before this instance transitions to FAULT state).
     Consequently the up/down delays can be dynamically reduced if another instance is
