@@ -1981,30 +1981,29 @@ static bool
 check_debounce_timers(vrrp_t *vrrp, unsigned advert_int)
 {
 	bool changed = false;
+	unsigned max_timer;
 
 	if (vrrp->down_timer_adverts == 1 || !vrrp->ifp) {
 		/* There can be no debounce timer */
 		return false;
 	}
 
-	if (IF_BASE_IFP(vrrp->ifp)->up_debounce_timer >= (vrrp->down_timer_adverts - 1) * advert_int ||
-	    IF_BASE_IFP(vrrp->ifp)->down_debounce_timer >= (vrrp->down_timer_adverts - 1) * advert_int) {
+	max_timer = (vrrp->down_timer_adverts - 1) * advert_int - advert_int / 256;
+
+	if (IF_BASE_IFP(vrrp->ifp)->down_debounce_timer > max_timer) {
 		changed = true;
-		if (IF_BASE_IFP(vrrp->ifp)->up_debounce_timer >= (vrrp->down_timer_adverts - 1) * advert_int)
-			IF_BASE_IFP(vrrp->ifp)->up_debounce_timer = (vrrp->down_timer_adverts - 1) * advert_int - advert_int / 256;
-		if (IF_BASE_IFP(vrrp->ifp)->down_debounce_timer >= (vrrp->down_timer_adverts - 1) * advert_int)
-			IF_BASE_IFP(vrrp->ifp)->down_debounce_timer = (vrrp->down_timer_adverts - 1) * advert_int - advert_int / 256;
+		if (IF_BASE_IFP(vrrp->ifp)->up_debounce_timer == IF_BASE_IFP(vrrp->ifp)->down_debounce_timer)
+			IF_BASE_IFP(vrrp->ifp)->up_debounce_timer = max_timer;
+		IF_BASE_IFP(vrrp->ifp)->down_debounce_timer = max_timer;
 	}
 
 #ifdef _HAVE_VRRP_VMAC_
 	if (vrrp->ifp != vrrp->ifp->base_ifp) {
-		if (vrrp->ifp->up_debounce_timer >= (vrrp->down_timer_adverts - 1) * advert_int ||
-		    vrrp->ifp->down_debounce_timer >= (vrrp->down_timer_adverts - 1) * advert_int) {
+		if (vrrp->ifp->down_debounce_timer > max_timer) {
 			changed = true;
-			if (vrrp->ifp->down_debounce_timer >= (vrrp->down_timer_adverts - 1) * advert_int)
-				vrrp->ifp->down_debounce_timer = vrrp->ifp->base_ifp->down_debounce_timer;
-			if (vrrp->ifp->up_debounce_timer >= (vrrp->down_timer_adverts - 1) * advert_int)
-				vrrp->ifp->up_debounce_timer = vrrp->ifp->base_ifp->up_debounce_timer;
+			if (vrrp->ifp->up_debounce_timer == vrrp->ifp->down_debounce_timer)
+				vrrp->ifp->up_debounce_timer = max_timer;
+			vrrp->ifp->down_debounce_timer = max_timer;
 		}
 	}
 #endif
