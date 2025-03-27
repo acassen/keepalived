@@ -122,8 +122,8 @@
 /* Used for initialising track files */
 static enum {
 	TRACK_FILE_NO_INIT,
-	TRACK_FILE_CREATE,
 	TRACK_FILE_INIT,
+	TRACK_FILE_OVERWRITE,
 } track_file_init;
 static int track_file_init_value;
 static tracked_file_t *current_tf;
@@ -337,7 +337,7 @@ track_file_init_handler(const vector_t *strvec)
 	const char *word;
 	int value;
 
-	track_file_init = TRACK_FILE_CREATE;
+	track_file_init = TRACK_FILE_INIT;
 	track_file_init_value = 0;
 
 	for (i = 1; i < vector_size(strvec); i++) {
@@ -360,7 +360,7 @@ track_file_init_handler(const vector_t *strvec)
 			track_file_init_value = value;
 		}
 		else if (!strcmp(word, "overwrite"))
-			track_file_init = TRACK_FILE_INIT;
+			track_file_init = TRACK_FILE_OVERWRITE;
 		else
 			report_config_error(CONFIG_GENERAL_ERROR, "Unknown track file init option %s", word);
 	}
@@ -479,7 +479,7 @@ track_file_end_handler(void)
 
 	if (track_file_init != TRACK_FILE_NO_INIT) {
 		ret = stat(track_file->file_path, &statb);
-		if (!ret && track_file_init == TRACK_FILE_INIT) {
+		if (!ret && track_file_init == TRACK_FILE_OVERWRITE) {
 			if ((statb.st_mode & S_IFMT) != S_IFREG) {
 				/* It is not a regular file */
 				report_config_error(CONFIG_GENERAL_ERROR, "Cannot initialise track file %s"
@@ -495,7 +495,7 @@ track_file_end_handler(void)
 
 		/* Don't overwrite a file on reload */
 		if (!reload && !__test_bit(CONFIG_TEST_BIT, &debug) &&
-		    (ret || track_file_init == TRACK_FILE_INIT)) {	// the file doesn't exist or we want to overwrite it
+		    (ret || track_file_init == TRACK_FILE_OVERWRITE)) {	// the file doesn't exist or we want to overwrite it
 			/* Write the value to the file */
 			if ((tf = fopen_safe(track_file->file_path, "w"))) {
 				fprintf(tf, "%d\n", track_file_init_value);
