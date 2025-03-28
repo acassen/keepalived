@@ -922,6 +922,14 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 	if (tb[IFA_ADDRESS] == NULL)
 		tb[IFA_ADDRESS] = tb[IFA_LOCAL];
 
+	/* Ignore tentative addresses - we can't do anything with them */
+#if HAVE_DECL_IFA_FLAGS
+	if ((tb[IFA_FLAGS] ? *(uint32_t *)RTA_DATA(tb[IFA_FLAGS]) : ifa->ifa_flags) & IFA_F_TENTATIVE)
+#else
+	if (ifa->ifa_flags & IFA_F_TENTATIVE)
+#endif
+		return 0;
+
 	/* local interface address */
 	addr.addr = (tb[IFA_LOCAL] ? RTA_DATA(tb[IFA_LOCAL]) : NULL);
 
