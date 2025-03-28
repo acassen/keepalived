@@ -4830,7 +4830,7 @@ vrrp_complete_init(void)
 #endif
 
 #if defined _HAVE_LIBIPSET_
-	if (!global_data->vrrp_iptables_inchain && global_data->using_ipsets) {
+	if (!global_data->vrrp_iptables_inchain && global_data->using_ipsets == true) {
 		log_message(LOG_INFO, "vrrp_ipsets has been specified but not vrrp_iptables - vrrp_ipsets will be ignored");
 		disable_ipsets();
 	}
