@@ -3871,7 +3871,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				/* coverity[var_deref_model] - vrrp->configured_ifp is not NULL for VMAC */
 				netlink_link_add_vmac(vrrp, old_interface);
 			}
-		}
+		} else if (old_interface)
+			netlink_link_del_vmac(vrrp);
 
 		if (vrrp->ifp->base_ifp->ifindex &&
 		    !__test_bit(VRRP_VMAC_UP_BIT, &vrrp->flags) &&
