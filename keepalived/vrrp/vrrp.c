@@ -2053,9 +2053,13 @@ vrrp_state_backup(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buf, ssize_t bu
 		vrrp->rlflags = 0 ;
 
 		if (__test_bit(LOG_DETAIL_BIT, &debug)) {
-			char old_master[INET6_ADDRSTRLEN];
-			strcpy(old_master, inet_sockaddrtos(&vrrp->master_saddr));
-			log_message(LOG_INFO, "(%s) master changed from %s to %s", vrrp->iname, old_master, inet_sockaddrtos(&vrrp->pkt_saddr));
+			if (vrrp->master_saddr.ss_family == AF_UNSPEC)
+				log_message(LOG_INFO, "(%s) master set to %s", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
+			else {
+				char old_master[INET6_ADDRSTRLEN];
+				strcpy(old_master, inet_sockaddrtos(&vrrp->master_saddr));
+				log_message(LOG_INFO, "(%s) master changed from %s to %s", vrrp->iname, old_master, inet_sockaddrtos(&vrrp->pkt_saddr));
+			}
 		}
 	}
 
@@ -3867,7 +3871,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				/* coverity[var_deref_model] - vrrp->configured_ifp is not NULL for VMAC */
 				netlink_link_add_vmac(vrrp, old_interface);
 			}
-		}
+		} else if (old_interface)
+			netlink_link_del_vmac(vrrp);
 
 		if (vrrp->ifp->base_ifp->ifindex &&
 		    !__test_bit(VRRP_VMAC_UP_BIT, &vrrp->flags) &&
@@ -4825,7 +4830,7 @@ vrrp_complete_init(void)
 #endif
 
 #if defined _HAVE_LIBIPSET_
-	if (!global_data->vrrp_iptables_inchain && global_data->using_ipsets) {
+	if (!global_data->vrrp_iptables_inchain && global_data->using_ipsets == true) {
 		log_message(LOG_INFO, "vrrp_ipsets has been specified but not vrrp_iptables - vrrp_ipsets will be ignored");
 		disable_ipsets();
 	}

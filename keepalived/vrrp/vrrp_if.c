@@ -1598,7 +1598,16 @@ setup_interface(vrrp_t *vrrp)
 		}
 	}
 
-	return;
+	/* If we have created a VMAC for the vrrp instance, the VMAC has an address
+	 * (IPv6 only) and the vrrp instance does not have an address, add the
+	 * address to the vrrp instance and try to bring it up. */
+	if (vrrp->family == AF_INET6) {
+		if (IN6_IS_ADDR_UNSPECIFIED(&vrrp->saddr) &&
+		    (__test_bit(VRRP_FAULT_FL_NO_SOURCE_IP, &vrrp->flags_if_fault))) {
+			inet_ip6tosockaddr(&vrrp->ifp->sin6_addr, &vrrp->saddr);
+			try_up_instance(vrrp, false, VRRP_FAULT_FL_NO_SOURCE_IP);
+		}
+	}
 }
 
 #ifdef _HAVE_VRRP_VMAC_

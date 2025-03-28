@@ -922,6 +922,14 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 	if (tb[IFA_ADDRESS] == NULL)
 		tb[IFA_ADDRESS] = tb[IFA_LOCAL];
 
+	/* Ignore tentative addresses - we can't do anything with them */
+#if HAVE_DECL_IFA_FLAGS
+	if ((tb[IFA_FLAGS] ? *(uint32_t *)RTA_DATA(tb[IFA_FLAGS]) : ifa->ifa_flags) & IFA_F_TENTATIVE)
+#else
+	if (ifa->ifa_flags & IFA_F_TENTATIVE)
+#endif
+		return 0;
+
 	/* local interface address */
 	addr.addr = (tb[IFA_LOCAL] ? RTA_DATA(tb[IFA_LOCAL]) : NULL);
 
@@ -1005,52 +1013,39 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 						else
 							is_tracking_saddr = false;
 
-						if (ifp == (
-#ifdef _HAVE_VRRP_VMAC_
-							    vrrp->family == AF_INET ? VRRP_CONFIGURED_IFP(vrrp) :
-#endif
-							    vrrp->ifp) &&
-						    vrrp->flags_if_fault &&
-						    vrrp->family == ifa->ifa_family &&
+						if (vrrp->family == ifa->ifa_family &&
 						    vrrp->saddr.ss_family == AF_UNSPEC &&
-						    (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) || is_tracking_saddr)) {
-							/* Copy the address */
-							if (ifa->ifa_family == AF_INET)
-								inet_ip4tosockaddr(addr.in, &vrrp->saddr);
-							else
-								inet_ip6tosockaddr(addr.in6, &vrrp->saddr);
-							try_up_instance(vrrp, false, VRRP_FAULT_FL_NO_SOURCE_IP);
-						}
+						    __test_bit(VRRP_FAULT_FL_NO_SOURCE_IP, &vrrp->flags_if_fault) &&
+						    vrrp->ifp) {
+							if (ifp == (
 #ifdef _HAVE_VRRP_VMAC_
-						/* If IPv6 link local and vmac doesn't have an address or we have
-						 * created one ourselves, add/replace the new address on the vmac */
-						else if (vrrp->family == AF_INET6 &&
-							 vrrp->ifp &&
-							 ifp == vrrp->ifp->base_ifp &&
-							 IS_MAC_IP_VLAN(vrrp->ifp) &&
-							 !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags) &&
-							 ifa->ifa_family == AF_INET6 &&
-							 vrrp->ifp->is_ours) {
-							if (vrrp->saddr.ss_family == AF_UNSPEC) {
-								inet_ip6tosockaddr(addr.in6, &vrrp->saddr);
-#if 0
-								if (IN6_IS_ADDR_UNSPECIFIED(&vrrp->ifp->sin6_addr)) {
-									/* This should never happen with the current code since we always
-									 * create a link local address on the VMAC interface.
-									 * However, if in future it is decided not to automatically create
-									 * a link local address on the VMAC interface if the parent interface
-									 * does not have one, then we will need the following code
-									 */
-									if (add_link_local_address(vrrp->ifp, addr.in6) &&
-									    vrrp->flags_if_fault &&
-									    (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) || is_tracking_saddr))
-										try_up_instance(vrrp, false, VRRP_FAULT_FL_NO_SOURCE_IP);
-								} else
+								    vrrp->family == AF_INET ? VRRP_CONFIGURED_IFP(vrrp) :
 #endif
-								reset_link_local_address(&vrrp->ifp->sin6_addr, vrrp);
+								    vrrp->ifp) &&
+							    (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) || is_tracking_saddr)) {
+								/* Copy the address */
+								if (ifa->ifa_family == AF_INET)
+									inet_ip4tosockaddr(addr.in, &vrrp->saddr);
+								else
+									inet_ip6tosockaddr(addr.in6, &vrrp->saddr);
+								try_up_instance(vrrp, false, VRRP_FAULT_FL_NO_SOURCE_IP);
 							}
-						}
+#ifdef _HAVE_VRRP_VMAC_
+							/* If IPv6 link local and vmac doesn't have an address or we have
+							 * created one ourselves, add/replace the new address on the vmac */
+							else if (vrrp->family == AF_INET6 &&
+								 IS_MAC_IP_VLAN(vrrp->ifp) &&
+								 vrrp->ifp->is_ours &&
+								 ifp == vrrp->ifp->base_ifp &&
+								 !__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->flags)) {
+									inet_ip6tosockaddr(addr.in6, &vrrp->saddr);
+									if (!__test_bit(VRRP_FLAG_SADDR_FROM_CONFIG, &vrrp->flags) || is_tracking_saddr)
+										try_up_instance(vrrp, false, VRRP_FAULT_FL_NO_SOURCE_IP);
+									else
+										reset_link_local_address(&vrrp->ifp->sin6_addr, vrrp);
+							}
 #endif
+						}
 					}
 				}
 			}

@@ -65,7 +65,10 @@ dist-hook:
 				if [ -n "`git status --porcelain $$f`" ]; then continue; fi; \
 				if [ ! -f $(top_distdir)/$$f ]; then continue; fi; \
 				touch --date=@`git log -n 1 --format=%ct -- $$f` $(top_distdir)/$$f; \
-			done \
+			done; \
+			cd lib; \
+			make git-commit.h; \
+			cd ..; \
 		fi \
 	fi
 	@rm -f $(distdir)/README
