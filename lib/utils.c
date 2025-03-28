@@ -696,6 +696,11 @@ inet_sockaddrtos2(const sockaddr_t *addr, char *addr_str)
 {
 	const void *addr_ip;
 
+	if (addr->ss_family == AF_UNSPEC) {
+		strcpy(addr_str, "(none)");
+		return addr_str;
+	}
+
 	if (addr->ss_family == AF_INET6) {
 		const struct sockaddr_in6 *addr6 = PTR_CAST_CONST(struct sockaddr_in6, addr);
 		addr_ip = &addr6->sin6_addr;
