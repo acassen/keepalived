@@ -453,7 +453,7 @@ possibly following any cleanup actions needed.
     # (which will be lower priority than the other master), before we
     # transition to backup. This means that if the other master has
     # garp_lower_priority_repeat set, it will resend garp messages.
-    # This is to get around the problem of their having been two simultaneous
+    # This is to get around the problem of there having been two simultaneous
     # masters, and the last GARP messages seen were from us.
     \fBvrrp_higher_prio_send_advert \fR[<BOOL>]
 
@@ -2121,9 +2121,7 @@ The syntax for vrrp_instance is :
     # So if "advert_int" is 1, and priority is 128, the instance would normally
     # wait 3.5 seconds before taking over as master. If "preempt_delay 2" is
     # specified, then the delay before taking over as master would be approximately
-    # 5.5 seconds.
-    #
-    # (if not disabled by "nopreempt").
+    # 5.5 seconds (if not disabled by "nopreempt").
     # Range: 0 (default) to 1000 (e.g. 4.12)
     # NOTE: For this to work, the initial state must not be MASTER.
     \fBpreempt_delay \fR300    # waits 5 minutes
