@@ -365,6 +365,10 @@ ipaddress/route/rule the VRRP instance is being
 .B added to
 is later in the original configuration file than the instance it is being
 removed from.
+.B Note2:
+If a configuration is running with SNMP enable, and then a reload is done
+with a configuration that does not enable SNMP, it is not possible to
+subsequently re-enable SNMP. The reason for this is not currently understood.
 .TP
 .B TERM\fP, \fBINT\fP or \fBSIGFUNC=STOP
 .B keepalived
