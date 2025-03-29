@@ -2121,9 +2121,7 @@ The syntax for vrrp_instance is :
     # So if "advert_int" is 1, and priority is 128, the instance would normally
     # wait 3.5 seconds before taking over as master. If "preempt_delay 2" is
     # specified, then the delay before taking over as master would be approximately
-    # 5.5 seconds.
-    #
-    # (if not disabled by "nopreempt").
+    # 5.5 seconds (if not disabled by "nopreempt").
     # Range: 0 (default) to 1000 (e.g. 4.12)
     # NOTE: For this to work, the initial state must not be MASTER.
     \fBpreempt_delay \fR300    # waits 5 minutes
