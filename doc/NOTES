@@ -1,0 +1,11 @@
+1. To delay keepalived startup with systemd:
+
+a. Issue #1847
+SYSTEMD_EDITOR=tee systemctl edit keepalived.service <<EOF
+[Service]
+ExecStartPre=/bin/sleep 5s
+EOF
+
+b. Issue #2570
+ExecStartPre=/bin/bash -c 'until ip addr show eno1 | grep -q "inet"; do sleep 1; done'
+

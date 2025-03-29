@@ -1875,6 +1875,7 @@ The syntax for vrrp_instance is :
     #  Keepalived by default uses a pseudo-header for VRRPv3 IPv4 as well.
     #  Setting this option turns off including the pseudo-header in the
     #  checksum calculation for VRRPv3 IPv4.
+    # For compliance with RFC9568, this option should be set.
     \fBv3_checksum_as_v2\fR [<BOOL>]
 
     # interface specific settings, same as global parameters.
