@@ -453,7 +453,7 @@ possibly following any cleanup actions needed.
     # (which will be lower priority than the other master), before we
     # transition to backup. This means that if the other master has
     # garp_lower_priority_repeat set, it will resend garp messages.
-    # This is to get around the problem of their having been two simultaneous
+    # This is to get around the problem of there having been two simultaneous
     # masters, and the last GARP messages seen were from us.
     \fBvrrp_higher_prio_send_advert \fR[<BOOL>]
 
