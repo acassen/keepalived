@@ -1,7 +1,12 @@
 #!/bin/sh
 
-logger LD_LIBRARY_PATH $LD_LIBRARY_PATH
-export LD_LIBRARY_PATH
+if [[ -z $LD_LIBRARY_PATH ]]; then
+	LP=$(ldd /usr/bin/sh | grep " => " | head -1 | sed -e "s/.*=> *//" -e "s/ *(.*//" -e "s:/[^/]*$::")
+	LP=${LP#/usr}
+
+	export LD_LIBRARY_PATH=${SNAP}${LP}:${SNAP}/usr${LP}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+	logger Set LD_LIBRARY_PATH to $LD_LIBRARY_PATH
+fi
 
 MAJ_VER=$(uname -r | cut -d'.' -f1)
 MIN_VER=$(uname -r | cut -d'.' -f2)
