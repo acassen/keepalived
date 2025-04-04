@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if [[ -z $LD_LIBRARY_PATH ]]; then
+if [ -z $LD_LIBRARY_PATH ]; then
 	LP=$(ldd /usr/bin/sh | grep " => " | head -1 | sed -e "s/.*=> *//" -e "s/ *(.*//" -e "s:/[^/]*$::")
 	LP=${LP#/usr}
 
