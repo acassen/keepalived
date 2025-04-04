@@ -1,5 +1,8 @@
 #!/bin/sh
 
+logger LD_LIBRARY_PATH $LD_LIBRARY_PATH
+export LD_LIBRARY_PATH
+
 MAJ_VER=$(uname -r | cut -d'.' -f1)
 MIN_VER=$(uname -r | cut -d'.' -f2)
 RUNNING_KERNEL_VER=$(printf "%d%2.2d\n" $MAJ_VER $MIN_VER)
