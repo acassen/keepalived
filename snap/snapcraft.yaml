@@ -47,7 +47,7 @@ apps:
     daemon: forking
     command: bin/keepalived-wrapper
     environment:
-      LD_LIBRARY_PATH: "$SNAP/usr/lib/$SNAP_ARCH-linux-gnu:$LD_LIBRARY_PATH"
+      LD_LIBRARY_PATH: "$SNAP/usr/lib/$SNAP_ARCH-linux-gnu:$SNAP/lib/$SNAP_ARCH-linux-gnu:$LD_LIBRARY_PATH"
   keepalived:
     command: bin/keepalived-wrapper
   "519":        # First post Linux 5.18 version - Ubuntu 22.10
@@ -102,9 +102,9 @@ parts:
       rm ${CRAFT_PART_INSTALL}/usr/bin/genhash
       ln -s ../sbin/keepalived-$KERNEL_VER ${CRAFT_PART_INSTALL}/usr/bin/genhash
     build-packages:
-      - libxtables-dev
-      - libip4tc-dev
-      - libip6tc-dev
+  - libxtables-dev
+  - libip4tc-dev
+  - libip6tc-dev
       - libipset-dev
       - libglib2.0-dev
       - libmagic-dev
@@ -115,9 +115,12 @@ parts:
       - libnfnetlink-dev
       - libpcre2-dev
       - libsnmp-dev
-      - libssl-dev
-      - libkmod-dev
+  - libssl-dev
+  - libkmod-dev
     stage-packages:
+      - libxtables12
+      - libip4tc2
+      - libip6tc2
       - libnfnetlink0
       - libipset13
       - libglib2.0-0
@@ -126,6 +129,7 @@ parts:
       - libnftnl11
       - libnl-3-200
       - libnl-genl-3-200
+      - libnfnetlink0
       - libpcre2-8-0
       - libsnmp40
     organize:
