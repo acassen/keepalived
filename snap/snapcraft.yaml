@@ -124,6 +124,7 @@ parts:
       - libnfnetlink0
       - libipset13
       - libglib2.0-0
+      - libpcre3
       - libmagic1
       - libmnl0
       - libnftnl11
