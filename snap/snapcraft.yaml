@@ -48,7 +48,7 @@ apps:
     command: bin/keepalived-wrapper
   keepalived:
     environment:
-      LD_LIBRARY_PATH: $SNAP/usr/lib/$SNAP_ARCH-linux-gnu:$SNAP/lib/$SNAP_ARCH-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+      LD_LIBRARY_PATH: $SNAP/usr/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}:$SNAP/lib/${CRAFT_ARCH_TRIPLET_BUILD_FOR}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     command: bin/keepalived-wrapper
   "519":        # First post Linux 5.18 version - Ubuntu 22.10
     command: usr/sbin/keepalived-519
