@@ -102,9 +102,9 @@ parts:
       rm ${CRAFT_PART_INSTALL}/usr/bin/genhash
       ln -s ../sbin/keepalived-$KERNEL_VER ${CRAFT_PART_INSTALL}/usr/bin/genhash
     build-packages:
-  - libxtables-dev
-  - libip4tc-dev
-  - libip6tc-dev
+      - libxtables-dev
+      - libip4tc-dev
+      - libip6tc-dev
       - libipset-dev
       - libglib2.0-dev
       - libmagic-dev
@@ -115,8 +115,8 @@ parts:
       - libnfnetlink-dev
       - libpcre2-dev
       - libsnmp-dev
-  - libssl-dev
-  - libkmod-dev
+      - libssl-dev
+      - libkmod-dev
     stage-packages:
       - libxtables12
       - libip4tc2
