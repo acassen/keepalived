@@ -47,7 +47,7 @@ apps:
     daemon: forking
     command: bin/keepalived-wrapper
     environment:
-      LD_LIBRARY_PATH: "$SNAP/usr/lib/$SNAP_ARCH-linux-gnu":$LD_LIBRARY_PATH
+      LD_LIBRARY_PATH: "$SNAP/usr/lib/$SNAP_ARCH-linux-gnu:$LD_LIBRARY_PATH"
   keepalived:
     command: bin/keepalived-wrapper
   "519":        # First post Linux 5.18 version - Ubuntu 22.10
