@@ -5063,12 +5063,40 @@ vrrp_complete_init(void)
 
 			vrrp = vrrp_exist(old_vrrp, &vrrp_data->vrrp);
 			if (vrrp) {
+				timeval_t time_now;
+
 				/* If we have detected a fault, don't override it */
 				if (vrrp->state == VRRP_STATE_FAULT || vrrp->num_script_init)
 					continue;
 
 				vrrp->state = old_vrrp->state;
 				vrrp->wantstate = old_vrrp->state;
+				vrrp->fault_init_exit_time = old_vrrp->fault_init_exit_time;
+				vrrp->fault_init_delay_needed = old_vrrp->fault_init_delay_needed;
+				vrrp->block_socket_time = old_vrrp->block_socket_time;
+
+				/* If there is a fault_init_exit_time in progress (less than the current time),
+				 * we update the fault_init_exit_time, to reflect the updated fault_init_exit_delay
+				 */
+				time_now = timer_now();
+				if (timercmp(&time_now, &old_vrrp->fault_init_exit_time, >=))
+					continue;
+				if (vrrp->fault_init_exit_delay == old_vrrp->fault_init_exit_delay)
+					continue;
+
+				if (vrrp->fault_init_exit_delay > old_vrrp->fault_init_exit_delay) {
+					vrrp->fault_init_exit_time = timer_add_long(vrrp->fault_init_exit_time,
+										     vrrp->fault_init_exit_delay - old_vrrp->fault_init_exit_delay);
+					vrrp->block_socket_time = timer_add_long(vrrp->block_socket_time,
+										     vrrp->fault_init_exit_delay - old_vrrp->fault_init_exit_delay);
+				} else {
+					vrrp->fault_init_exit_time = timer_sub_long(vrrp->fault_init_exit_time,
+										     old_vrrp->fault_init_exit_delay - vrrp->fault_init_exit_delay);
+					vrrp->block_socket_time = timer_sub_long(vrrp->block_socket_time,
+										     old_vrrp->fault_init_exit_delay - vrrp->fault_init_exit_delay);
+				}
+				log_message(LOG_INFO, "(%s) changing fault_init_exit_time as propagation delay is changed from %f seconds to %f seconds", vrrp->iname,
+					    (float)old_vrrp->fault_init_exit_delay/TIMER_HZ, (float)vrrp->fault_init_exit_delay/TIMER_HZ);
 			}
 		}
 
