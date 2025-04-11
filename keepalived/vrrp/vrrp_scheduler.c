@@ -241,6 +241,15 @@ vrrp_init_state(list_head_t *l)
 				 * very quickly (1usec) */
 				vrrp->state = VRRP_STATE_BACK;
 				vrrp->ms_down_timer = 1;
+				if (vrrp->fault_init_exit_delay > 0)
+				{
+					vrrp->fault_init_delay_needed = true;
+					vrrp->block_socket_time = timer_add_long(
+						vrrp_delayed_start_time.tv_sec ? vrrp_delayed_start_time: time_now,
+						vrrp->fault_init_exit_delay);
+					vrrp->fault_init_exit_time = timer_add_long(vrrp->block_socket_time, vrrp->ms_down_timer);
+				}
+
 			}
 
 // TODO Do we need ->	vrrp_restore_interface(vrrp, false, false);
@@ -251,6 +260,15 @@ vrrp_init_state(list_head_t *l)
 				vrrp->ms_down_timer = vrrp->master_adver_int + VRRP_TIMER_SKEW_MIN(vrrp);
 			} else
 				vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
+
+			if (!reload && vrrp->fault_init_exit_delay > 0)
+			{
+				vrrp->fault_init_delay_needed = true;
+				vrrp->block_socket_time = timer_add_long(
+					vrrp_delayed_start_time.tv_sec ? vrrp_delayed_start_time: time_now,
+					vrrp->fault_init_exit_delay);
+				vrrp->fault_init_exit_time = timer_add_long(vrrp->block_socket_time, vrrp->ms_down_timer);
+			}
 
 #ifdef _WITH_SNMP_RFCV3_
 			vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_MASTER_NO_RESPONSE;
@@ -278,6 +296,7 @@ vrrp_init_state(list_head_t *l)
 				if (vrrp->state != VRRP_STATE_BACK) {
 					log_message(LOG_INFO, "(%s) Entering BACKUP STATE (init)", vrrp->iname);
 					vrrp->state = VRRP_STATE_BACK;
+					vrrp->fault_init_delay_needed = true;
 				}
 			} else {
 				/* Note: if we have alpha mode scripts, we enter fault state, but don't want
