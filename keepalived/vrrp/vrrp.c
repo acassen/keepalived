@@ -1973,6 +1973,13 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 	/* Set the down timer */
 	vrrp->master_adver_int = vrrp->adver_int;
 	vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
+	if (vrrp->state == VRRP_STATE_BACK && vrrp->fault_init_exit_delay > 0)
+		vrrp->fault_init_delay_needed = true;
+	else if (vrrp->state == VRRP_STATE_FAULT) {
+		vrrp->fault_init_delay_needed = false;
+		vrrp->fault_init_exit_time = time_now;
+		vrrp->block_socket_time = time_now;
+	}
 	vrrp_init_instance_sands(vrrp);
 	vrrp->last_transition = timer_now();
 }
