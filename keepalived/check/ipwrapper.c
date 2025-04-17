@@ -1114,7 +1114,8 @@ clear_diff_s_srv(virtual_server_t *old_vs, virtual_server_t *new_vs)
 				    , FMT_RS(old_ss, old_vs)
 				    , FMT_VS(old_vs));
 		ipvs_cmd(LVS_CMD_DEL_DEST, old_vs, old_ss);
-		new_ss->set = false;
+		if (new_ss)
+			new_ss->set = false;
 
 		if (reinstate_alive_rs)
 			perform_quorum_state(new_vs, true);
