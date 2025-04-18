@@ -799,8 +799,8 @@ static int set_proc_ev_listen(int nl_sd, bool enable)
 	struct __attribute__ ((aligned(NLMSG_ALIGNTO))) {
 		struct nlmsghdr nl_hdr;
 		struct __attribute__ ((__packed__)) {
-			struct cn_msg cn_msg;
 			enum proc_cn_mcast_op cn_mcast;
+			struct cn_msg cn_msg;
 		};
 	} nlcn_msg;
 

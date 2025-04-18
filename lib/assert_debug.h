@@ -24,6 +24,10 @@
 
 #include "config.h"
 
+#ifdef NDEBUG
+#undef NDEBUG
+#endif
+
 #ifndef _ENABLE_ASSERT_
 #define  NDEBUG
 #endif
