@@ -29,7 +29,7 @@
 
 #include "config.h"
 
-#include <sys/socket.h>
+#include <sys/uio.h>
 #include <linux/netlink.h>
 #include <linux/connector.h>
 #include <linux/cn_proc.h>
@@ -796,26 +796,16 @@ nl_connect(void)
 static int set_proc_ev_listen(int nl_sd, bool enable)
 {
 	int rc;
-	struct __attribute__ ((aligned(NLMSG_ALIGNTO))) {
-		struct nlmsghdr nl_hdr;
-		struct __attribute__ ((__packed__)) {
-			struct cn_msg cn_msg;
-			enum proc_cn_mcast_op cn_mcast;
-		};
-	} nlcn_msg;
+	enum proc_cn_mcast_op cn_mcast = enable ? PROC_CN_MCAST_LISTEN : PROC_CN_MCAST_IGNORE;
+	struct cn_msg cn_msg = { .id.idx = CN_IDX_PROC, .id.val = CN_VAL_PROC, .len = sizeof(cn_mcast) };
+	struct nlmsghdr nl_hdr = { .nlmsg_type = NLMSG_DONE, .nlmsg_pid = getpid(), .nlmsg_len = NLMSG_LENGTH(sizeof(cn_msg) + sizeof(cn_mcast)) };
+	struct iovec iov[3] = {
+		{ .iov_base = &nl_hdr, .iov_len = sizeof(nl_hdr) },
+		{ .iov_base = &cn_msg, .iov_len = sizeof(cn_msg) },
+		{ .iov_base = &cn_mcast, .iov_len = sizeof(cn_mcast) },
+	};
 
-	memset(&nlcn_msg, 0, sizeof(nlcn_msg));
-	nlcn_msg.nl_hdr.nlmsg_len = sizeof(nlcn_msg);
-	nlcn_msg.nl_hdr.nlmsg_pid = getpid();
-	nlcn_msg.nl_hdr.nlmsg_type = NLMSG_DONE;
-
-	nlcn_msg.cn_msg.id.idx = CN_IDX_PROC;
-	nlcn_msg.cn_msg.id.val = CN_VAL_PROC;
-	nlcn_msg.cn_msg.len = sizeof(enum proc_cn_mcast_op);
-
-	nlcn_msg.cn_mcast = enable ? PROC_CN_MCAST_LISTEN : PROC_CN_MCAST_IGNORE;
-
-	rc = send(nl_sd, &nlcn_msg, sizeof(nlcn_msg), 0);
+	rc = writev(nl_sd, iov, 3);
 	if (rc == -1) {
 		log_message(LOG_INFO, "Failed to %s process event listen - errno %d - %m", enable ? "set" : "clear", errno);
 		return -1;
