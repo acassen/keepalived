@@ -691,7 +691,7 @@ dbus_main(void *param)
 
 	vrrp_instance_introspection_data = g_dbus_node_info_new_for_xml(files->instance_interface_file, &error);
 	if (error != NULL) {
-		log_message(LOG_INFO, "Parsing DBus interface %s from file %s failed: %s",
+		log_message(LOG_INFO, "Parsing DBus instance interface %s from file %s failed: %s",
 			    DBUS_VRRP_INSTANCE_INTERFACE, DBUS_VRRP_INSTANCE_INTERFACE_FILE_PATH, error->message);
 		g_clear_error(&error);
 		return free_wait();
@@ -964,6 +964,11 @@ dbus_start(void)
 	if (dbus_running)
 		return false;
 
+	if (dbus_startup_completed) {
+		log_message(LOG_WARNING, "BUG - entering dbus_start() with dbus_startup_completed set");
+		dbus_startup_completed = false;
+	}
+
 	/* read service interface data from xml files */
 	if (!(files.interface_file = read_file(DBUS_VRRP_INTERFACE_FILE_PATH)))
 		return false;
@@ -1068,6 +1073,7 @@ dbus_stop(void)
 	}
 
 	dbus_running = false;
+	dbus_startup_completed = false;
 
 	close(dbus_in_pipe[0]);
 	close(dbus_in_pipe[1]);
