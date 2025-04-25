@@ -939,6 +939,7 @@ static void
 set_pwnam_buf_len(void)
 {
 	long buf_len;
+	struct stat statbuf;
 
 	/* Get buffer length needed for getpwnam_r/getgrnam_r */
 	if ((buf_len = sysconf(_SC_GETPW_R_SIZE_MAX)) == -1)
@@ -948,6 +949,12 @@ set_pwnam_buf_len(void)
 	if ((buf_len = sysconf(_SC_GETGR_R_SIZE_MAX)) != -1 &&
 	    (size_t)buf_len > getpwnam_buf_len)
 		getpwnam_buf_len = (size_t)buf_len;
+
+	/* In case there is an excessive number of members of the group, which
+	 * could cause the default buffer size to overflow, a reasonable upper
+	 * bound for the buffer size is the size of the group file itself. */
+	if (!stat("/etc/group", &statbuf) && (unsigned long)statbuf.st_size > getpwnam_buf_len)
+		getpwnam_buf_len = statbuf.st_size;
 }
 
 static bool
