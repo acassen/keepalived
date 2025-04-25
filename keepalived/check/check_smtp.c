@@ -215,16 +215,13 @@ smtp_check_end_handler(void)
 		queue_checker(&smtp_checker_funcs, smtp_start_check_thread,
 					      new_smtp_checker, NULL, true);
 
-		/* Copy the checker info, but preserve the list_head entry, th
+		/* Copy the checker info, but preserve the list_head entry, the
 		 * co pointer and the pointer to new_smtp_checker. */
 		sav_rs_list = current_checker->rs_list;
 		*current_checker = *checker;
 		current_checker->rs_list = sav_rs_list;
 		current_checker->co = co;
 		current_checker->data = new_smtp_checker;
-
-		/* queue the checker */
-		list_add_tail(&current_checker->rs_list, &checker->rs->checkers_list);
 
 		list_del_init(&rco->e_list);
 		FREE(rco);
