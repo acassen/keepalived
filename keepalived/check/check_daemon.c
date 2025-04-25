@@ -186,6 +186,10 @@ checker_terminate_phase2(void)
 		free_check_data(&check_data);
 	free_parent_mallocs_exit();
 
+#ifdef DO_STACKSIZE
+	get_stacksize(true);
+#endif
+
 	/*
 	 * Reached when terminate signal catched.
 	 * finally return to parent process.
@@ -453,8 +457,12 @@ start_check(data_t *prev_global_data)
 	register_checkers_thread();
 
 	/* Set the process priority and non swappable if configured */
-	set_process_priorities(global_data->checker_realtime_priority, global_data->max_auto_priority, global_data->min_auto_priority_delay,
-			       global_data->checker_rlimit_rt, global_data->checker_process_priority, global_data->checker_no_swap ? 4096 : 0);
+	if (reload)
+		restore_priority(global_data->checker_realtime_priority, global_data->max_auto_priority, global_data->min_auto_priority_delay,
+				       global_data->checker_rlimit_rt, global_data->checker_process_priority, global_data->checker_no_swap ? CHECKER_STACK_SIZE : 0);
+	else
+		set_process_priorities(global_data->checker_realtime_priority, global_data->max_auto_priority, global_data->min_auto_priority_delay,
+				       global_data->checker_rlimit_rt, global_data->checker_process_priority, global_data->checker_no_swap ? CHECKER_STACK_SIZE : 0);
 
 	/* Set the process cpu affinity if configured */
 	set_process_cpu_affinity(&global_data->checker_cpu_mask, "checker");
@@ -476,7 +484,7 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 	log_message(LOG_INFO, "Reloading");
 
 	/* Use standard scheduling while reloading */
-	reset_process_priorities();
+	reset_priority();
 
 #ifndef _ONE_PROCESS_DEBUG_
 	save_config(false, "check", dump_data_check);
@@ -543,7 +551,7 @@ static void
 sigusr1_check(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	log_message(LOG_INFO, "Printing checker data for process(%d) on signal",
-		    getpid());
+		    our_pid);
 	thread_add_event(master, print_check_data, NULL, 0);
 }
 
@@ -692,6 +700,8 @@ start_check_child(void)
 		return 0;
 	}
 
+	our_pid = getpid();
+
 #ifdef _WITH_PROFILING_
 	/* See https://lists.gnu.org/archive/html/bug-gnu-utils/2001-09/msg00047.html for details */
 	monstartup ((u_long) &_start, (u_long) &etext);
@@ -701,7 +711,7 @@ start_check_child(void)
 
 	/* Check our parent hasn't already changed since the fork */
 	if (main_pid != getppid())
-		kill(getpid(), SIGTERM);
+		kill(our_pid, SIGTERM);
 
 	prog_type = PROG_TYPE_CHECKER;
 
@@ -743,6 +753,10 @@ start_check_child(void)
 				"check",
 				global_data->network_namespace,
 				global_data->instance_name);
+#endif
+
+#ifdef DO_STACKSIZE
+	get_stacksize(false);
 #endif
 
 #ifdef _MEM_CHECK_

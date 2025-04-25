@@ -54,6 +54,14 @@
  * Avoids a - b <= 0 producing "warning: assuming signed overflow does not occur when simplifying ‘X - Y <= 0’ to ‘X <= Y’ [-Wstrict-overflow]" */
 #define less_equal_greater_than(a,b)	({ typeof(a) _a = (a); typeof(b) _b = (b); (_a) < (_b) ? -1 : (_a) == (_b) ? 0 : 1; })
 
+/* When setting processes to non swappable, the stack size needs to be specified.
+ * Building keepalived with the --enable-stacksize configure option allows us to
+ * disover the max stack size used. This has been tested on x86_64, arm64 and RISCv64.
+ * The stack sizes across the three architectures are very similar. */
+#define	BFD_STACK_SIZE	16384		// maximum observed is 14064, on arm64
+#define CHECKER_STACK_SIZE 32768	// maximum observed is 30624, on arm64
+#define	VRRP_STACK_SIZE	32768		// maximum observed is 24880, on arm64
+
 #ifdef _WITH_PERF_
 typedef enum {
 	PERF_NONE,
@@ -254,6 +262,9 @@ extern void log_buffer(const char *, const void *, size_t);
 #endif
 #ifdef _WITH_STACKTRACE_
 extern void write_stacktrace(const char *, const char *);
+#endif
+#ifdef DO_STACKSIZE
+extern int get_stacksize(bool);
 #endif
 extern const char *make_file_name(const char *, const char *, const char *, const char *);
 extern void set_process_name(const char *);

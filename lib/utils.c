@@ -53,6 +53,10 @@
 #include <execinfo.h>
 #include <memory.h>
 #endif
+#ifdef DO_STACKTRACE
+#include <inttypes.h>
+#include <unistd.h>
+#endif
 #ifdef _HAVE_LIBKMOD_
 #include <libkmod.h>
 #endif
@@ -75,6 +79,13 @@ const char *tmp_dir;
 
 #ifdef _EINTR_DEBUG_
 bool do_eintr_debug;
+#endif
+
+#ifdef DO_STACKSIZE
+#define STACK_UNUSED 0xdeadbeeffeedcafe
+#define STACKSIZE_DEBUG 0
+
+static void *orig_stack_base;
 #endif
 
 /* Display a buffer into a HEXA formated output */
@@ -191,13 +202,95 @@ write_stacktrace(const char *file_name, const char *str)
 	else if (file_name[0] != '/')
 		tmp_filename = make_tmp_filename(file_name);
 	cmd = MALLOC(6 + 1 + PID_MAX_DIGITS + 1 + 2 + ( tmp_filename ? strlen(tmp_filename) : strlen(file_name)) + 1);
-	sprintf(cmd, "gstack %d >>%s", getpid(), tmp_filename ? tmp_filename : file_name);
+	sprintf(cmd, "gstack %d >>%s", our_pid, tmp_filename ? tmp_filename : file_name);
 
 	i = system(cmd);	/* We don't care about return value but gcc thinks we should */
 
 	FREE(cmd);
 	FREE_CONST_PTR(tmp_filename);
 }
+#endif
+
+#ifdef DO_STACKSIZE
+RELAX_STACK_PROTECTOR_START
+int
+get_stacksize(bool end)
+{
+	/* We use a struct for all local variables so that we
+	 * know the address of the lowest variable on the stack */
+	struct {
+		void *stack_base, *stack_top;
+		uintptr_t write_end;
+		uint64_t *p;
+		FILE *fp;
+		uintptr_t aligned_base;
+		unsigned num_ent;
+		unsigned i;
+		uint64_t *base;
+		int page_size;
+		char buf[257];
+	} s;
+
+	if (!(s.fp = fopen("/proc/self/maps", "r")))
+		return -1;
+
+	while (fgets(s.buf, sizeof(s.buf), s.fp)) {
+		if (!strstr(s.buf, "[stack]\n"))
+			continue;
+
+		sscanf(s.buf, "%p-%p ", &s.stack_base, &s.stack_top);
+		break;
+	}
+	fclose(s.fp);
+
+#if STACKSIZE_DEBUG
+	log_message(LOG_INFO, "stack from %p to %p, stack now ~= %p", s.stack_base, s.stack_top, &s);
+#endif
+
+	s.write_end = (uintptr_t)&s & ~(sizeof(uint64_t) - 1);
+	s.page_size = sysconf(_SC_PAGESIZE);
+
+	if (!end) {
+		s.aligned_base = (uintptr_t)s.stack_base;
+		s.aligned_base &= ~(s.page_size - 1);
+		s.num_ent = ((char *)s.write_end - (char *)s.aligned_base) / sizeof(uint64_t) - 1;
+		s.num_ent -= s.page_size / sizeof(uint64_t);
+RELAX_ALLOCA_START
+		s.base = alloca(s.num_ent * sizeof(uint64_t));
+RELAX_ALLOCA_END
+#if STACKSIZE_DEBUG
+		log_message(LOG_INFO, "alloca() gave us %p, &s = %p", s.base, &s);
+#endif
+		for (s.p = s.base, s.i = 0; s.i < s.num_ent; s.i++, s.p++)
+			*s.p = STACK_UNUSED;
+
+		orig_stack_base = s.stack_base;
+	} else if (s.stack_base != orig_stack_base)
+#if STACKSIZE_DEBUG
+		log_message(LOG_INFO, "Stack base changed from %1$p to %2$p, used > 0x%3$lx (%3$lu) bytes", orig_stack_base, s.stack_base,
+			    (unsigned long)((char *)s.stack_top - (char *)orig_stack_base));
+#else
+		log_message(LOG_INFO, "Stack used > 0x%1$lx (%1$lu) bytes",
+			    (unsigned long)((char *)s.stack_top - (char *)orig_stack_base));
+#endif
+	else {
+		for (s.p = (uint64_t *)((char *)s.stack_base + s.page_size); s.p != s.stack_top; s.p++) {
+			if (*s.p != STACK_UNUSED)
+				break;
+		}
+
+#if STACKSIZE_DEBUG
+		log_message(LOG_INFO, "Lowest stack use at %1$p, value %2$" PRIx64 ", used 0x%3$lx (%3$lu) bytes", s.p, *s.p,
+			    (unsigned long)((char *)s.stack_top - (char *)s.p));
+#else
+		log_message(LOG_INFO, "Stack used 0x%1$lx (%1$lu) bytes",
+			    (unsigned long)((char *)s.stack_top - (char *)s.p));
+#endif
+	}
+
+	return 0;
+}
+RELAX_STACK_PROTECTOR_END
 #endif
 
 const char *

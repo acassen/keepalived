@@ -987,6 +987,15 @@ possibly following any cleanup actions needed.
     # json_version 2 puts the VRRP data in a named array and adds
     # track_process details. Default is version 1.
     \fBjson_version \fR{1|2}
+
+    # iproute can use two directories for its configuration files, with files in
+    # /etc/iproute2 overriding files in /usr/share/iproute2.
+    # ip (the package that provides ip route functionality) has configure options
+    # for the location of these directories. keepalived's configure will attempt
+    # to find the locations either from the ip-route man page or the ip utility
+    # itself. In case it cannot do so, the locations may need to be specified here.
+    \fBiproute_usr_dir \fRpath
+    \fBiproute_etc_dir \fRpath
 }
 .fi
 .SH Linkbeat interfaces

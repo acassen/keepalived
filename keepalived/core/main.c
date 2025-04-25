@@ -520,6 +520,7 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 	 * is not set, i.e. before it is first executed after a fork, and also
 	 * after set(e)[ug]id() calls before PDEATHSIG can be reinstated. */
 	main_pid = getpid();
+	our_pid = main_pid;
 
 	/* We want to ensure that any children of child process don't miss the
 	 * termination of their immediate parent. */
@@ -874,7 +875,7 @@ print_parent_data(__attribute__((unused)) thread_ref_t thread)
 {
 	FILE *fp;
 
-	log_message(LOG_INFO, "Printing parent data for process(%d) on signal", getpid());
+	log_message(LOG_INFO, "Printing parent data for process(%d) on signal", our_pid);
 
 	fp = open_dump_file("_parent");
 
@@ -2448,6 +2449,8 @@ keepalived_main(int argc, char **argv)
 	struct stat statbuf;
 #endif
 
+	our_pid = getpid();
+
 #ifdef _WITH_LVS_
 	char *name = strrchr(argv[0], '/');
 	if (!strcmp(name ? name + 1 : argv[0], "genhash")) {
@@ -2583,6 +2586,10 @@ keepalived_main(int argc, char **argv)
 
 	/* Handle any core file requirements */
 	core_dump_init();
+
+#ifdef DO_STACKSIZE
+	get_stacksize(false);
+#endif
 
 #ifdef _REPRODUCIBLE_BUILD_
 	/* We want to use our MALLOC functions */
@@ -2783,7 +2790,11 @@ keepalived_main(int argc, char **argv)
 
 	/* daemonize process */
 	if (!__test_bit(DONT_FORK_BIT, &debug)) {
-		pid_t old_ppid = getpid();
+		pid_t old_ppid = our_pid;
+
+#ifdef DO_STACKSIZE
+		get_stacksize(true);
+#endif
 
 		if (xdaemon() > 0) {
 			/* Parent process */
@@ -2795,6 +2806,7 @@ keepalived_main(int argc, char **argv)
 		}
 
 		/* Child process */
+		our_pid = getpid();
 
 		/* check_start_stop_script_secure() called below makes a check
 		 * that our parent process hasn't changed, but it can take a while
@@ -2803,6 +2815,10 @@ keepalived_main(int argc, char **argv)
 		while (old_ppid == getppid())
 			usleep(10);
 	}
+
+#ifdef DO_STACKSIZE
+	get_stacksize(false);
+#endif
 
 #ifdef _MEM_CHECK_
 	enable_mem_log_termination();
@@ -2912,6 +2928,10 @@ end:
 	free_parent_mallocs_startup(false);
 	free_parent_mallocs_exit();
 	free_global_data(&global_data);
+
+#ifdef DO_STACKSIZE
+	get_stacksize(true);
+#endif
 
 	closelog();
 

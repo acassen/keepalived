@@ -189,10 +189,14 @@ start_bfd(__attribute__((unused)) data_t *prev_global_data)
 	thread_add_event(master, bfd_dispatcher_init, bfd_data, 0);
 
 	/* Set the process priority and non swappable if configured */
-// TODO - measure max stack usage
-	set_process_priorities(
-			global_data->bfd_realtime_priority, global_data->max_auto_priority, global_data->min_auto_priority_delay,
-			global_data->bfd_rlimit_rt, global_data->bfd_process_priority, global_data->bfd_no_swap ? 4096 : 0);
+	if (reload)
+		restore_priority(
+				global_data->bfd_realtime_priority, global_data->max_auto_priority, global_data->min_auto_priority_delay,
+				global_data->bfd_rlimit_rt, global_data->bfd_process_priority, global_data->bfd_no_swap ? BFD_STACK_SIZE : 0);
+	else
+		set_process_priorities(
+				global_data->bfd_realtime_priority, global_data->max_auto_priority, global_data->min_auto_priority_delay,
+				global_data->bfd_rlimit_rt, global_data->bfd_process_priority, global_data->bfd_no_swap ? BFD_STACK_SIZE : 0);
 
 	/* Set the process cpu affinity if configured */
 	set_process_cpu_affinity(&global_data->bfd_cpu_mask, "bfd");
@@ -223,7 +227,7 @@ static void
 sigdump_bfd(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	log_message(LOG_INFO, "Printing BFD data for process(%d) on signal",
-		    getpid());
+		    our_pid);
 	thread_add_event(master, print_bfd_thread, NULL, 0);
 }
 
@@ -263,7 +267,7 @@ reload_bfd_thread(__attribute__((unused)) thread_ref_t thread)
 	log_message(LOG_INFO, "Reloading");
 
 	/* Use standard scheduling while reloading */
-	reset_process_priorities();
+	reset_priority();
 
 #ifndef _ONE_PROCESS_DEBUG_
 	save_config(false, "bfd", dump_bfd_data_global);
@@ -395,6 +399,8 @@ start_bfd_child(void)
 		return 0;
 	}
 
+	our_pid = getpid();
+
 #ifdef _WITH_PROFILING_
 	/* See https://lists.gnu.org/archive/html/bug-gnu-utils/2001-09/msg00047.html for details */
 	monstartup ((u_long) &_start, (u_long) &etext);
@@ -404,7 +410,7 @@ start_bfd_child(void)
 
 	/* Check our parent hasn't already changed since the fork */
 	if (main_pid != getppid())
-		kill(getpid(), SIGTERM);
+		kill(our_pid, SIGTERM);
 
 	prog_type = PROG_TYPE_BFD;
 
@@ -444,6 +450,10 @@ start_bfd_child(void)
 				"bfd",
 				global_data->network_namespace,
 				global_data->instance_name);
+#endif
+
+#ifdef DO_STACKSIZE
+	get_stacksize(false);
 #endif
 
 #ifdef _MEM_CHECK_
@@ -515,6 +525,10 @@ start_bfd_child(void)
 
 #ifdef THREAD_DUMP
 	deregister_thread_addresses();
+#endif
+
+#ifdef DO_STACKSIZE
+	get_stacksize(true);
 #endif
 
 	/* Finish BFD daemon process */

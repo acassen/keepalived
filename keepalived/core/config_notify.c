@@ -34,6 +34,7 @@
 #include "main.h"
 #include "parser.h"
 #include "utils.h"
+#include "process.h"
 
 
 static int child_reloaded_event = -1;
@@ -115,7 +116,7 @@ save_config(bool post, const char *process, void(*func)(FILE *))
 	if (!post)
 		reload_num++;
 
-	sprintf(buf, "%s/keepalived_%s.%d.%u.%s", config_save_dir, process, getpid(), reload_num, post ? "post" : "pre");
+	sprintf(buf, "%s/keepalived_%s.%d.%u.%s", config_save_dir, process, our_pid, reload_num, post ? "post" : "pre");
 
 	file = fopen_safe(buf, "w");
 	if (!file) {

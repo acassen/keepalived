@@ -38,6 +38,7 @@
 #include "bitops.h"
 #include "utils.h"
 #include "memory.h"
+#include "process.h"
 
 const char *pid_directory = KEEPALIVED_PID_DIR;
 
@@ -298,7 +299,7 @@ pidfile_write(pidfile_t *pidf)
 		}
 	}
 
-	dprintf(pidf->fd, "%d\n", getpid());
+	dprintf(pidf->fd, "%d\n", our_pid);
 
 	return true;
 }

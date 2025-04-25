@@ -103,7 +103,7 @@ err_call(const char *str)
 void
 __sanitizer_report_error_summary(const char *error_summary)
 {
-	log_message(LOG_INFO, "sanitizer error %s: report written to %s.%d", error_summary, sanitizer_log, getpid());
+	log_message(LOG_INFO, "sanitizer error %s: report written to %s.%d", error_summary, sanitizer_log, our_pid);
 }
 
 void

@@ -1,20 +1,3 @@
-/* The content of the .h.in file is automatically updated by
- * configure, so in theory the .h.in file does not need to be
- * in the source tree, but the file must exist, otherwise
- * automake fails.
- *
- * The .h.in is a work-around to AC_DEFINE_UNQUOTED only working
- * with fixed variable names when using AC_CONFIG_HEADERS.
- * configure writes the #undef statements to the .h.in file, so
- * that when AC_OUTPUT is invoked, the .h file is created from
- * the .h.in file, with the appropriate #define's being set.
- *
- * This file will be updated by configure if warnings are added,
- * but it should still be updated in git.
- *
- * If warnings are removed, delete everything after this comment
- * and run configure, which will add back the currently used entries.
- */
 
 /* Define to 1 if -Wall in use */
 #undef _HAVE_WARNING_ALL_
@@ -93,6 +76,9 @@
 
 /* Define to 1 if -Wduplicated-cond in use */
 #undef _HAVE_WARNING_DUPLICATED_COND_
+
+/* Define to 1 if -Wflex-array-member-not-at-end in use */
+#undef _HAVE_WARNING_FLEX_ARRAY_MEMBER_NOT_AT_END_
 
 /* Define to 1 if -Wfloat-conversion in use */
 #undef _HAVE_WARNING_FLOAT_CONVERSION_
@@ -252,3 +238,6 @@
 
 /* Define to 1 if -Wwrite-strings in use */
 #undef _HAVE_WARNING_WRITE_STRINGS_
+
+/* Define to 1 if -Wordered-compare-function-pointers in use */
+#undef _HAVE_WARNING_ORDERED_COMPARE_FUNCTION_POINTERS_

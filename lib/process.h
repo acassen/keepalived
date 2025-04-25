@@ -34,8 +34,11 @@
 
 extern unsigned min_auto_priority_delay;
 extern pid_t main_pid;
+extern pid_t our_pid;
 
-extern void set_process_priorities(int, int, unsigned, int, int, int);
+extern void set_process_priorities(unsigned, int, unsigned, int, int, int);
+extern void reset_priority(void);
+extern void restore_priority(unsigned, int, unsigned, int, int, int);
 extern void reset_process_priorities(void);
 extern void increment_process_priority(void);
 extern unsigned get_cur_priority(void) __attribute__((pure));
