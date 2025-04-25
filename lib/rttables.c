@@ -616,6 +616,7 @@ write_addrproto_config(const char *name, uint32_t val)
 	bool file_exists = false;
 	struct stat statbuf;
 	size_t len;
+	mode_t old_umask;
 
 	fp = popen("ip -V 2>&1", "re");
 	res = fgets(buf, sizeof(buf), fp);
@@ -692,14 +693,13 @@ write_addrproto_config(const char *name, uint32_t val)
 	/* Check if RT_ADDRPROTOS_FILE exists */
 	file_exists = !stat(path, &statbuf);
 
+	old_umask = umask(S_IXUSR | S_IWGRP | S_IXGRP | S_IWOTH | S_IXOTH);
 	if ((fp = fopen(path, "a"))) {
-		if (!file_exists)
-			chmod(path, statbuf.st_mode & ~S_IFMT & ~(S_IXUSR | S_IXGRP | S_IXOTH));
-
 		fprintf(fp, "%u\t%s\t# added by keepalived\n", val, name);
 
 		fclose(fp);
 	}
+	umask(old_umask);
 
 	FREE_PTR(path);
 }
