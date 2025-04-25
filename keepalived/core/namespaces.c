@@ -377,7 +377,7 @@ set_netns_name(const char *netns_name)
 			close(cur_net_namespace);
 		else if (new_net_namespace >= 0)
 			close(new_net_namespace);
-		log_message(LOG_INFO, "Failed to open namespace fds, errno %d (%m)", errno);
+		log_message(LOG_INFO, "Failed to open namespace fds for %s, errno %d (%m)", netns_name, errno);
 		return -1;
 	}
 
