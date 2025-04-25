@@ -476,7 +476,7 @@ reload_check_thread(__attribute__((unused)) thread_ref_t thread)
 	log_message(LOG_INFO, "Reloading");
 
 	/* Use standard scheduling while reloading */
-	reset_process_priorities();
+	reset_priority();
 
 #ifndef _ONE_PROCESS_DEBUG_
 	save_config(false, "check", dump_data_check);

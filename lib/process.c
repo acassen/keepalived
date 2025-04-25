@@ -168,7 +168,7 @@ set_process_priorities(int realtime_priority, int max_realtime_priority, unsigne
 RELAX_STACK_PROTECTOR_END
 
 void
-reset_process_priorities(void)
+reset_priority(void)
 {
 	if (cur_rt_priority) {
 		/* Set realtime priority */
@@ -193,6 +193,12 @@ reset_process_priorities(void)
 
 	if (cur_priority != orig_priority)
 		reset_process_priority();
+}
+
+void
+reset_process_priorities(void)
+{
+	reset_priority();
 
 	if (process_locked_in_memory) {
 		munlockall();
