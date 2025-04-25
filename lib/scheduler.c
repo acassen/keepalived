@@ -158,7 +158,10 @@ function_cmp(const void *func, const struct rb_node *a)
 static inline bool
 function_less(struct rb_node *a, const struct rb_node *b)
 {
+	/* clang warns with -Wordered-compare-function-pointers */
+RELAX_ORDERED_COMPARE_FUNCTION_POINTERS_START
 	return (rb_entry_const(a, func_det_t, n)->func < rb_entry_const(b, func_det_t, n)->func);
+RELAX_ORDERED_COMPARE_FUNCTION_POINTERS_END
 }
 
 static const char *

@@ -238,3 +238,6 @@
 
 /* Define to 1 if -Wwrite-strings in use */
 #undef _HAVE_WARNING_WRITE_STRINGS_
+
+/* Define to 1 if -Wordered-compare-function-pointers in use */
+#undef _HAVE_WARNING_ORDERED_COMPARE_FUNCTION_POINTERS_

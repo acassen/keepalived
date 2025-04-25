@@ -149,4 +149,14 @@ _Pragma("GCC diagnostic ignored \"-Warray-bounds\"")
 #define RELAX_ARRAY_BOUNDS_END
 #endif
 
+#if defined _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_ && defined _HAVE_WARNING_ORDERED_COMPARE_FUNCTION_POINTERS_
+#define RELAX_ORDERED_COMPARE_FUNCTION_POINTERS_START \
+_Pragma("GCC diagnostic push") \
+_Pragma("GCC diagnostic ignored \"-Wordered-compare-function-pointers\"")
+#define RELAX_ORDERED_COMPARE_FUNCTION_POINTERS_END RELAX_END
+#else
+#define RELAX_ORDERED_COMPARE_FUNCTION_POINTERS_START
+#define RELAX_ORDERED_COMPARE_FUNCTION_POINTERS_END
+#endif
+
 #endif
