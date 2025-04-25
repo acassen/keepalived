@@ -2469,6 +2469,7 @@ iproute_usr_handler(const vector_t *strvec)
 		return;
 	}
 
+	FREE_CONST_PTR(global_data->iproute_usr_dir);
 	global_data->iproute_usr_dir = STRDUP(strvec_slot(strvec, 1));
 }
 
@@ -2480,6 +2481,7 @@ iproute_etc_handler(const vector_t *strvec)
 		return;
 	}
 
+	FREE_CONST_PTR(global_data->iproute_etc_dir);
 	global_data->iproute_etc_dir = STRDUP(strvec_slot(strvec, 1));
 }
 #endif

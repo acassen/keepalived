@@ -48,4 +48,5 @@ extern const char *get_rttables_group(uint32_t);
 #endif
 extern const char *get_rttables_rtntype(uint8_t);
 
+extern void set_iproute_dirs(const char **, const char **);
 #endif

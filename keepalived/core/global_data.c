@@ -36,6 +36,7 @@
 #ifdef _WITH_VRRP_
 #include "vrrp.h"
 #include "vrrp_ipaddress.h"
+#include <rttables.h>
 #endif
 #include "process.h"
 #ifdef _WITH_FIREWALL_
@@ -424,11 +425,13 @@ init_global_data(data_t * data, data_t *prev_global_data, bool copy_unchangeable
 
 #ifdef _WITH_VRRP_
 #ifdef IPROUTE_USR_DIR
-	if (!data->iproute_usr_dir && IPROUTE_USR_DIR[0])
+	if (!data->iproute_usr_dir)
 		data->iproute_usr_dir = STRDUP(IPROUTE_USR_DIR);
 #endif
-	if (!data->iproute_etc_dir && IPROUTE_ETC_DIR[0])
+	if (!data->iproute_etc_dir)
 		data->iproute_etc_dir = STRDUP(IPROUTE_ETC_DIR);
+
+	set_iproute_dirs(&data->iproute_etc_dir, &data->iproute_usr_dir);
 #endif
 }
 
