@@ -82,10 +82,6 @@
 #include "rttables.h"
 
 
-#if !defined IPROUTE_USR_DIR && !defined IPROUTE_ETC_DIR
-#define IPROUTE_ETC_DIR "/etc/iproute2"
-#endif
-
 #define RT_TABLES_FILE	"rt_tables"
 #define	RT_DSFIELD_FILE "rt_dsfield"
 #define	RT_REALMS_FILE	"rt_realms"
@@ -373,9 +369,7 @@ static void
 initialise_list(list_head_t *l, const char *file_name, const rt_entry_t *default_list, uint32_t max)
 {
 	char *path;
-#ifdef IPROUTE_USR_DIR
 	char *etc_path;
-#endif
 	struct stat statbuf;
 	struct dirent *ent;
 	DIR *dir;
@@ -384,12 +378,9 @@ initialise_list(list_head_t *l, const char *file_name, const rt_entry_t *default
 		return;
 
 	if (dir_state == DIRS_NOT_CHECKED) {
-#ifdef IPROUTE_USR_DIR
-		if (!stat(*iproute_usr_dir, &statbuf) && (statbuf.st_mode & S_IFMT) == S_IFDIR)
+		if (*iproute_usr_dir && !stat(*iproute_usr_dir, &statbuf) && (statbuf.st_mode & S_IFMT) == S_IFDIR)
 			dir_state = DIRS_EXIST;
-		else
-#endif
-		if (!stat(*iproute_etc_dir, &statbuf) && (statbuf.st_mode & S_IFMT) == S_IFDIR)
+		else if (!stat(*iproute_etc_dir, &statbuf) && (statbuf.st_mode & S_IFMT) == S_IFDIR)
 			dir_state = DIRS_EXIST;
 		else
 			dir_state = DIRS_DONT_EXIST;
@@ -397,22 +388,18 @@ initialise_list(list_head_t *l, const char *file_name, const rt_entry_t *default
 
 	if (dir_state == DIRS_EXIST) {
 		path = MALLOC(PATH_MAX);
-#ifdef IPROUTE_USR_DIR
 		etc_path = MALLOC(PATH_MAX);
-#endif
 
-		/* The default location is IPROUTE_USR_DIR, but it is overridden
-		 * if the file exists in IPROUTE_USR_DIR. */
+		/* The default location is iproute_usr_dir, but it is overridden
+		 * if the file exists in iproute_usr_dir. */
 		snprintf(path, PATH_MAX, "%s/%s", *iproute_etc_dir, file_name);
 		if (!stat(path, &statbuf) && (statbuf.st_mode & S_IFMT) == S_IFREG)
 			read_file(path, l, max);
-#ifdef IPROUTE_USR_DIR
-		else {
+		else if (*iproute_usr_dir) {
 			snprintf(path, PATH_MAX, "%s/%s", *iproute_usr_dir, file_name);
 			if (!stat(path, &statbuf) && (statbuf.st_mode & S_IFMT) == S_IFREG)
 				read_file(path, l, max);
 		}
-#endif
 
 		/* iproute2 uses subdirectories for rt_protos, rt_addrprotos, rt_tables
 		 * (and protodown_reasons) as at v6.11.
@@ -420,27 +407,27 @@ initialise_list(list_head_t *l, const char *file_name, const rt_entry_t *default
 		 * in case iproute2 introduces support for them in the future.
 		 * We need to check all files ending .conf under *iproute_usr_dir
 		 * and read * them unless the matching file exists under
-		 * *iproute_etc_dir. We then read * all relevant files under
+		 * *iproute_etc_dir. We then read all relevant files under
 		 * *iproute_etc_dir. */
-#ifdef IPROUTE_USR_DIR
-		snprintf(path, PATH_MAX, "%s/%s.d", *iproute_usr_dir, file_name);
-		if ((dir = opendir(path))) {
-			while ((ent = readdir(dir))) {
-				if (!wanted_file(path, *iproute_usr_dir, file_name, ent->d_name))
-					continue;
+		if (*iproute_usr_dir) {
+			snprintf(path, PATH_MAX, "%s/%s.d", *iproute_usr_dir, file_name);
+			if ((dir = opendir(path))) {
+				while ((ent = readdir(dir))) {
+					if (!wanted_file(path, *iproute_usr_dir, file_name, ent->d_name))
+						continue;
 
-				/* Check if the file exists in *iproute_etc_dir. We just check
-				 * if there is a matching * entry, and don't care what type the entry is */
-				snprintf(etc_path, PATH_MAX, "%s/%s.d/%s", *iproute_etc_dir, file_name, ent->d_name);
-				if (!stat(etc_path, &statbuf))
-					continue;
+					/* Check if the file exists in *iproute_etc_dir. We just check
+					 * if there is a matching entry, and don't care what type the entry is */
+					snprintf(etc_path, PATH_MAX, "%s/%s.d/%s", *iproute_etc_dir, file_name, ent->d_name);
+					if (!stat(etc_path, &statbuf))
+						continue;
 
-				read_file(path, l, max);
+					read_file(path, l, max);
+				}
+
+				closedir(dir);
 			}
-
-			closedir(dir);
 		}
-#endif
 
 		/* Now read the entries in the *iproute_etc_dir subdirectory */
 		snprintf(path, PATH_MAX, "%s/%s.d", *iproute_etc_dir, file_name);
@@ -456,9 +443,7 @@ initialise_list(list_head_t *l, const char *file_name, const rt_entry_t *default
 		}
 
 		FREE_PTR(path);
-#ifdef IPROUTE_USR_DIR
 		FREE_PTR(etc_path);
-#endif
 	}
 
 	if (default_list)
@@ -667,10 +652,7 @@ write_addrproto_config(const char *name, uint32_t val)
 
 	/* If *iproute_etc_dir doesn't exist, create it */
 	if (stat(*iproute_etc_dir, &statbuf)) {
-#ifdef IPROUTE_USR_DIR
-		if (stat(*iproute_usr_dir, &statbuf))
-#endif
-		{
+		if (*iproute_usr_dir && stat(*iproute_usr_dir, &statbuf)) {
 			/* Use sensible defaults for directory permission */
 			statbuf.st_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 		}

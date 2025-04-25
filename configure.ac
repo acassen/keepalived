@@ -2868,11 +2868,11 @@ AS_IF([test .${with_iproute_usr_dir} = . && test .${with_iproute_etc_dir} = . ],
 	iproute_usr_dir=/usr/share/iproute2
       ])
   ])
-AS_IF([test .${iproute_etc_dir} != . ],
-  [
-    AC_DEFINE_UNQUOTED([IPROUTE_ETC_DIR], ["$iproute_etc_dir"], [etc path to iproute2 config files])
-    add_config_opt([IPROUTE_ETC_DIR=$iproute_etc_dir])
-  ])
+
+AS_IF([test .${iproute_etc_dir} = . ], [iproute_etc_dir=/etc/iproute2])
+AC_DEFINE_UNQUOTED([IPROUTE_ETC_DIR], ["$iproute_etc_dir"], [etc path to iproute2 config files])
+add_config_opt([IPROUTE_ETC_DIR=$iproute_etc_dir])
+
 AS_IF([test .${iproute_usr_dir} != . ],
   [
     AC_DEFINE_UNQUOTED([IPROUTE_USR_DIR], ["$iproute_usr_dir"], [usr path to iproute2 config files])
