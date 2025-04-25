@@ -344,6 +344,8 @@ AC_ARG_WITH(default-runtime-options,
   [default_runtime_options="$withval"], [default_runtime_options="-D"])
 AC_ARG_ENABLE(profile,
   [AS_HELP_STRING([--enable-profile], [compile with profiling flags])])
+AC_ARG_ENABLE(stacksize,
+  [AS_HELP_STRING([--enable-stacksize], [compile with stack sizing])])
 AC_ARG_ENABLE(strict-cast-align,
   [AS_HELP_STRING([--enable-strict-cast-align], [compile with strict cast alignment warnings])])
 AC_ARG_ENABLE(cast-align-checks,
@@ -3115,6 +3117,15 @@ else
   ENABLE_PERF=No
 fi
 
+dnl ----[ enable stack sizing code ]----
+if test "${enable_stacksize}" = yes; then
+  AC_DEFINE([DO_STACKSIZE], [ 1 ], [Define to 1 to build with stack sizing support])
+  ENABLE_STACKSIZE=Yes
+  add_config_opt([STACKSIZE])
+else
+  ENABLE_STACKSIZE=No
+fi
+
 # consider -fsanitize-recover=all or -fsanitize-recover=address -fsanitize=pointer-compare -fsanitize=pointer-subtract (pointer-subtract needs option detect_invalid_pointer_pairs=2)
 SANITIZERS=
 dnl ----[ sanitize=address testing or not? ]----
@@ -3625,6 +3636,9 @@ if test ${ENABLE_STACKTRACE} = Yes; then
 fi
 if test ${ENABLE_PERF} = Yes; then
   echo "Perf support             : Yes"
+fi
+if test ${ENABLE_STACKSIZE} = Yes; then
+  echo "Stack size support       : Yes"
 fi
 if test ${ENABLE_SANITIZE_ADDRESS} = Yes; then
   echo "sanitize=address         : Yes"

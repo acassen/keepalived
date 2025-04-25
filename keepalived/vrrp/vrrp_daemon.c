@@ -336,6 +336,10 @@ vrrp_terminate_phase2(int exit_status)
 	 */
 	log_stopping();
 
+#ifdef DO_STACKSIZE
+	get_stacksize(true);
+#endif
+
 #ifdef ENABLE_LOG_TO_FILE
 	if (log_file_name)
 		close_log_file();
@@ -708,10 +712,10 @@ start_vrrp(data_t *prev_global_data)
 	/* Set the process priority and non swappable if configured */
 	if (reload)
 		restore_priority(global_data->vrrp_realtime_priority, global_data->max_auto_priority, global_data->min_auto_priority_delay,
-				       global_data->vrrp_rlimit_rt, global_data->vrrp_process_priority, global_data->vrrp_no_swap ? 4096 : 0);
+				       global_data->vrrp_rlimit_rt, global_data->vrrp_process_priority, global_data->vrrp_no_swap ? VRRP_STACK_SIZE : 0);
 	else
 		set_process_priorities(global_data->vrrp_realtime_priority, global_data->max_auto_priority, global_data->min_auto_priority_delay,
-				       global_data->vrrp_rlimit_rt, global_data->vrrp_process_priority, global_data->vrrp_no_swap ? 4096 : 0);
+				       global_data->vrrp_rlimit_rt, global_data->vrrp_process_priority, global_data->vrrp_no_swap ? VRRP_STACK_SIZE : 0);
 
 	/* Set the process cpu affinity if configured */
 	set_process_cpu_affinity(&global_data->vrrp_cpu_mask, "vrrp");
@@ -1112,6 +1116,10 @@ start_vrrp_child(void)
 				"vrrp",
 				global_data->network_namespace,
 				global_data->instance_name);
+#endif
+
+#ifdef DO_STACKSIZE
+	get_stacksize(false);
 #endif
 
 #ifdef _MEM_CHECK_

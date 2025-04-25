@@ -2587,6 +2587,10 @@ keepalived_main(int argc, char **argv)
 	/* Handle any core file requirements */
 	core_dump_init();
 
+#ifdef DO_STACKSIZE
+	get_stacksize(false);
+#endif
+
 #ifdef _REPRODUCIBLE_BUILD_
 	/* We want to use our MALLOC functions */
 	char *new_config_opts_str = STRDUP(config_opts);
@@ -2788,6 +2792,10 @@ keepalived_main(int argc, char **argv)
 	if (!__test_bit(DONT_FORK_BIT, &debug)) {
 		pid_t old_ppid = our_pid;
 
+#ifdef DO_STACKSIZE
+		get_stacksize(true);
+#endif
+
 		if (xdaemon() > 0) {
 			/* Parent process */
 			closelog();
@@ -2807,6 +2815,10 @@ keepalived_main(int argc, char **argv)
 		while (old_ppid == getppid())
 			usleep(10);
 	}
+
+#ifdef DO_STACKSIZE
+	get_stacksize(false);
+#endif
 
 #ifdef _MEM_CHECK_
 	enable_mem_log_termination();
@@ -2916,6 +2928,10 @@ end:
 	free_parent_mallocs_startup(false);
 	free_parent_mallocs_exit();
 	free_global_data(&global_data);
+
+#ifdef DO_STACKSIZE
+	get_stacksize(true);
+#endif
 
 	closelog();
 

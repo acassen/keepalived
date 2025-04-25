@@ -159,4 +159,24 @@ _Pragma("GCC diagnostic ignored \"-Wordered-compare-function-pointers\"")
 #define RELAX_ORDERED_COMPARE_FUNCTION_POINTERS_END
 #endif
 
+#if defined _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_ && defined _HAVE_WARNING_ALLOCA_
+#define RELAX_ALLOCA_START \
+_Pragma("GCC diagnostic push") \
+_Pragma("GCC diagnostic ignored \"-Walloca\"")
+#define RELAX_ALLOCA_END RELAX_END
+#else
+#define RELAX_ALLOCA_START
+#define RELAX_ALLOCA_END
+#endif
+
+#if defined _HAVE_DIAGNOSTIC_PUSH_POP_PRAGMAS_ && defined _HAVE_WARNING_STACK_PROTECTOR_
+#define RELAX_STACK_PROTECTOR_START \
+_Pragma("GCC diagnostic push") \
+_Pragma("GCC diagnostic ignored \"-Wstack-protector\"")
+#define RELAX_STACK_PROTECTOR_END RELAX_END
+#else
+#define RELAX_STACK_PROTECTOR_START
+#define RELAX_STACK_PROTECTOR_END
+#endif
+
 #endif

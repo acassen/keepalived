@@ -189,15 +189,14 @@ start_bfd(__attribute__((unused)) data_t *prev_global_data)
 	thread_add_event(master, bfd_dispatcher_init, bfd_data, 0);
 
 	/* Set the process priority and non swappable if configured */
-// TODO - measure max stack usage
 	if (reload)
 		restore_priority(
 				global_data->bfd_realtime_priority, global_data->max_auto_priority, global_data->min_auto_priority_delay,
-				global_data->bfd_rlimit_rt, global_data->bfd_process_priority, global_data->bfd_no_swap ? 4096 : 0);
+				global_data->bfd_rlimit_rt, global_data->bfd_process_priority, global_data->bfd_no_swap ? BFD_STACK_SIZE : 0);
 	else
 		set_process_priorities(
 				global_data->bfd_realtime_priority, global_data->max_auto_priority, global_data->min_auto_priority_delay,
-				global_data->bfd_rlimit_rt, global_data->bfd_process_priority, global_data->bfd_no_swap ? 4096 : 0);
+				global_data->bfd_rlimit_rt, global_data->bfd_process_priority, global_data->bfd_no_swap ? BFD_STACK_SIZE : 0);
 
 	/* Set the process cpu affinity if configured */
 	set_process_cpu_affinity(&global_data->bfd_cpu_mask, "bfd");
@@ -453,6 +452,10 @@ start_bfd_child(void)
 				global_data->instance_name);
 #endif
 
+#ifdef DO_STACKSIZE
+	get_stacksize(false);
+#endif
+
 #ifdef _MEM_CHECK_
 	mem_log_init(PROG_BFD, "BFD child process");
 #endif
@@ -522,6 +525,10 @@ start_bfd_child(void)
 
 #ifdef THREAD_DUMP
 	deregister_thread_addresses();
+#endif
+
+#ifdef DO_STACKSIZE
+	get_stacksize(true);
 #endif
 
 	/* Finish BFD daemon process */
