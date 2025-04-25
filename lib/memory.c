@@ -761,7 +761,7 @@ mem_log_init_common(struct mem_domain *mem, const char* prog_name, const char *b
 		return;
 	}
 
-	snprintf(log_name, log_name_len, "%s/%s_mem.%d.log", tmp_dir, prog_name, getpid());
+	snprintf(log_name, log_name_len, "%s/%s_mem.%d.log", tmp_dir, prog_name, our_pid);
 	mem->log_op = fopen_safe(log_name, "w");
 	if (mem->log_op == NULL) {
 		log_message(LOG_INFO, "Unable to open %s for appending", log_name);

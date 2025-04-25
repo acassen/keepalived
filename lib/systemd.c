@@ -33,6 +33,7 @@
 
 #include "systemd.h"
 #include "logger.h"
+#include "process.h"
 
 static bool parent_is_systemd;
 
@@ -74,7 +75,7 @@ void
 systemd_notify_running(void)
 {
 	if (parent_is_systemd)
-		sd_notifyf(0, "READY=1\nMAINPID=%lu", (unsigned long)getpid());
+		sd_notifyf(0, "READY=1\nMAINPID=%lu", (unsigned long)our_pid);
 }
 
 void

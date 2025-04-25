@@ -953,7 +953,7 @@ dump_keywords(vector_t *keydump, int level, FILE *fp)
 	if (!level) {
 		file_name_len = strlen(tmp_dir) + 1 + 8 + 1 + PID_MAX_DIGITS + 1;		/* TMP_DIR/keywords.PID\0 */
 		file_name = MALLOC(file_name_len);
-		snprintf(file_name, file_name_len, "%s/keywords.%d", tmp_dir, getpid());
+		snprintf(file_name, file_name_len, "%s/keywords.%d", tmp_dir, our_pid);
 
 		fp = fopen_safe(file_name, "w");
 
@@ -3330,7 +3330,7 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 #ifndef _ONE_PROCESS_DEBUG_
 		if (config_save_dir) {
 			char buf[128];
-			pid_t pid = getpid();
+			pid_t pid = our_pid;
 
 			sprintf(buf, "cp /proc/%d/fd/%d %s/keepalived.conf.%d.%u", pid, fileno(conf_copy), config_save_dir, pid, conf_num++);
 			if (system(buf)) {

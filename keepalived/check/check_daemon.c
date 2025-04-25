@@ -547,7 +547,7 @@ static void
 sigusr1_check(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	log_message(LOG_INFO, "Printing checker data for process(%d) on signal",
-		    getpid());
+		    our_pid);
 	thread_add_event(master, print_check_data, NULL, 0);
 }
 
@@ -696,6 +696,8 @@ start_check_child(void)
 		return 0;
 	}
 
+	our_pid = getpid();
+
 #ifdef _WITH_PROFILING_
 	/* See https://lists.gnu.org/archive/html/bug-gnu-utils/2001-09/msg00047.html for details */
 	monstartup ((u_long) &_start, (u_long) &etext);
@@ -705,7 +707,7 @@ start_check_child(void)
 
 	/* Check our parent hasn't already changed since the fork */
 	if (main_pid != getppid())
-		kill(getpid(), SIGTERM);
+		kill(our_pid, SIGTERM);
 
 	prog_type = PROG_TYPE_CHECKER;
 

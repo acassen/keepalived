@@ -64,6 +64,10 @@ static bool rlimit_core_set;
  * hasn't died during a window when PDEATHSIG is not set */
 pid_t main_pid;
 
+/* To avoid repeatedly calling getpid(), we set our pid here so that
+ * it can simply be referenced. */
+pid_t our_pid;
+
 static void
 set_process_dont_swap(size_t stack_reserve)
 {
@@ -148,7 +152,7 @@ set_process_priorities(unsigned realtime_priority, int max_realtime_priority, un
 			.sched_priority = realtime_priority
 		};
 
-		if (sched_setscheduler(getpid(), SCHED_RR | SCHED_RESET_ON_FORK, &sp))
+		if (sched_setscheduler(our_pid, SCHED_RR | SCHED_RESET_ON_FORK, &sp))
 			log_message(LOG_WARNING, "child process: cannot raise priority");
 		else {
 			cur_rt_priority = realtime_priority;
@@ -191,7 +195,7 @@ reset_priority(void)
 			.sched_priority = 0
 		};
 
-		if (sched_setscheduler(getpid(), SCHED_OTHER, &sp))
+		if (sched_setscheduler(our_pid, SCHED_OTHER, &sp))
 			log_message(LOG_WARNING, "child process: cannot reset realtime scheduling");
 		else {
 			cur_rt_priority = 0;
@@ -256,7 +260,7 @@ restore_priority(unsigned realtime_priority, int max_realtime_priority, unsigned
 		if (!realtime_priority && max_realtime_priority == -1) {
 			/* Turn off rt_sched and set process_priority */
 			struct sched_param sp = { .sched_priority = process_priority };
-			sched_setscheduler(getpid(), SCHED_OTHER, &sp);
+			sched_setscheduler(our_pid, SCHED_OTHER, &sp);
 			cur_rt_priority = 0;
 			max_rt_priority = 0;
 		} else {

@@ -766,7 +766,7 @@ static void
 sigusr1_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	log_message(LOG_INFO, "Printing VRRP data for process(%d) on signal",
-		    getpid());
+		    our_pid);
 	thread_add_event(master, print_vrrp_data, NULL, 0);
 }
 
@@ -774,7 +774,7 @@ static void
 sigusr2_vrrp(__attribute__((unused)) void *v, int sig)
 {
 	log_message(LOG_INFO, "Printing %sVRRP stats for process(%d) on signal",
-		    sig == SIGSTATS_CLEAR ? "and clearing " : "", getpid());
+		    sig == SIGSTATS_CLEAR ? "and clearing " : "", our_pid);
 	thread_add_event(master, print_vrrp_stats, NULL, sig);
 }
 
@@ -1057,6 +1057,8 @@ start_vrrp_child(void)
 		return 0;
 	}
 
+	our_pid = getpid();
+
 #ifdef _WITH_PROFILING_
 	/* See https://lists.gnu.org/archive/html/bug-gnu-utils/2001-09/msg00047.html for details */
 	monstartup ((u_long) &_start, (u_long) &etext);
@@ -1066,7 +1068,7 @@ start_vrrp_child(void)
 
 	/* Check our parent hasn't already changed since the fork */
 	if (main_pid != getppid())
-		kill(getpid(), SIGTERM);
+		kill(our_pid, SIGTERM);
 
 #ifdef _WITH_PERF_
 	if (perf_run == PERF_ALL)

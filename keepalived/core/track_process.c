@@ -778,7 +778,7 @@ nl_connect(void)
 
 	sa_nl.nl_family = AF_NETLINK;
 	sa_nl.nl_groups = CN_IDX_PROC;
-	sa_nl.nl_pid = getpid();
+	sa_nl.nl_pid = our_pid;
 
 	rc = bind(nl_sd, PTR_CAST(struct sockaddr, &sa_nl), sizeof(sa_nl));
 	if (rc == -1) {
@@ -798,7 +798,7 @@ static int set_proc_ev_listen(int nl_sd, bool enable)
 	int rc;
 	enum proc_cn_mcast_op cn_mcast = enable ? PROC_CN_MCAST_LISTEN : PROC_CN_MCAST_IGNORE;
 	struct cn_msg cn_msg = { .id.idx = CN_IDX_PROC, .id.val = CN_VAL_PROC, .len = sizeof(cn_mcast) };
-	struct nlmsghdr nl_hdr = { .nlmsg_type = NLMSG_DONE, .nlmsg_pid = getpid(), .nlmsg_len = NLMSG_LENGTH(sizeof(cn_msg) + sizeof(cn_mcast)) };
+	struct nlmsghdr nl_hdr = { .nlmsg_type = NLMSG_DONE, .nlmsg_pid = our_pid, .nlmsg_len = NLMSG_LENGTH(sizeof(cn_msg) + sizeof(cn_mcast)) };
 	struct iovec iov[3] = {
 		{ .iov_base = &nl_hdr, .iov_len = sizeof(nl_hdr) },
 		{ .iov_base = &cn_msg, .iov_len = sizeof(cn_msg) },

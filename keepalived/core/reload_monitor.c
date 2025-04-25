@@ -40,6 +40,7 @@
 #include "global_data.h"
 #include "scheduler.h"
 #include "utils.h"
+#include "process.h"
 
 static int dir_wd, file_wd;
 
@@ -73,7 +74,7 @@ reload_timer_thread(__attribute__((unused)) thread_ref_t thread)
 	    global_data->reload_date_specified)
 		unlink(global_data->reload_time_file);
 
-	kill(getpid(), SIGHUP);
+	kill(our_pid, SIGHUP);
 	/*
 	or
 	reload_config();

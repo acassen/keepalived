@@ -239,7 +239,7 @@ system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned 
 		}
 
 		if (WIFSIGNALED(retval))
-			kill(getpid(), WTERMSIG(retval));
+			kill(our_pid, WTERMSIG(retval));
 	}
 
 	exit(0); /* Script errors aren't server errors */
@@ -838,7 +838,7 @@ check_script_secure(notify_script_t *script,
 
 		/* Check the parent didn't die in the window when PDEATHSIG was not set */
 		if (!__test_bit(CONFIG_TEST_BIT, &debug) && main_pid != getppid())
-			kill(getpid(), SIGTERM);
+			kill(our_pid, SIGTERM);
 	}
 
 	if (!real_path) {
