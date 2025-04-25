@@ -24,7 +24,7 @@
 
 #include "config.h"
 
-#ifndef _ENABLE_ASSERT_
+#if !defined _ENABLE_ASSERT_ && !defined NDEBUG
 #define  NDEBUG
 #endif
 
