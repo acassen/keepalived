@@ -51,7 +51,7 @@ static struct rlimit orig_rlimit_rt;
 static int cur_priority;
 static int orig_priority;
 static bool orig_priority_set;
-static bool process_locked_in_memory;
+static unsigned cur_stack_reserve;
 
 static struct rlimit orig_fd_limit;
 
@@ -72,19 +72,35 @@ set_process_dont_swap(size_t stack_reserve)
 	char stack[stack_reserve];
 	size_t i;
 
+	if (cur_stack_reserve == stack_reserve)
+		return;
+
 	if (mlockall(MCL_CURRENT | MCL_FUTURE
 #ifdef MCL_ONFAULT
 					      | MCL_ONFAULT	/* Since Linux 4.4 */
 #endif
-							   ) == -1)
+							   ) == -1) {
 		log_message(LOG_INFO, "Unable to lock process in memory - %s", strerror(errno));
-	else
-		process_locked_in_memory = true;
+		return;
+	}
 
-	stack[0] = 23;		/* A random number */
-	for (i = 0; i < stack_reserve; i += pagesize)
-		stack[i] = stack[0];
-	stack[stack_reserve-1] = stack[0];
+	if (stack_reserve > cur_stack_reserve) {
+		stack[0] = 23;		/* A random number */
+		for (i = 0; i < stack_reserve; i += pagesize)
+			stack[i] = stack[0];
+		stack[stack_reserve-1] = stack[0];
+	}
+
+	cur_stack_reserve = stack_reserve;
+}
+
+static void
+reset_process_dont_swap(void)
+{
+	if (cur_stack_reserve) {
+		munlockall();
+		cur_stack_reserve = 0;
+	}
 }
 
 static void
@@ -120,7 +136,7 @@ reset_process_priority(void)
    variable length buffer" warning */
 RELAX_STACK_PROTECTOR_START
 void
-set_process_priorities(int realtime_priority, int max_realtime_priority, unsigned min_delay,
+set_process_priorities(unsigned realtime_priority, int max_realtime_priority, unsigned min_delay,
 		       int rlimit_rt, int process_priority, int no_swap_stack_size)
 {
 	if (max_realtime_priority != -1)
@@ -158,8 +174,7 @@ set_process_priorities(int realtime_priority, int max_realtime_priority, unsigne
 		default_rlimit_rttime = rlimit_rt;
 	}
 
-	if (min_delay)
-		min_auto_priority_delay = min_delay;
+	min_auto_priority_delay = min_delay;
 
 // TODO - measure max stack usage
 	if (no_swap_stack_size)
@@ -200,10 +215,7 @@ reset_process_priorities(void)
 {
 	reset_priority();
 
-	if (process_locked_in_memory) {
-		munlockall();
-		process_locked_in_memory = false;
-	}
+	reset_process_dont_swap();
 
 	if (rlimit_nofile_set) {
 		setrlimit(RLIMIT_NOFILE, &orig_fd_limit);
@@ -213,6 +225,72 @@ reset_process_priorities(void)
 		setrlimit(RLIMIT_CORE, &core);
 		rlimit_core_set = false;
 	}
+}
+
+void
+restore_priority(unsigned realtime_priority, int max_realtime_priority, unsigned min_delay,
+		 int rlimit_rt, int process_priority, int no_swap_stack_size)
+{
+	/*
+	 * max_realtime_priority == -1 => don't use rtsched - sets max_rt_priority
+	 * realtime_priority - says use rt prio, set to realtime_priority, set cur_limit_rttime and setrtimie(RLIMIT_RTTIME)
+	 *   else
+	 *  	 use process_priority
+	 *  	 set default_rlimit_rttime = rlimit_rt
+	 * rlimit_rt - set RLIMIT_RTTIME
+	 *
+	 * if (!max_realtime)
+	 * 	if (current_rt_prio)
+	 *	 	switch back to normal scheduling at process_priority
+	 *	 else
+	 *	 	set prio to process_priority
+	 * else if (current_rt_prio > max_realtime_priority)
+	 * 	current_rt_prio = max_re...
+	 * 	lower our priority
+	 * else if realtime_priority > current_rt_prio
+	 * 	set to realtime_priority
+	 */
+
+	if (cur_rt_priority) {
+		/* We are currently using realtime */
+		if (!realtime_priority && max_realtime_priority == -1) {
+			/* Turn off rt_sched and set process_priority */
+			struct sched_param sp = { .sched_priority = process_priority };
+			sched_setscheduler(getpid(), SCHED_OTHER, &sp);
+			cur_rt_priority = 0;
+			max_rt_priority = 0;
+		} else {
+			unsigned new_priority = cur_rt_priority;
+			if (max_realtime_priority != -1 && cur_priority > max_realtime_priority) {
+				/* reduce priority */
+				max_rt_priority = max_realtime_priority;
+				new_priority = max_rt_priority;
+			} else if (realtime_priority > cur_rt_priority) {
+				/* increase priority */
+				new_priority = realtime_priority;
+			}
+			set_process_priorities(new_priority, max_realtime_priority, min_delay, rlimit_rt, 0, 0);
+		}
+	} else {
+		if (realtime_priority) {
+			/* Set realtime prio */
+			set_process_priorities(realtime_priority, max_realtime_priority, min_delay, rlimit_rt, 0, 0);
+		} else if (process_priority != cur_priority) {
+			set_process_priority(process_priority);
+		}
+	}
+
+	if (max_realtime_priority != -1)
+		max_rt_priority = max_realtime_priority;
+	else
+		max_rt_priority = 0;
+
+	min_auto_priority_delay = min_delay;
+
+	if (no_swap_stack_size)
+		set_process_dont_swap(no_swap_stack_size);
+	else
+		reset_process_dont_swap();
 }
 
 void
