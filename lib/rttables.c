@@ -613,7 +613,6 @@ write_addrproto_config(const char *name, uint32_t val)
 	int ver_maj, ver_min, ver_rel;
 	char *res;
 	char *path;
-	bool file_exists = false;
 	struct stat statbuf;
 	size_t len;
 	mode_t old_umask;
@@ -689,9 +688,6 @@ write_addrproto_config(const char *name, uint32_t val)
 		path = MALLOC(len);
 		snprintf(path, len, "%s/%s", *iproute_etc_dir, RT_ADDRPROTOS_FILE);
 	}
-
-	/* Check if RT_ADDRPROTOS_FILE exists */
-	file_exists = !stat(path, &statbuf);
 
 	old_umask = umask(S_IXUSR | S_IWGRP | S_IXGRP | S_IWOTH | S_IXOTH);
 	if ((fp = fopen(path, "a"))) {
