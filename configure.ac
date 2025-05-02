@@ -1380,8 +1380,7 @@ AC_FUNC_FORK
 # We add malloc and realloc to AC_CHECK_FUNCS instead.
 #AC_FUNC_MALLOC
 #AC_FUNC_REALLOC
-dnl - dup3 since Linux 2.6.27 and glibc 2.9
-AC_CHECK_FUNCS([dup2 dup3 getcwd gettimeofday malloc memmove memset realloc select setenv socket strcasecmp strchr strdup strerror strpbrk strstr strtol strtoul uname])
+AC_CHECK_FUNCS([getcwd gettimeofday malloc memmove memset realloc select setenv socket strcasecmp strchr strdup strerror strpbrk strstr strtol strtoul uname])
 dnl - vsyslog() Not defined by Posix, but available in glibc and musl
 AC_CHECK_FUNCS([vsyslog], [add_system_opt([VSYSLOG])])
 

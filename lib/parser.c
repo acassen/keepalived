@@ -3460,11 +3460,7 @@ separate_config_file(void)
 		log_message(LOG_INFO, "Failed to open %s for conf_copy", buf);
 		return;
 	}
-#ifdef HAVE_DUP3
+
 	dup3(fd, fd_orig, O_CLOEXEC);
-#else
-	dup2(fd, fd_orig);
-	fcntl(fd_orig, F_SETFD, fcntl(fd_orig, F_GETFD) | FD_CLOEXEC);
-#endif
 	close(fd);
 }
