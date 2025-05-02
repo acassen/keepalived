@@ -22,7 +22,15 @@
 
 #include "config.h"
 
+#ifdef HAVE_CLOSE_RANGE
+#ifndef USE_CLOSE_RANGE_SYSCALL
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE         /* for close_range() */
+#endif
 #include <unistd.h>
+#endif
+#include <linux/close_range.h>
+#endif
 #include <stdlib.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -197,6 +205,20 @@ system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned 
 
 #ifdef _MEM_CHECK_
 	skip_mem_dump();
+#endif
+
+#ifdef HAVE_CLOSE_RANGE
+	 /* We don't want anything past stderr here. This is belt
+	  * and braces really, since all file desriptors should
+	  * have FD_CLOEXEC set. CLOSE_RANGE_CLOEXEC uses fewer
+	  * kernel resources that CLOSE_RANGE_UNSHARE. */
+	close_range(STDERR_FILENO + 1, ~0U,
+#ifdef HAVE_DECL_CLOSE_RANGE_CLOEXEC
+			    CLOSE_RANGE_CLOEXEC
+#else
+			    CLOSE_RANGE_UNSHARE
+#endif
+					       );
 #endif
 
 	if (set_script_env(script->uid, script->gid))
