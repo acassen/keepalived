@@ -293,7 +293,7 @@ read_procs(list_head_t *processes)
 		if (vrrp_data->vrrp_use_process_cmdline) {
 			snprintf(cmdline, sizeof(cmdline), "/proc/%.*s/cmdline", PID_MAX_DIGITS, ent->d_name);
 
-			if ((fd = open(cmdline, O_RDONLY)) == -1)
+			if ((fd = open(cmdline, O_RDONLY | O_CLOEXEC)) == -1)
 				continue;
 
 			/* Read max name len + null byte + 1 extra char */
@@ -307,7 +307,7 @@ read_procs(list_head_t *processes)
 		if (vrrp_data->vrrp_use_process_comm) {
 			snprintf(cmdline, sizeof(cmdline), "/proc/%.*s/stat", PID_MAX_DIGITS, ent->d_name);
 
-			if ((fd = open(cmdline, O_RDONLY)) == -1)
+			if ((fd = open(cmdline, O_RDONLY | O_CLOEXEC)) == -1)
 				continue;
 
 			len = read(fd, stat_buf, sizeof(stat_buf) - 1);
@@ -432,7 +432,7 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 		if (vrrp_data->vrrp_use_process_cmdline) {
 			snprintf(cmdline, sizeof(cmdline), "/proc/%d/cmdline", pid);
 
-			if ((fd = open(cmdline, O_RDONLY)) == -1) {
+			if ((fd = open(cmdline, O_RDONLY | O_CLOEXEC)) == -1) {
 #ifdef _TRACK_PROCESS_DEBUG_
 				if (do_track_process_debug_detail)
 					log_message(LOG_INFO, "check_process failed to open %s, errno %d", cmdline, errno);
@@ -461,7 +461,7 @@ check_process(pid_t pid, char *comm, tracked_process_instance_t *tpi)
 		if (vrrp_data->vrrp_use_process_comm) {
 			snprintf(cmdline, sizeof(cmdline), "/proc/%d/comm", pid);
 
-			if ((fd = open(cmdline, O_RDONLY)) == -1) {
+			if ((fd = open(cmdline, O_RDONLY | O_CLOEXEC)) == -1) {
 #ifdef _TRACK_PROCESS_DEBUG_
 				if (do_track_process_debug_detail)
 					log_message(LOG_INFO, "check_process failed to open %s, errno %d", cmdline, errno);

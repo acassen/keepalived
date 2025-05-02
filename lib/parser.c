@@ -2402,7 +2402,7 @@ open_conf_file(include_file_t *file)
 
 		if (strchr(file->globbuf.gl_pathv[i], '/')) {
 			/* If the filename contains a directory element, change to that directory. */
-			file->curdir_fd = open(".", O_RDONLY | O_DIRECTORY | O_PATH);
+			file->curdir_fd = open(".", O_RDONLY | O_DIRECTORY | O_PATH | O_CLOEXEC);
 
 			char *confpath = STRDUP(file->globbuf.gl_pathv[i]);
 			dirname(confpath);
@@ -2714,7 +2714,7 @@ read_line(char *buf, size_t size)
 						list_head_add(&file->e_list, &include_stack);
 						if (strchr(file->current_file_name, '/')) {
 							/* If the filename contains a directory element, change to that directory. */
-							file->curdir_fd = open(".", O_RDONLY | O_DIRECTORY | O_PATH);
+							file->curdir_fd = open(".", O_RDONLY | O_DIRECTORY | O_PATH | O_CLOEXEC);
 
 							char *confpath = STRDUP(buf + 2);
 							dirname(confpath);
@@ -3456,7 +3456,7 @@ separate_config_file(void)
 	 * it can be read independently from the other keepalived processes */
 	fd_orig = fileno(conf_copy);
 	snprintf(buf, sizeof(buf), "/proc/self/fd/%d", fd_orig);
-	if ((fd = open(buf, O_RDONLY)) == -1) {
+	if ((fd = open(buf, O_RDONLY | O_CLOEXEC)) == -1) {
 		log_message(LOG_INFO, "Failed to open %s for conf_copy", buf);
 		return;
 	}

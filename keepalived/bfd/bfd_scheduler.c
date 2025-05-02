@@ -972,7 +972,7 @@ bfd_open_fd_in(const char *port)
 		return -1;
 	}
 
-	if ((fd_in = socket(AF_INET6, ai_in->ai_socktype, ai_in->ai_protocol)) == -1) {
+	if ((fd_in = socket(AF_INET6, ai_in->ai_socktype | SOCK_CLOEXEC, ai_in->ai_protocol)) == -1) {
 		sav_errno = errno;
 
 		freeaddrinfo(ai_in);
@@ -990,7 +990,7 @@ bfd_open_fd_in(const char *port)
 			return -1;
 		}
 
-		if ((fd_in = socket(AF_INET, ai_in->ai_socktype, ai_in->ai_protocol)) == -1) {
+		if ((fd_in = socket(AF_INET, ai_in->ai_socktype | SOCK_CLOEXEC, ai_in->ai_protocol)) == -1) {
 			log_message(LOG_ERR, "socket(AF_INET) error %d (%m)", errno);
 			freeaddrinfo(ai_in);
 			return -1;
@@ -1031,7 +1031,7 @@ read_local_port_range(uint32_t port_limits[2])
 	port_limits[0] = 49152;
 	port_limits[1] = 60999;
 
-	fd = open("/proc/sys/net/ipv4/ip_local_port_range", O_RDONLY);
+	fd = open("/proc/sys/net/ipv4/ip_local_port_range", O_RDONLY | O_CLOEXEC);
 	if (fd == -1)
 		return false;
 	len = read(fd, buf, sizeof(buf));
@@ -1068,7 +1068,7 @@ bfd_open_fd_out(bfd_t *bfd)
 	assert(bfd);
 	assert(bfd->fd_out == -1);
 
-	bfd->fd_out = socket(bfd->nbr_addr.ss_family, SOCK_DGRAM, IPPROTO_UDP);
+	bfd->fd_out = socket(bfd->nbr_addr.ss_family, SOCK_DGRAM | SOCK_CLOEXEC, IPPROTO_UDP);
 	if (bfd->fd_out == -1) {
 		log_message(LOG_ERR, "(%s) socket() error (%m)",
 			    bfd->iname);

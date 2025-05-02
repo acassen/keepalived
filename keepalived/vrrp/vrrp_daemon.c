@@ -219,7 +219,7 @@ set_disable_local_igmp(void)
 	int fd;
 	ssize_t len;
 
-	if ((fd = open(igmp_link_local_mcast_reports, O_RDWR)) == -1) {
+	if ((fd = open(igmp_link_local_mcast_reports, O_RDWR | O_CLOEXEC)) == -1) {
 		log_message(LOG_INFO, "Unable to open %s - errno %d", igmp_link_local_mcast_reports, errno);
 		global_data->disable_local_igmp = false;
 		return;
@@ -252,7 +252,7 @@ reset_disable_local_igmp(void)
 	int fd;
 
 	if (sav_igmp_link_local_mcast_reports == '1') {
-		fd = open(igmp_link_local_mcast_reports, O_RDWR);
+		fd = open(igmp_link_local_mcast_reports, O_RDWR | O_CLOEXEC);
 		if (fd == -1 || write(fd, &sav_igmp_link_local_mcast_reports, 1) == -1)
 			log_message(LOG_INFO, "Unable to write %s - errno %d", igmp_link_local_mcast_reports, errno);
 		if (fd != -1)

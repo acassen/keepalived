@@ -275,7 +275,7 @@ set_namespaces(const char* net_namespace)
 	strcpy(netns_path, netns_dir);
 	strcat(netns_path, net_namespace);
 
-	fd = open(netns_path, O_RDONLY);
+	fd = open(netns_path, O_RDONLY | O_CLOEXEC);
 	if (fd == -1) {
 		log_message(LOG_INFO, "Failed to open %s", netns_path);
 		goto err;

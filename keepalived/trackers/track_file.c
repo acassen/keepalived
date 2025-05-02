@@ -809,7 +809,7 @@ process_track_file(tracked_file_t *tfile, bool init)
 	int fd;
 	ssize_t len;
 
-	if ((fd = open(tfile->file_path, O_RDONLY | O_NONBLOCK)) != -1) {
+	if ((fd = open(tfile->file_path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)) != -1) {
 		len = read(fd, buf, sizeof(buf) - 1);
 		close(fd);
 		if (len > 0) {

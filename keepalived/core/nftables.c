@@ -139,7 +139,7 @@ nl_socket_open(void)
 	}
 #endif
 
-	nl = mnl_socket_open(NETLINK_NETFILTER);
+	nl = mnl_socket_open2(NETLINK_NETFILTER, SOCK_CLOEXEC);
 	if (nl == NULL) {
 		log_message(LOG_INFO, "mnl_socket_open failed - %d", errno);
 

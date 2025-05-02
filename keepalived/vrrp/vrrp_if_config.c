@@ -114,7 +114,7 @@ set_sysctl(const char* prefix, const char* iface, const char* parameter, unsigne
 	filename = MALLOC(PATH_MAX);
 	make_sysctl_filename(filename, prefix, iface, parameter);
 
-	fd = open(filename, O_WRONLY);
+	fd = open(filename, O_WRONLY | O_CLOEXEC);
 	FREE(filename);
 	if (fd < 0)
 		return -1;
@@ -144,7 +144,7 @@ get_sysctl(const char* prefix, const char* iface, const char* parameter)
 	filename = MALLOC(PATH_MAX);
 	make_sysctl_filename(filename, prefix, iface, parameter);
 
-	fd = open(filename, O_RDONLY);
+	fd = open(filename, O_RDONLY | O_CLOEXEC);
 	FREE(filename);
 	if (fd < 0)
 		return UINT_MAX;

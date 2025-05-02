@@ -172,7 +172,7 @@ write_stacktrace(const char *file_name, const char *str)
 
 	nptrs = backtrace(buffer, 100);
 	if (file_name) {
-		fd = open(file_name, O_WRONLY | O_APPEND | O_CREAT | O_NOFOLLOW, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+		fd = open(file_name, O_WRONLY | O_APPEND | O_CREAT | O_NOFOLLOW | O_CLOEXEC, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
 		if (str)
 			dprintf(fd, "%s\n", str);
 		backtrace_symbols_fd(buffer, nptrs, fd);
@@ -407,8 +407,8 @@ run_perf(const char *process, const char *network_namespace, const char *instanc
 		struct inotify_event *ie = PTR_CAST(struct inotify_event, buf);
 		struct epoll_event ee = { .events = EPOLLIN, .data.fd = in };
 
-		if ((ep = epoll_create(1)) == -1) {
-			log_message(LOG_INFO, "perf epoll_create failed errno %d - %m", errno);
+		if ((ep = epoll_create1(EPOLL_CLOEXEC)) == -1) {
+			log_message(LOG_INFO, "perf epoll_create1 failed errno %d - %m", errno);
 			break;
 		}
 
@@ -1169,7 +1169,7 @@ fopen_safe(const char *path, const char *mode)
 		errno = EINVAL;
 		return NULL;
 #else
-		flags = O_NOFOLLOW | O_CREAT | O_CLOEXEC | O_APPEND;
+		flags |= O_APPEND;
 
 		if (mode[1])
 			flags |= O_RDWR;
@@ -1218,7 +1218,7 @@ fopen_safe(const char *path, const char *mode)
 		}
 	}
 
-	file = fdopen (fd, "w");
+	file = fdopen(fd, mode);
 	if (!file) {
 		sav_errno = errno;
 		log_message(LOG_INFO, "fdopen(\"%s\") failed - errno %d (%m)", path, errno);
