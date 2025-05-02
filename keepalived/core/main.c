@@ -1742,7 +1742,7 @@ set_debug_options(const char *options)
 static void
 report_distro(void)
 {
-	FILE *fp = fopen("/etc/os-release", "r");
+	FILE *fp = fopen("/etc/os-release", "re");
 	char buf[128];
 	const char * const var = "PRETTY_NAME=";
 	const size_t var_len = strlen(var);

@@ -367,7 +367,7 @@ vrrp_print_json(void)
 		return;
 
 	filename = make_tmp_filename("keepalived.json");
-	fp = fopen_safe(filename, "w");
+	fp = fopen_safe(filename, "we");
 	if (fp) {
 		vrrp_json_dump(fp);
 		fclose(fp);

@@ -231,7 +231,7 @@ get_stacksize(bool end)
 		char buf[257];
 	} s;
 
-	if (!(s.fp = fopen("/proc/self/maps", "r")))
+	if (!(s.fp = fopen("/proc/self/maps", "re")))
 		return -1;
 
 	while (fgets(s.buf, sizeof(s.buf), s.fp)) {

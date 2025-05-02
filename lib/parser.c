@@ -955,7 +955,7 @@ dump_keywords(vector_t *keydump, int level, FILE *fp)
 		file_name = MALLOC(file_name_len);
 		snprintf(file_name, file_name_len, "%s/keywords.%d", tmp_dir, our_pid);
 
-		fp = fopen_safe(file_name, "w");
+		fp = fopen_safe(file_name, "we");
 
 		FREE(file_name);
 
@@ -2378,7 +2378,7 @@ open_conf_file(include_file_t *file)
 		if (!check_glob_file(file->globbuf.gl_pathv[i]))
 			continue;
 
-		stream = fopen(file->globbuf.gl_pathv[i], "r");
+		stream = fopen(file->globbuf.gl_pathv[i], "re");
 		if (!stream) {
 			file_config_error(INCLUDE_R, "Configuration file '%s' open problem (%s) - skipping"
 					       , file->globbuf.gl_pathv[i], strerror(errno));

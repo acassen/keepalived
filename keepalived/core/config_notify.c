@@ -118,7 +118,7 @@ save_config(bool post, const char *process, void(*func)(FILE *))
 
 	sprintf(buf, "%s/keepalived_%s.%d.%u.%s", config_save_dir, process, our_pid, reload_num, post ? "post" : "pre");
 
-	file = fopen_safe(buf, "w");
+	file = fopen_safe(buf, "we");
 	if (!file) {
 		log_message(LOG_INFO, "Failed to open config_save file %s", buf);
 		return;

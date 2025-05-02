@@ -550,7 +550,7 @@ smtp_log_to_file(smtp_t *smtp)
 	email_t *email;
 
 	file_name = make_tmp_filename("smtp-alert.log");
-	fp = fopen_safe(file_name, "a");
+	fp = fopen_safe(file_name, "ae");
 	FREE_CONST(file_name);
 
 	if (fp) {

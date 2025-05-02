@@ -1491,7 +1491,7 @@ dump_threads(void)
 					"vrrp",
 					global_data->network_namespace,
 					global_data->instance_name);
-	fp = fopen_safe(file_name, "a");
+	fp = fopen_safe(file_name, "ae");
 	FREE_CONST(file_name);
 
 	set_time_now();

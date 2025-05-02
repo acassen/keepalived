@@ -252,7 +252,7 @@ bool set_match_loaded(void)
 	FILE *fp;
 	bool found = false;
 
-	fp = fopen( "/proc/net/ip_tables_matches", "r");
+	fp = fopen("/proc/net/ip_tables_matches", "re");
 	if (!fp)
 		return false;
 
