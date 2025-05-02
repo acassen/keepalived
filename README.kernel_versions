@@ -78,6 +78,15 @@ dnl -- Since Linux 5.7
 NFT_SET_CONCAT
 NFTNL_SET_EXPR also libnftnl 1.1.7, nft 0.9.5
 
+Since Linux 5.9
+close_range syscall
+
+Since Linux 5.11
+CLOSE_RANGE_CLOEXEC
+
+Since glibc 2.34
+close_range() library function
+
 Since Linux 5.18
 IFA_PROTO
 

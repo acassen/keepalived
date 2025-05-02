@@ -47,9 +47,13 @@
 #include <sys/epoll.h>
 #include <sys/inotify.h>
 #endif
+#ifndef HAVE_DECL_CLOSE_RANGE_CLOEXEC
 #include <dirent.h>
 #include <stdlib.h>
 #include <ctype.h>
+#elif defined USE_CLOSE_RANGE_SYSCALL
+#include <sys/syscall.h>
+#endif
 
 #ifdef _WITH_STACKTRACE_
 #include <sys/stat.h>
@@ -74,6 +78,12 @@
 #include "logger.h"
 #include "process.h"
 #include "timer.h"
+
+#ifdef USE_CLOSE_RANGE_SYSCALL
+#ifndef SYS_memfd_create
+#define SYS_memfd_create __NR_memfd_create
+#endif
+#endif
 
 /* global vars */
 unsigned long debug = 0;
@@ -1475,6 +1485,20 @@ make_tmp_filename(const char *file_name)
 	return path;
 }
 
+#ifdef HAVE_DECL_CLOSE_RANGE_CLOEXEC
+#ifdef USE_CLOSE_RANGE_SYSCALL
+int
+close_range(unsigned first, unsigned last, int flags)
+{
+	int ret;
+
+	ret = syscall(SYS_close_range, first, last, flags);
+
+	return ret;
+}
+#endif
+
+#else
 unsigned
 get_open_fds(uint64_t *fds, unsigned num_ent)
 {
@@ -1509,6 +1533,7 @@ get_open_fds(uint64_t *fds, unsigned num_ent)
 
 	return max_fd;
 }
+#endif
 
 void
 log_stopping(void)

@@ -23,7 +23,14 @@
 #include "config.h"
 
 #include <stdio.h>
+#if defined HAVE_CLOSE_RANGE_CLOEXEC
+#if !defined DEFINE_CLOSE_RANGE && !defined _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include <linux/close_range.h>
+#else
 #include <fcntl.h>
+#endif
 #include <unistd.h>
 
 #include "scheduler.h"
@@ -459,13 +466,17 @@ snmp_unregister_mib(oid *myoid, size_t len)
 void
 snmp_agent_init(const char *snmp_socket_name, bool base_mib)
 {
+#ifndef HAVE_DECL_CLOSE_RANGE_CLOEXEC
 	uint64_t fds[2][16];
 	unsigned max_fd;
+#endif
 
 	if (snmp_running)
 		return;
 
+#ifndef HAVE_DECL_CLOSE_RANGE_CLOEXEC
 	get_open_fds(fds[0], sizeof(fds[0]) / sizeof(fds[0][0]));
+#endif
 
 	log_message(LOG_INFO, "Starting SNMP subagent");
 	netsnmp_enable_subagent();
@@ -517,6 +528,10 @@ snmp_agent_init(const char *snmp_socket_name, bool base_mib)
 	/* Set up the fd threads */
 	snmp_epoll_info(master);
 
+#ifdef HAVE_DECL_CLOSE_RANGE_CLOEXEC
+	/* This assumes that child processes should only have stdin, stdout and stderr open */
+	close_range(STDERR_FILENO + 1, ~0U, CLOSE_RANGE_CLOEXEC);
+#else
 	max_fd = get_open_fds(fds[1], sizeof(fds[1]) / sizeof(fds[1][0]));
 
 	for (size_t i = 0; i < sizeof(fds[0]) / sizeof(fds[0][0]) && i * 64 <= max_fd; i++) {
@@ -532,6 +547,8 @@ snmp_agent_init(const char *snmp_socket_name, bool base_mib)
 			}
 		}
 	}
+#endif
+
 	snmp_running = true;
 }
 

@@ -1396,6 +1396,21 @@ AS_IF([test "x$ac_cv_func_memfd_create" != xyes],
       [[#include <sys/syscall.h>]])
   ])
 
+dnl - close_range() - since Linux 5.9 and glibc 2.34
+dnl - close_range() appeared in the kernel some time before it appeared in
+dnl -   glibc so we use the raw syscall if it is available
+dnl - CLOSE_RANGE_CLOEXEC added in Linux 5.11.
+AC_CHECK_FUNCS([close_range], [add_system_opt([CLOSE_RANGE])])
+AS_IF([test "x$ac_cv_func_close_range" != xyes],
+  [
+    AC_CHECK_DECLS([__NR_close_range],
+      [
+        AC_DEFINE([USE_CLOSE_RANGE_SYSCALL], [ 1 ], [Use syscall for close_range])
+	add_system_opt([CLOSE_RANGE_SYSCALL])
+      ], [], [[#include <sys/syscall.h>]])
+  ])
+AC_CHECK_DECLS([CLOSE_RANGE_CLOEXEC], [], [], [[#include <linux/close_range.h>]])
+
 dnl - Since Linux 3.17
 AC_CHECK_DECLS([O_TMPFILE], [], [], [[#include <fcntl.h>]])
 
