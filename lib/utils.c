@@ -47,6 +47,9 @@
 #include <sys/epoll.h>
 #include <sys/inotify.h>
 #endif
+#include <dirent.h>
+#include <stdlib.h>
+#include <ctype.h>
 
 #ifdef _WITH_STACKTRACE_
 #include <sys/stat.h>
@@ -1470,6 +1473,41 @@ make_tmp_filename(const char *file_name)
 	strcpy(path + tmp_dir_len + 1, file_name);
 
 	return path;
+}
+
+unsigned
+get_open_fds(uint64_t *fds, unsigned num_ent)
+{
+	DIR *dir = opendir("/proc/self/fd");
+	struct dirent *ent;
+	unsigned long fd_num;
+	unsigned i;
+	unsigned max_fd = 0;
+	struct stat stbuf;
+
+	for (i = 0; i < num_ent; i++)
+		fds[i] = 0;
+	
+	while ((ent = readdir(dir))) {
+		// Allow for . and ..
+		if (!isdigit(ent->d_name[0]))
+			continue;
+
+		fd_num = strtoul(ent->d_name, NULL, 10);
+
+		/* Make sure it isn't a directory - i.e. the fd returned by opendir() */
+		if (fstat(fd_num, &stbuf) || S_ISDIR(stbuf.st_mode))
+			continue;
+
+		fds[fd_num / 64] |= 1UL << (fd_num % 64) ;
+
+		if (fd_num > max_fd)
+			max_fd = fd_num;
+	}
+
+	closedir(dir);
+
+	return max_fd;
 }
 
 void

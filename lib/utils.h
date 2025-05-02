@@ -308,6 +308,7 @@ extern bool keepalived_modprobe(const char *);
 #endif
 extern void set_tmp_dir(void);
 extern const char *make_tmp_filename(const char *);
+extern unsigned get_open_fds(uint64_t *, unsigned);
 extern void log_stopping(void);
 
 #endif

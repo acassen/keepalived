@@ -23,6 +23,9 @@
 #include "config.h"
 
 #include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 #include "scheduler.h"
 #include "snmp.h"
 #include "logger.h"
@@ -456,8 +459,13 @@ snmp_unregister_mib(oid *myoid, size_t len)
 void
 snmp_agent_init(const char *snmp_socket_name, bool base_mib)
 {
+	uint64_t fds[2][16];
+	unsigned max_fd;
+
 	if (snmp_running)
 		return;
+
+	get_open_fds(fds[0], sizeof(fds[0]) / sizeof(fds[0][0]));
 
 	log_message(LOG_INFO, "Starting SNMP subagent");
 	netsnmp_enable_subagent();
@@ -509,6 +517,21 @@ snmp_agent_init(const char *snmp_socket_name, bool base_mib)
 	/* Set up the fd threads */
 	snmp_epoll_info(master);
 
+	max_fd = get_open_fds(fds[1], sizeof(fds[1]) / sizeof(fds[1][0]));
+
+	for (size_t i = 0; i < sizeof(fds[0]) / sizeof(fds[0][0]) && i * 64 <= max_fd; i++) {
+		if (fds[0][i] != fds[1][i]) {
+			uint64_t fds_diff = fds[0][i] ^ fds[1][i], bit_mask;
+			unsigned j;
+			for (bit_mask = 1, j = i * 64; j < (i + 1) * 64 && j <= max_fd; j++, bit_mask <<= 1) {
+				if (j <= STDERR_FILENO)
+					continue;
+
+				if (fds_diff & bit_mask)
+					fcntl(j, F_SETFD, fcntl(j, F_GETFD) | FD_CLOEXEC);
+			}
+		}
+	}
 	snmp_running = true;
 }
 
