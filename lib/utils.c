@@ -1148,7 +1148,7 @@ fopen_safe(const char *path, const char *mode)
 
 	if ((mode[0] != 'a' && mode[0] != 'w') ||
 	    (mode[1] &&
-	     (mode[1] != '+' || mode[2]))) {
+	     ((mode[1] != 'e' && mode[1] != '+') || mode[2]))) {
 		errno = EINVAL;
 		return NULL;
 	}
