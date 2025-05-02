@@ -3453,7 +3453,7 @@ separate_config_file(void)
 	}
 
 	/* We need to open the config file on a different file descriptor so that
-	 * it can be read independantly from the other keepalived processes */
+	 * it can be read independently from the other keepalived processes */
 	fd_orig = fileno(conf_copy);
 	snprintf(buf, sizeof(buf), "/proc/self/fd/%d", fd_orig);
 	if ((fd = open(buf, O_RDONLY)) == -1) {
