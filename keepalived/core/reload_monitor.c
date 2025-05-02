@@ -218,7 +218,7 @@ parse_datetime(const char *timestr, bool *date_specified)
 static void
 read_file(void)
 {
-	FILE *fp = fopen(global_data->reload_time_file, "r");
+	FILE *fp = fopen(global_data->reload_time_file, "re");
 	size_t len;
 	time_t reload_time;
 	char	time_buf[21];

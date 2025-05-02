@@ -47,6 +47,13 @@
 #include <sys/epoll.h>
 #include <sys/inotify.h>
 #endif
+#ifndef HAVE_DECL_CLOSE_RANGE_CLOEXEC
+#include <dirent.h>
+#include <stdlib.h>
+#include <ctype.h>
+#elif defined USE_CLOSE_RANGE_SYSCALL
+#include <sys/syscall.h>
+#endif
 
 #ifdef _WITH_STACKTRACE_
 #include <sys/stat.h>
@@ -71,6 +78,12 @@
 #include "logger.h"
 #include "process.h"
 #include "timer.h"
+
+#ifdef USE_CLOSE_RANGE_SYSCALL
+#ifndef SYS_memfd_create
+#define SYS_memfd_create __NR_memfd_create
+#endif
+#endif
 
 /* global vars */
 unsigned long debug = 0;
@@ -172,7 +185,7 @@ write_stacktrace(const char *file_name, const char *str)
 
 	nptrs = backtrace(buffer, 100);
 	if (file_name) {
-		fd = open(file_name, O_WRONLY | O_APPEND | O_CREAT | O_NOFOLLOW, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+		fd = open(file_name, O_WRONLY | O_APPEND | O_CREAT | O_NOFOLLOW | O_CLOEXEC, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
 		if (str)
 			dprintf(fd, "%s\n", str);
 		backtrace_symbols_fd(buffer, nptrs, fd);
@@ -231,7 +244,7 @@ get_stacksize(bool end)
 		char buf[257];
 	} s;
 
-	if (!(s.fp = fopen("/proc/self/maps", "r")))
+	if (!(s.fp = fopen("/proc/self/maps", "re")))
 		return -1;
 
 	while (fgets(s.buf, sizeof(s.buf), s.fp)) {
@@ -407,8 +420,8 @@ run_perf(const char *process, const char *network_namespace, const char *instanc
 		struct inotify_event *ie = PTR_CAST(struct inotify_event, buf);
 		struct epoll_event ee = { .events = EPOLLIN, .data.fd = in };
 
-		if ((ep = epoll_create(1)) == -1) {
-			log_message(LOG_INFO, "perf epoll_create failed errno %d - %m", errno);
+		if ((ep = epoll_create1(EPOLL_CLOEXEC)) == -1) {
+			log_message(LOG_INFO, "perf epoll_create1 failed errno %d - %m", errno);
 			break;
 		}
 
@@ -1169,7 +1182,7 @@ fopen_safe(const char *path, const char *mode)
 		errno = EINVAL;
 		return NULL;
 #else
-		flags = O_NOFOLLOW | O_CREAT | O_CLOEXEC | O_APPEND;
+		flags |= O_APPEND;
 
 		if (mode[1])
 			flags |= O_RDWR;
@@ -1218,7 +1231,7 @@ fopen_safe(const char *path, const char *mode)
 		}
 	}
 
-	file = fdopen (fd, "w");
+	file = fdopen(fd, mode);
 	if (!file) {
 		sav_errno = errno;
 		log_message(LOG_INFO, "fdopen(\"%s\") failed - errno %d (%m)", path, errno);
@@ -1471,6 +1484,56 @@ make_tmp_filename(const char *file_name)
 
 	return path;
 }
+
+#ifdef HAVE_DECL_CLOSE_RANGE_CLOEXEC
+#ifdef USE_CLOSE_RANGE_SYSCALL
+int
+close_range(unsigned first, unsigned last, int flags)
+{
+	int ret;
+
+	ret = syscall(SYS_close_range, first, last, flags);
+
+	return ret;
+}
+#endif
+
+#else
+unsigned
+get_open_fds(uint64_t *fds, unsigned num_ent)
+{
+	DIR *dir = opendir("/proc/self/fd");
+	struct dirent *ent;
+	unsigned long fd_num;
+	unsigned i;
+	unsigned max_fd = 0;
+	struct stat stbuf;
+
+	for (i = 0; i < num_ent; i++)
+		fds[i] = 0;
+	
+	while ((ent = readdir(dir))) {
+		// Allow for . and ..
+		if (!isdigit(ent->d_name[0]))
+			continue;
+
+		fd_num = strtoul(ent->d_name, NULL, 10);
+
+		/* Make sure it isn't a directory - i.e. the fd returned by opendir() */
+		if (fstat(fd_num, &stbuf) || S_ISDIR(stbuf.st_mode))
+			continue;
+
+		fds[fd_num / 64] |= 1UL << (fd_num % 64) ;
+
+		if (fd_num > max_fd)
+			max_fd = fd_num;
+	}
+
+	closedir(dir);
+
+	return max_fd;
+}
+#endif
 
 void
 log_stopping(void)

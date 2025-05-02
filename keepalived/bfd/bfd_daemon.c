@@ -465,7 +465,7 @@ start_bfd_child(void)
 	/* Clear any child finder functions set in parent */
 	set_child_finder_name(NULL);
 
-	/* Create an independant file descriptor for the shared config file */
+	/* Create an independent file descriptor for the shared config file */
 	separate_config_file();
 
 	/* Child process part, write pidfile */

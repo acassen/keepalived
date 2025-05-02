@@ -60,7 +60,7 @@ check_iptables_nft(void)
 	    !global_data->vrrp_iptables_outchain)
 		return;
 
-	fp = popen("iptables -V", "r");
+	fp = popen("iptables -V", "re");
 	if (!fp) {
 		/* No iptables command, so we need to use nftables */
 		log_message(LOG_INFO, "Using nftables since no iptables command found - please update configuration");
@@ -86,7 +86,7 @@ check_iptables_nft(void)
 			return;
 
 #ifdef ALLOW_IPTABLES_LEGACY
-		fp = popen("iptables-legacy -V", "r");
+		fp = popen("iptables-legacy -V", "re");
 
 		if (fp) {
 		    fclose(fp);

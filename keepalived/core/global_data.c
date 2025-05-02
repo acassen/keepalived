@@ -586,7 +586,7 @@ open_dump_file(const char *default_file_name)
 			global_data->data_use_instance && global_data->instance_name ? global_data->instance_name : "",
 			dot);
 
-	fp = fopen_safe(full_file_name, "w");
+	fp = fopen_safe(full_file_name, "we");
 
 	if (!fp)
 		log_message(LOG_INFO, "Can't open dump file %s (%d: %s)",

@@ -218,7 +218,7 @@ dump_nl_msg(const char *msg, struct nl_msg *nlmsg)
 	const char *filename;
 
 	filename = make_tmp_filename("nlmsg.dmp");
-	fp = fopen(filename, "a");
+	fp = fopen(filename, "ae");
 	FREE_CONST(filename);
 
 	fprintf(fp, "\n%s\n\n", msg);

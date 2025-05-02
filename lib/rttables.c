@@ -254,7 +254,7 @@ read_file(const char *file_name, list_head_t *l, uint32_t max)
 	char *endptr;
 	size_t len;
 
-	fp = fopen(file_name, "r");
+	fp = fopen(file_name, "re");
 	if (!fp)
 		return;
 
@@ -690,7 +690,7 @@ write_addrproto_config(const char *name, uint32_t val)
 	}
 
 	old_umask = umask(S_IXUSR | S_IWGRP | S_IXGRP | S_IWOTH | S_IXOTH);
-	if ((fp = fopen(path, "a"))) {
+	if ((fp = fopen(path, "ae"))) {
 		fprintf(fp, "%u\t%s\t# added by keepalived\n", val, name);
 
 		fclose(fp);

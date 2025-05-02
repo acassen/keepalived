@@ -955,7 +955,7 @@ dump_keywords(vector_t *keydump, int level, FILE *fp)
 		file_name = MALLOC(file_name_len);
 		snprintf(file_name, file_name_len, "%s/keywords.%d", tmp_dir, our_pid);
 
-		fp = fopen_safe(file_name, "w");
+		fp = fopen_safe(file_name, "we");
 
 		FREE(file_name);
 
@@ -2378,7 +2378,7 @@ open_conf_file(include_file_t *file)
 		if (!check_glob_file(file->globbuf.gl_pathv[i]))
 			continue;
 
-		stream = fopen(file->globbuf.gl_pathv[i], "r");
+		stream = fopen(file->globbuf.gl_pathv[i], "re");
 		if (!stream) {
 			file_config_error(INCLUDE_R, "Configuration file '%s' open problem (%s) - skipping"
 					       , file->globbuf.gl_pathv[i], strerror(errno));
@@ -2402,7 +2402,7 @@ open_conf_file(include_file_t *file)
 
 		if (strchr(file->globbuf.gl_pathv[i], '/')) {
 			/* If the filename contains a directory element, change to that directory. */
-			file->curdir_fd = open(".", O_RDONLY | O_DIRECTORY | O_PATH);
+			file->curdir_fd = open(".", O_RDONLY | O_DIRECTORY | O_PATH | O_CLOEXEC);
 
 			char *confpath = STRDUP(file->globbuf.gl_pathv[i]);
 			dirname(confpath);
@@ -2714,7 +2714,7 @@ read_line(char *buf, size_t size)
 						list_head_add(&file->e_list, &include_stack);
 						if (strchr(file->current_file_name, '/')) {
 							/* If the filename contains a directory element, change to that directory. */
-							file->curdir_fd = open(".", O_RDONLY | O_DIRECTORY | O_PATH);
+							file->curdir_fd = open(".", O_RDONLY | O_DIRECTORY | O_PATH | O_CLOEXEC);
 
 							char *confpath = STRDUP(buf + 2);
 							dirname(confpath);
@@ -3453,18 +3453,14 @@ separate_config_file(void)
 	}
 
 	/* We need to open the config file on a different file descriptor so that
-	 * it can be read independantly from the other keepalived processes */
+	 * it can be read independently from the other keepalived processes */
 	fd_orig = fileno(conf_copy);
 	snprintf(buf, sizeof(buf), "/proc/self/fd/%d", fd_orig);
-	if ((fd = open(buf, O_RDONLY)) == -1) {
+	if ((fd = open(buf, O_RDONLY | O_CLOEXEC)) == -1) {
 		log_message(LOG_INFO, "Failed to open %s for conf_copy", buf);
 		return;
 	}
-#ifdef HAVE_DUP3
+
 	dup3(fd, fd_orig, O_CLOEXEC);
-#else
-	dup2(fd, fd_orig);
-	fcntl(fd_orig, F_SETFD, fcntl(fd_orig, F_GETFD) | FD_CLOEXEC);
-#endif
 	close(fd);
 }

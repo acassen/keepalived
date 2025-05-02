@@ -48,7 +48,7 @@ check_parent_systemd(void)
 	if (getppid() != 1)
 		return false;
 
-	if ((fd = open("/proc/1/stat", O_RDONLY)) == -1)
+	if ((fd = open("/proc/1/stat", O_RDONLY | O_CLOEXEC)) == -1)
 		return false;
 
 	len = read(fd, stat_buf, sizeof(stat_buf) - 1);

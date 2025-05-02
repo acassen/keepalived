@@ -139,7 +139,7 @@ nl_socket_open(void)
 	}
 #endif
 
-	nl = mnl_socket_open(NETLINK_NETFILTER);
+	nl = mnl_socket_open2(NETLINK_NETFILTER, SOCK_CLOEXEC);
 	if (nl == NULL) {
 		log_message(LOG_INFO, "mnl_socket_open failed - %d", errno);
 
@@ -187,7 +187,7 @@ exchange_nl_msg(struct mnl_nlmsg_batch *batch)
 
 	if (prog_type == PROG_TYPE_VRRP) {
 		file_name = make_tmp_filename("nftrace");
-		fp = fopen(file_name, "a");
+		fp = fopen(file_name, "ae");
 		FREE_CONST(file_name);
 		unsigned char *p = mnl_nlmsg_batch_head(batch);
 		size_t i;
@@ -267,7 +267,7 @@ exchange_nl_msg_single(struct nlmsghdr *nlm, int (*cb_func)(const struct nlmsghd
 	FILE *fp;
 
 	filename = make_tmp_filename("nftrace");
-	fp = fopen(filename, "a");
+	fp = fopen(filename, "ae");
 	FREE_CONST(filename);
 
 	mnl_nlmsg_fprintf(fp, PTR_CAST(char, nlm), nlm->nlmsg_len, 0);
@@ -716,7 +716,7 @@ set_nf_ifname_type(void)
 	unsigned nft_version = 0;
 	int ifname_type;
 
-	fp = popen("nft -v 2>/dev/null", "r");
+	fp = popen("nft -v 2>/dev/null", "re");
 	if (fp) {
 		if (fgets(nft_ver_buf, sizeof(nft_ver_buf), fp)) {
 			if (!(p = strchr(nft_ver_buf, ' ')))

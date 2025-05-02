@@ -1163,7 +1163,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 		}
 	}
 
-	efd = epoll_create(1);
+	efd = epoll_create1(EPOLL_CLOEXEC);
 	epoll_ctl(efd, EPOLL_CTL_ADD, signal_fd, &ev);
 
 	gettimeofday(&start_time, NULL);
@@ -1324,7 +1324,7 @@ update_core_dump_pattern(const char *pattern_str)
 	if (initialising)
 		orig_core_dump_pattern = MALLOC(CORENAME_MAX_SIZE);
 
-	fd = open ("/proc/sys/kernel/core_pattern", O_RDWR);
+	fd = open("/proc/sys/kernel/core_pattern", O_RDWR | O_CLOEXEC);
 
 	if (fd == -1 ||
 	    (initialising && read(fd, orig_core_dump_pattern, CORENAME_MAX_SIZE - 1) == -1) ||
@@ -1742,7 +1742,7 @@ set_debug_options(const char *options)
 static void
 report_distro(void)
 {
-	FILE *fp = fopen("/etc/os-release", "r");
+	FILE *fp = fopen("/etc/os-release", "re");
 	char buf[128];
 	const char * const var = "PRETTY_NAME=";
 	const size_t var_len = strlen(var);
@@ -1784,7 +1784,7 @@ read_config_opts(const char *filename)
 	if (stat(filename, &statbuf))
 		return NULL;
 
-	if ((fd = open(filename, O_RDONLY)) == -1) {
+	if ((fd = open(filename, O_RDONLY | O_CLOEXEC)) == -1) {
 		fprintf(stderr, "Failed to open %s\n", filename);
 		return NULL;
 	}
@@ -2214,7 +2214,7 @@ parse_cmdline(int argc, char **argv)
 			__set_bit(DONT_FORK_BIT, &debug);
 			__set_bit(NO_SYSLOG_BIT, &debug);
 			if (optarg && optarg[0]) {
-				int fd = open(optarg, O_WRONLY | O_APPEND | O_CREAT | O_NOFOLLOW, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+				int fd = open(optarg, O_WRONLY | O_APPEND | O_CREAT | O_NOFOLLOW | O_CLOEXEC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 				if (fd == -1) {
 					fprintf(stderr, "Unable to open config-test log file %s %d - %m\n", optarg, errno);
 					exit(EXIT_FAILURE);

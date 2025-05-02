@@ -497,7 +497,7 @@ track_file_end_handler(void)
 		if (!reload && !__test_bit(CONFIG_TEST_BIT, &debug) &&
 		    (ret || track_file_init == TRACK_FILE_OVERWRITE)) {	// the file doesn't exist or we want to overwrite it
 			/* Write the value to the file */
-			if ((tf = fopen_safe(track_file->file_path, "w"))) {
+			if ((tf = fopen_safe(track_file->file_path, "we"))) {
 				fprintf(tf, "%d\n", track_file_init_value);
 				fclose(tf);
 			}
@@ -809,7 +809,7 @@ process_track_file(tracked_file_t *tfile, bool init)
 	int fd;
 	ssize_t len;
 
-	if ((fd = open(tfile->file_path, O_RDONLY | O_NONBLOCK)) != -1) {
+	if ((fd = open(tfile->file_path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)) != -1) {
 		len = read(fd, buf, sizeof(buf) - 1);
 		close(fd);
 		if (len > 0) {

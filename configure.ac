@@ -1380,8 +1380,7 @@ AC_FUNC_FORK
 # We add malloc and realloc to AC_CHECK_FUNCS instead.
 #AC_FUNC_MALLOC
 #AC_FUNC_REALLOC
-dnl - dup3 since Linux 2.6.27 and glibc 2.9
-AC_CHECK_FUNCS([dup2 dup3 getcwd gettimeofday malloc memmove memset realloc select setenv socket strcasecmp strchr strdup strerror strpbrk strstr strtol strtoul uname])
+AC_CHECK_FUNCS([getcwd gettimeofday malloc memmove memset realloc select setenv socket strcasecmp strchr strdup strerror strpbrk strstr strtol strtoul uname])
 dnl - vsyslog() Not defined by Posix, but available in glibc and musl
 AC_CHECK_FUNCS([vsyslog], [add_system_opt([VSYSLOG])])
 
@@ -1395,6 +1394,21 @@ AS_IF([test "x$ac_cv_func_memfd_create" != xyes],
       [AC_DEFINE([USE_MEMFD_CREATE_SYSCALL], [ 1 ], [Use syscall for memfd_create])], [],
       [[#include <sys/syscall.h>]])
   ])
+
+dnl - close_range() - since Linux 5.9 and glibc 2.34
+dnl - close_range() appeared in the kernel some time before it appeared in
+dnl -   glibc so we use the raw syscall if it is available
+dnl - CLOSE_RANGE_CLOEXEC added in Linux 5.11.
+AC_CHECK_FUNCS([close_range], [add_system_opt([CLOSE_RANGE])])
+AS_IF([test "x$ac_cv_func_close_range" != xyes],
+  [
+    AC_CHECK_DECLS([__NR_close_range],
+      [
+        AC_DEFINE([USE_CLOSE_RANGE_SYSCALL], [ 1 ], [Use syscall for close_range])
+	add_system_opt([CLOSE_RANGE_SYSCALL])
+      ], [], [[#include <sys/syscall.h>]])
+  ])
+AC_CHECK_DECLS([CLOSE_RANGE_CLOEXEC], [], [], [[#include <linux/close_range.h>]])
 
 dnl - Since Linux 3.17
 AC_CHECK_DECLS([O_TMPFILE], [], [], [[#include <fcntl.h>]])

@@ -624,7 +624,7 @@ read_file(const gchar* filepath)
 	gchar *ret = NULL;
 	struct stat statbuf;
 
-	if ((fd = open(filepath, O_RDONLY)) == -1) {
+	if ((fd = open(filepath, O_RDONLY | O_CLOEXEC)) == -1) {
 		log_message(LOG_INFO, "Unable to open DBus file %s, errno %d (%m)", filepath, errno);
 		return NULL;
 	}

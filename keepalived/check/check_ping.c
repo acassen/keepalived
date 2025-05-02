@@ -62,7 +62,7 @@ set_ping_group_range(bool set)
 	if (set == checked_ping_group_range)
 		return true;
 
-	fd = open(ping_group_range, O_RDWR);
+	fd = open(ping_group_range, O_RDWR | O_CLOEXEC);
 	if (fd == -1)
 		return false;
 	len = read(fd, buf, sizeof(buf));

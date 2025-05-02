@@ -1336,7 +1336,7 @@ vrrp_build_vrrp_v2(vrrp_t *vrrp, char *buffer)
 	struct in6_addr *ip6arr;
 	ip_address_t *ip_addr;
 
-	/* Family independant */
+	/* Family independent */
 	hd->vers_type = (VRRP_VERSION_2 << 4) | VRRP_PKT_ADVERT;
 	hd->vrid = vrrp->vrid;
 	hd->priority = vrrp->effective_priority;
@@ -1388,7 +1388,7 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer, struct iphdr *ip)
 	ip_address_t *ip_addr;
 	ipv4_phdr_t ipv4_phdr;
 
-	/* Family independant */
+	/* Family independent */
 	hd->vers_type = (VRRP_VERSION_3 << 4) | VRRP_PKT_ADVERT;
 	hd->vrid = vrrp->vrid;
 	hd->priority = vrrp->effective_priority;
@@ -4719,7 +4719,7 @@ check_vmac_conflicts(void)
 	ip_address_t *vip, *vip1;
 	list_head_t *vip_list, *vip_list1;
 
-	/* Now check that independant vrrp instances (i.e. not in a sync group)
+	/* Now check that independent vrrp instances (i.e. not in a sync group)
 	 * are not trying to use the same VMAC (macvlan) interface. */
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
 		list_for_each_entry(vrrp1, &vrrp_data->vrrp, e_list) {

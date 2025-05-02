@@ -146,7 +146,7 @@ signal_pending(void)
 	int efd;
 	struct epoll_event ev = { .events = EPOLLIN };
 
-	efd = epoll_create(1);
+	efd = epoll_create1(EPOLL_CLOEXEC);
 	epoll_ctl(efd, EPOLL_CTL_ADD, signal_fd,  &ev);
 	rc = epoll_wait(efd, &ev, 1, 0);
 	close(efd);

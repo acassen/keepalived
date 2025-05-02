@@ -61,7 +61,7 @@ vrrp_print_stats(bool clear_stats)
 
 	stats_file = make_tmp_filename("keepalived.stats");
 
-	file = fopen_safe(stats_file, "w");
+	file = fopen_safe(stats_file, "we");
 
 	if (!file) {
 		log_message(LOG_INFO, "Can't open %s (%d: %s)",
