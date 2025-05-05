@@ -23,8 +23,8 @@
 #include "config.h"
 
 #include <stdio.h>
-#if defined HAVE_CLOSE_RANGE_CLOEXEC
-#if !defined DEFINE_CLOSE_RANGE && !defined _GNU_SOURCE
+#if defined HAVE_DECL_CLOSE_RANGE_CLOEXEC
+#if !defined USE_CLOSE_RANGE_SYSCALL && !defined _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
 #include <linux/close_range.h>
