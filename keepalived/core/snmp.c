@@ -23,7 +23,7 @@
 #include "config.h"
 
 #include <stdio.h>
-#if defined HAVE_DECL_CLOSE_RANGE_CLOEXEC
+#if HAVE_DECL_CLOSE_RANGE_CLOEXEC
 #if !defined USE_CLOSE_RANGE_SYSCALL && !defined _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -466,7 +466,7 @@ snmp_unregister_mib(oid *myoid, size_t len)
 void
 snmp_agent_init(const char *snmp_socket_name, bool base_mib)
 {
-#ifndef HAVE_DECL_CLOSE_RANGE_CLOEXEC
+#if !HAVE_DECL_CLOSE_RANGE_CLOEXEC
 	uint64_t fds[2][16];
 	unsigned max_fd;
 #endif
@@ -474,7 +474,7 @@ snmp_agent_init(const char *snmp_socket_name, bool base_mib)
 	if (snmp_running)
 		return;
 
-#ifndef HAVE_DECL_CLOSE_RANGE_CLOEXEC
+#if !HAVE_DECL_CLOSE_RANGE_CLOEXEC
 	get_open_fds(fds[0], sizeof(fds[0]) / sizeof(fds[0][0]));
 #endif
 
@@ -528,7 +528,7 @@ snmp_agent_init(const char *snmp_socket_name, bool base_mib)
 	/* Set up the fd threads */
 	snmp_epoll_info(master);
 
-#ifdef HAVE_DECL_CLOSE_RANGE_CLOEXEC
+#if HAVE_DECL_CLOSE_RANGE_CLOEXEC
 	/* This assumes that child processes should only have stdin, stdout and stderr open */
 	close_range(STDERR_FILENO + 1, ~0U, CLOSE_RANGE_CLOEXEC);
 #else
