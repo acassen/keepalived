@@ -2126,6 +2126,11 @@ if test .${enable_nftables} != .no; then
 
       # NFTNL_SET_EXPR since Linux 5.7, libnftnl 1.1.7, nft 0.9.5 - counters on set elements
       AC_CHECK_DECLS([NFTNL_SET_EXPR], [], [], [[#include <libnftnl/set.h>]])
+
+      SAV_LIBS="$LIBS"
+      LIBS="$LIBS $(pkg-config --libs libmnl)"
+      AC_CHECK_FUNCS([mnl_socket_open2], [AC_DEFINE([HAVE_MNL_SOCKET_OPEN2], [ 1 ], [Define to 1 if have mnl_socket_open2()])])
+      LIBS="$SAV_LIBS"
     fi
   fi
   CPPFLAGS="$SAV_CPPFLAGS"

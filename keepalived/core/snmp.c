@@ -469,6 +469,7 @@ snmp_agent_init(const char *snmp_socket_name, bool base_mib)
 #if !HAVE_DECL_CLOSE_RANGE_CLOEXEC
 	uint64_t fds[2][16];
 	unsigned max_fd;
+	size_t i;
 #endif
 
 	if (snmp_running)
@@ -534,7 +535,7 @@ snmp_agent_init(const char *snmp_socket_name, bool base_mib)
 #else
 	max_fd = get_open_fds(fds[1], sizeof(fds[1]) / sizeof(fds[1][0]));
 
-	for (size_t i = 0; i < sizeof(fds[0]) / sizeof(fds[0][0]) && i * 64 <= max_fd; i++) {
+	for (i = 0; i < sizeof(fds[0]) / sizeof(fds[0][0]) && i * 64 <= max_fd; i++) {
 		if (fds[0][i] != fds[1][i]) {
 			uint64_t fds_diff = fds[0][i] ^ fds[1][i], bit_mask;
 			unsigned j;

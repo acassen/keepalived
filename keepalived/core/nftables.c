@@ -47,6 +47,9 @@
 #include <libnftnl/set.h>
 #include <libnftnl/rule.h>
 #include <libnftnl/expr.h>
+#ifndef HAVE_MNL_SOCKET_OPEN2
+#include <fcntl.h>
+#endif
 
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
@@ -139,7 +142,11 @@ nl_socket_open(void)
 	}
 #endif
 
+#ifdef HAVE_MNL_SOCKET_OPEN2
 	nl = mnl_socket_open2(NETLINK_NETFILTER, SOCK_CLOEXEC);
+#else
+	nl = mnl_socket_open(NETLINK_NETFILTER);
+#endif
 	if (nl == NULL) {
 		log_message(LOG_INFO, "mnl_socket_open failed - %d", errno);
 
@@ -148,6 +155,10 @@ nl_socket_open(void)
 
 		return false;
 	}
+#ifndef HAVE_MNL_SOCKET_OPEN2
+	int nl_fd = mnl_socket_get_fd(nl);
+	fcntl(nl_fd, F_SETFD, fcntl(nl_fd, F_GETFD) | FD_CLOEXEC);
+#endif
 
 	if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
 		log_message(LOG_INFO, "mnl_socket_bind error - %d", errno);
