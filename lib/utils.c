@@ -47,7 +47,7 @@
 #include <sys/epoll.h>
 #include <sys/inotify.h>
 #endif
-#ifndef HAVE_DECL_CLOSE_RANGE_CLOEXEC
+#if !HAVE_DECL_CLOSE_RANGE_CLOEXEC
 #include <dirent.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -1485,7 +1485,7 @@ make_tmp_filename(const char *file_name)
 	return path;
 }
 
-#ifdef HAVE_DECL_CLOSE_RANGE_CLOEXEC
+#if HAVE_DECL_CLOSE_RANGE_CLOEXEC
 #ifdef USE_CLOSE_RANGE_SYSCALL
 int
 close_range(unsigned first, unsigned last, int flags)

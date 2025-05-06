@@ -2126,6 +2126,11 @@ if test .${enable_nftables} != .no; then
 
       # NFTNL_SET_EXPR since Linux 5.7, libnftnl 1.1.7, nft 0.9.5 - counters on set elements
       AC_CHECK_DECLS([NFTNL_SET_EXPR], [], [], [[#include <libnftnl/set.h>]])
+
+      SAV_LIBS="$LIBS"
+      LIBS="$LIBS $(pkg-config --libs libmnl)"
+      AC_CHECK_FUNCS([mnl_socket_open2], [AC_DEFINE([HAVE_MNL_SOCKET_OPEN2], [ 1 ], [Define to 1 if have mnl_socket_open2()])])
+      LIBS="$SAV_LIBS"
     fi
   fi
   CPPFLAGS="$SAV_CPPFLAGS"
@@ -2381,12 +2386,12 @@ if test "$enable_vrrp" != no; then
         #include <sys/socket.h>
         #include <linux/if_link.h>
       ]])
+    dnl - IPVLAN_MODE_L3S since Linux 4.9, IFLA_IPVLAN_FLAGS since Linux 4.15
+    AC_CHECK_DECLS([IPVLAN_MODE_L3S, IFLA_IPVLAN_FLAGS], [], [],
+      [[
+        #include <linux/if_link.h>
+      ]])
     if test $IPVLAN_SUPPORT = Yes; then
-      dnl - IPVLAN_MODE_L3S since Linux 4.9, IFLA_IPVLAN_FLAGS since Linux 4.15
-      AC_CHECK_DECLS([IPVLAN_MODE_L3S, IFLA_IPVLAN_FLAGS], [], [],
-        [[
-          #include <linux/if_link.h>
-        ]])
       AC_DEFINE([_HAVE_VRRP_IPVLAN_], [ 1 ], [Define to 1 if have IP VLAN support])
       add_system_opt([VRRP_IPVLAN])
     fi
