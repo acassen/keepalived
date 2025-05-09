@@ -409,6 +409,7 @@ track_file_end_handler(void)
 				  errno, track_file->fname);
 
 		FREE_CONST(track_file->fname);
+		FREE_CONST(track_file->file_path);
 		FREE(track_file);
 
 		return;
