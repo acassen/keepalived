@@ -1407,6 +1407,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   #define _GNU_SOURCE
   #endif
   #include <unistd.h>
+  #include <linux/close_range.h>
 
   void check_close_range(void)
   {
