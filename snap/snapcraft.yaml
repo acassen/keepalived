@@ -257,6 +257,10 @@ parts:
       cat /usr/include/linux/version.h
       ls -lR /usr/include/linux
       rm -rf ${CRAFT_STAGE}/keepalived-linux-libc-dev
+      echo CFLAGS=$CFLAGS
+      echo "Finding close_range.h"
+      find /usr/include -name "close_range.h"
+      cat /usr/include/linux/close_range.h || true
       echo -n "Build kernel:"
       printf " %d.%d.%d\n" $(printf "%6.6x" $(grep LINUX_VERSION_CODE /usr/include/linux/version.h | sed -e "s/.*CODE //") | sed -e "s/\(..\)\(..\)/0x\1 0x\2 0x/")
     stage:
