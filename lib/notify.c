@@ -23,10 +23,8 @@
 #include "config.h"
 
 #ifdef HAVE_CLOSE_RANGE
-#ifndef USE_CLOSE_RANGE_SYSCALL
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE         /* for close_range() */
-#endif
+#if !defined USE_CLOSE_RANGE_SYSCALL && !defined _GNU_SOURCE
+#define _GNU_SOURCE         /* for close_range() in unistd.h */
 #endif
 #include <linux/close_range.h>
 #endif
@@ -213,7 +211,7 @@ system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned 
 	  * have FD_CLOEXEC set. CLOSE_RANGE_CLOEXEC uses fewer
 	  * kernel resources that CLOSE_RANGE_UNSHARE. */
 	close_range(STDERR_FILENO + 1, ~0U,
-#ifdef HAVE_DECL_CLOSE_RANGE_CLOEXEC
+#if HAVE_DECL_CLOSE_RANGE_CLOEXEC
 			    CLOSE_RANGE_CLOEXEC
 #else
 			    CLOSE_RANGE_UNSHARE
