@@ -311,11 +311,10 @@ extern bool keepalived_modprobe(const char *);
 #endif
 extern void set_tmp_dir(void);
 extern const char *make_tmp_filename(const char *);
-#if defined HAVE_CLOSE_RANGE && defined USE_CLOSE_RANGE_SYSCALL
-extern int close_range(unsigned, unsigned, int);
-#endif
-#if !defined HAVE_CLOSE_RANGE || !HAVE_DECL_CLOSE_RANGE_CLOEXEC
+#if !HAVE_DECL_CLOSE_RANGE_CLOEXEC
 extern unsigned get_open_fds(uint64_t *, unsigned);
+#elif defined USE_CLOSE_RANGE_SYSCALL
+extern int close_range(unsigned, unsigned, int);
 #endif
 extern void log_stopping(void);
 
