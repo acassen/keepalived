@@ -1400,38 +1400,42 @@ dnl - close_range() appeared in the kernel some time before it appeared in
 dnl -   glibc so we use the raw syscall if it is available
 dnl - CLOSE_RANGE_CLOEXEC added in Linux 5.11.
 have_close_range=no
-SAV_FLAGS="$CFLAGS"
-CFLAGS="$CFLAGS -Werror=implicit-function-declaration"
-AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-  #ifndef _GNU_SOURCE
-  #define _GNU_SOURCE
-  #endif
-  #include <unistd.h>
-  #include <linux/close_range.h>
-
-  void check_close_range(void)
-  {
-    close_range(0, 23, CLOSE_RANGE_UNSHARE);
-  }
-  ]])],
+AC_MSG_CHECKING([for close_range syscall])
+AC_CHECK_DECLS([__NR_close_range],
   [
-    add_system_opt([CLOSE_RANGE])
+    AC_MSG_RESULT([Yes])
     have_close_range=yes
-  ],
-  [
-    AC_CHECK_DECLS([__NR_close_range],
+    AC_MSG_CHECKING([for close_range() libc function])
+    SAV_FLAGS="$CFLAGS"
+    CFLAGS="$CFLAGS -Werror=implicit-function-declaration"
+    AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+	#ifndef _GNU_SOURCE
+	#define _GNU_SOURCE
+	#endif
+	#include <unistd.h>
+
+	void check_close_range(void)
+	{
+	  close_range(0, 23, 0);
+	}
+      ]])],
       [
+	AC_MSG_RESULT([Yes])
+	add_system_opt([CLOSE_RANGE])
+      ],
+      [
+	AC_MSG_RESULT([No])
 	AC_DEFINE([USE_CLOSE_RANGE_SYSCALL], [ 1 ], [Use syscall for close_range])
 	add_system_opt([CLOSE_RANGE_SYSCALL])
-	have_close_range=yes
-      ], [], [[#include <sys/syscall.h>]])
-  ])
-CFLAGS="$SAV_CFLAGS"
-AS_IF([test $have_close_range = yes],
-      [
-	AC_DEFINE([HAVE_CLOSE_RANGE], [ 1 ], [Have close_range])
-	AC_CHECK_DECLS([CLOSE_RANGE_CLOEXEC], [], [], [[#include <linux/close_range.h>]])
       ])
+    CFLAGS="$SAV_CFLAGS"
+    AC_DEFINE([HAVE_CLOSE_RANGE], [ 1 ], [Have close_range])
+    AC_CHECK_DECLS([CLOSE_RANGE_CLOEXEC], [], [], [[#include <linux/close_range.h>]])
+  ],
+  [
+    AC_MSG_RESULT([No])
+  ],
+  [[#include <sys/syscall.h>]])
 
 dnl - Since Linux 3.17
 AC_CHECK_DECLS([O_TMPFILE], [], [], [[#include <fcntl.h>]])
