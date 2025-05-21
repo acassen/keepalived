@@ -257,7 +257,7 @@ parts:
       cat /usr/include/linux/version.h
       ls -lR /usr/include/linux
       rm -rf ${CRAFT_STAGE}/keepalived-linux-libc-dev
-    echo CFLAGS=${CFLAGS:-}
+      echo CFLAGS=$CFLAGS
       echo "Finding close_range.h"
       find /usr/include -name "close_range.h"
       cat /usr/include/linux/close_range.h || true
