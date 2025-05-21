@@ -1411,7 +1411,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
 
   void check_close_range(void)
   {
-    close_range(0, 23, CLOSE_RANGE_UNSHARE);
+    close_range(0, 23, 0);
   }
   ]])],
   [
