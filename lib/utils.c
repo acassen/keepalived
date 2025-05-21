@@ -47,11 +47,10 @@
 #include <sys/epoll.h>
 #include <sys/inotify.h>
 #endif
-#if defined HAVE_CLOSE_RANGE && HAVE_DECL_CLOSE_RANGE_CLOEXEC
 #if defined USE_CLOSE_RANGE_SYSCALL
 #include <sys/syscall.h>
 #endif
-#else
+#if !defined HAVE_CLOSE_RANGE || !HAVE_DECL_CLOSE_RANGE_CLOEXEC
 #include <dirent.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -81,10 +80,8 @@
 #include "process.h"
 #include "timer.h"
 
-#ifdef USE_CLOSE_RANGE_SYSCALL
-#ifndef SYS_close_range
+#if defined USE_CLOSE_RANGE_SYSCALL && !defined SYS_close_range
 #define SYS_close_range __NR_close_range
-#endif
 #endif
 
 /* global vars */
@@ -1487,7 +1484,7 @@ make_tmp_filename(const char *file_name)
 	return path;
 }
 
-#if defined HAVE_CLOSE_RANGE && defined USE_CLOSE_RANGE_SYSCALL
+#if defined USE_CLOSE_RANGE_SYSCALL
 int
 close_range(unsigned first, unsigned last, int flags)
 {
