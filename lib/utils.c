@@ -47,12 +47,14 @@
 #include <sys/epoll.h>
 #include <sys/inotify.h>
 #endif
-#if !HAVE_DECL_CLOSE_RANGE_CLOEXEC
+#if defined HAVE_CLOSE_RANGE && HAVE_DECL_CLOSE_RANGE_CLOEXEC
+#if defined USE_CLOSE_RANGE_SYSCALL
+#include <sys/syscall.h>
+#endif
+#else
 #include <dirent.h>
 #include <stdlib.h>
 #include <ctype.h>
-#elif defined USE_CLOSE_RANGE_SYSCALL
-#include <sys/syscall.h>
 #endif
 
 #ifdef _WITH_STACKTRACE_
@@ -80,8 +82,8 @@
 #include "timer.h"
 
 #ifdef USE_CLOSE_RANGE_SYSCALL
-#ifndef SYS_memfd_create
-#define SYS_memfd_create __NR_memfd_create
+#ifndef SYS_close_range
+#define SYS_close_range __NR_close_range
 #endif
 #endif
 
@@ -1485,8 +1487,7 @@ make_tmp_filename(const char *file_name)
 	return path;
 }
 
-#if HAVE_DECL_CLOSE_RANGE_CLOEXEC
-#ifdef USE_CLOSE_RANGE_SYSCALL
+#if defined HAVE_CLOSE_RANGE && defined USE_CLOSE_RANGE_SYSCALL
 int
 close_range(unsigned first, unsigned last, int flags)
 {
@@ -1498,7 +1499,7 @@ close_range(unsigned first, unsigned last, int flags)
 }
 #endif
 
-#else
+#if !defined HAVE_CLOSE_RANGE || !HAVE_DECL_CLOSE_RANGE_CLOEXEC
 unsigned
 get_open_fds(uint64_t *fds, unsigned num_ent)
 {
