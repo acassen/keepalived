@@ -1399,12 +1399,11 @@ dnl - close_range() - since Linux 5.9 and glibc 2.34
 dnl - close_range() appeared in the kernel some time before it appeared in
 dnl -   glibc so we use the raw syscall if it is available
 dnl - CLOSE_RANGE_CLOEXEC added in Linux 5.11.
-have_close_range=no
 AC_MSG_CHECKING([for close_range syscall])
 AC_CHECK_DECLS([__NR_close_range],
   [
     AC_MSG_RESULT([Yes])
-    have_close_range=yes
+    AC_DEFINE([HAVE_CLOSE_RANGE], [ 1 ], [Have close_range])
     AC_MSG_CHECKING([for close_range() libc function])
     SAV_FLAGS="$CFLAGS"
     CFLAGS="$CFLAGS -Werror=implicit-function-declaration"
@@ -1429,7 +1428,6 @@ AC_CHECK_DECLS([__NR_close_range],
 	add_system_opt([CLOSE_RANGE_SYSCALL])
       ])
     CFLAGS="$SAV_CFLAGS"
-    AC_DEFINE([HAVE_CLOSE_RANGE], [ 1 ], [Have close_range])
     AC_CHECK_DECLS([CLOSE_RANGE_CLOEXEC], [], [], [[#include <linux/close_range.h>]])
   ],
   [
