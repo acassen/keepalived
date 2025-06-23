@@ -320,6 +320,8 @@ check_chains_exist(uint8_t family)
 	return ret;
 }
 
+/* This function is always called with global_data->vrrp_iptables_inchain pointing to a valid
+ * chain name. */
 static void
 handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, struct ipt_handle *h, bool force)
 {
@@ -343,7 +345,7 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, struct ipt_handle *
 	    IN6_IS_ADDR_LINKLOCAL(&ipaddress->u.sin6_addr))
 		ifname = ipaddress->ifp->ifname;
 
-	if (family == AF_INET6 && global_data->vrrp_iptables_inchain) {
+	if (family == AF_INET6) {
 		if (global_data->vrrp_iptables_outchain) {
 			iptables_entry(h, AF_INET6, global_data->vrrp_iptables_outchain, APPEND_RULE,
 					XTC_LABEL_ACCEPT, ipaddress, NULL, NULL, ifname,
