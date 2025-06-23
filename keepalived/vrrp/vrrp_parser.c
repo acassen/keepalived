@@ -1144,6 +1144,16 @@ vrrp_preempt_delay_handler(const vector_t *strvec)
 		current_vrrp->preempt_delay = preempt_delay;
 }
 static void
+vrrp_fault_init_exit_delay_handler(const vector_t *strvec)
+{
+	unsigned fault_init_exit_delay;
+
+	if (!read_decimal_unsigned_strvec(strvec, 1, &fault_init_exit_delay, 0, TIMER_MAX_SEC * TIMER_HZ, TIMER_HZ_DIGITS, true))
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) fault_init_exit_delay not valid! must be between 0-%u", current_vrrp->iname, TIMER_MAX_SEC);
+	else
+		current_vrrp->fault_init_exit_delay = fault_init_exit_delay;
+}
+static void
 vrrp_notify_backup_handler(const vector_t *strvec)
 {
 	if (current_vrrp->script_backup) {
@@ -2211,6 +2221,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("preempt", &vrrp_preempt_handler);
 	install_keyword("nopreempt", &vrrp_nopreempt_handler);
 	install_keyword("preempt_delay", &vrrp_preempt_delay_handler);
+	install_keyword("fault_init_exit_delay", &vrrp_fault_init_exit_delay_handler);
 	install_keyword("debug", &vrrp_debug_handler);
 	install_keyword_quoted("notify_backup", &vrrp_notify_backup_handler);
 	install_keyword_quoted("notify_master", &vrrp_notify_master_handler);
