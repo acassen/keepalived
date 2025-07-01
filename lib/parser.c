@@ -1903,9 +1903,10 @@ find_definition(const char *name, size_t len, bool definition)
 			return NULL;
 	}
 
+	size_t name_len = strlen(name);
 	if (definition ||
-	    (!using_braces && name[len] == '\0') ||
-	    (using_braces && name[len+1] == '\0'))
+		(!using_braces && len < name_len && name[len] == '\0') ||
+		(using_braces && len + 1 < name_len && name[len+1] == '\0'))
 		allow_multiline = true;
 	else
 		allow_multiline = false;
