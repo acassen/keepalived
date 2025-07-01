@@ -2166,6 +2166,7 @@ check_definition(const char *buf)
 	/* Skip leading whitespace */
 	p += strspn(p + 1, " \t") + 1;
 	def->value_len = strlen(p);
+	if (def->value_len - 1 < 0) { return NULL; }
 	if (p[def->value_len - 1] == '\\') {
 		/* Remove trailing whitespace */
 		while (def->value_len >= 2 &&
