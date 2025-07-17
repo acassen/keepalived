@@ -133,6 +133,8 @@ parts:
       - libnfnetlink0
       - libpcre2-8-0
       - libsnmp40
+      - libssl3
+      - libkmod2
     organize:
       'usr/sbin/keepalived': usr/sbin/keepalived-515
 
