@@ -1883,20 +1883,20 @@ find_definition(const char *name, size_t len, bool definition)
 
 		/* Check we have a suitable end character */
 		if (using_braces) {
-			if (!definition) {
-				/* Allow for parameters to the definition */
-				while (*p && (*p == ' ' || isdigit (*p))) {
-					if (*p != ' ') {
-					       if (!param_start)
-						       param_start = p;
-					       param_end = p;
-					}
-					p++;
+			/* Allow for parameters to the definition */
+			while (*p && (*p == ' ' || *p == '\t' || isdigit (*p))) {
+				if (*p != ' ' && *p != '\t') {
+				       if (!param_start)
+					       param_start = p;
+				       param_end = p;
 				}
-				/* Ensure don't end with a space */
-				if (param_start && param_end + 1 != p)
-					return NULL;
+				p++;
 			}
+
+			/* Ensure don't end with a space */
+			if (param_start && param_end + 1 != p)
+				return NULL;
+
 			if (*p != EOB[0])
 				return NULL;
 		} else if (!definition && *p != ' ' && *p != '\t' && *p != ',' && *p != ')' && *p != '\0')
