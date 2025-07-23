@@ -1423,7 +1423,7 @@ add_seq(char *buf)
 	p += strcspn(p, " \t,)");
 	var_end = p;
 	p += strspn(p, " \t");
-	if (!*p || *p == ')' || p == var) {
+	if (!*p || *p == ')' || p == var || var[0] == BOB[0]) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid ~SEQ definition '%s'", buf);
 		return false;
 	}
@@ -2097,11 +2097,10 @@ set_definition(const char *name, const char *value)
 	def_t *def;
 	size_t name_len = strlen(name);
 
-	if ((def = find_definition(name, name_len, false))) {
+	if ((def = find_definition(name, name_len, true))) {
 		FREE_CONST(def->value);
 		def->fn = NULL;		/* Allow a standard definition to be overridden */
-	}
-	else {
+	} else {
 		PMALLOC(def);
 		INIT_LIST_HEAD(&def->e_list);
 		def->name_len = name_len;
