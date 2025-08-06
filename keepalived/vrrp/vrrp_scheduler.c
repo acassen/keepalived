@@ -577,6 +577,19 @@ vrrp_set_fds(list_head_t *l)
 	}
 }
 
+static void
+vrrp_bring_instances_up(list_head_t *l)
+{
+	vrrp_t *vrrp;
+
+	list_for_each_entry(vrrp, l, e_list) {
+		if (!vrrp->num_script_init &&
+		    (!vrrp->sync || !vrrp->sync->num_member_init)) {
+			try_up_instance(vrrp, true, VRRP_FAULT_FL_TRACKER);
+		}
+	}
+}
+
 /*
  * We create & allocate a socket pool here. The soft design
  * can be sum up by the following sketch :
@@ -606,6 +619,12 @@ vrrp_dispatcher_init(__attribute__((unused)) thread_ref_t thread)
 	/* create the VRRP socket pool list */
 	/* register read dispatcher worker thread */
 	vrrp_register_workers(&vrrp_data->vrrp_socket_pool);
+
+	/* Try bringing vrrp instances up.
+	 * It covers the case when state is provided in config,
+	 * but there are no vrrp_scripts monitored.
+	 */
+	vrrp_bring_instances_up(&vrrp_data->vrrp);
 
 	/* Dump socket pool */
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
