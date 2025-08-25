@@ -2581,7 +2581,6 @@ read_line(char *buf, size_t size)
 	char *buf_start;
 	bool rev_cmp;
 	size_t ofs;
-	bool recheck;
 	bool multiline_param_def = false;
 	char *end;
 	size_t skip;
@@ -2814,7 +2813,6 @@ read_line(char *buf, size_t size)
 			continue;
 
 		do {
-			recheck = false;
 			if (buf[0] == '@') {
 				/* If the line starts '@', check the following word matches the system id.
 				   @^ reverses the sense of the match */
@@ -2885,15 +2883,12 @@ read_line(char *buf, size_t size)
 
 				decomment(buf);
 
-				if (buf[0] == '@')
-					recheck = true;
-				if (strchr(buf, '$'))
-					recheck = true;
-
-				if (recheck)
+				if (buf[0] == '@' || strchr(buf, '$')) {
 					len = strlen(buf);
+					continue;
+				}
 			}
-		} while (recheck);
+		} while (false);
 	} while (buf[0] == '\0' || check_include(buf));
 
 	/* Search for BOB[0] or EOB[0] not in "" */
