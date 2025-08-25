@@ -312,6 +312,8 @@ vrrp_init_instance_sands(vrrp_t *vrrp)
 	if (vrrp->state == VRRP_STATE_MAST) {
 		if (vrrp->reload_master)
 			vrrp->sands = time_now;
+		else if (vrrp_delayed_start_time.tv_sec)
+			vrrp->sands = timer_add_long(vrrp_delayed_start_time, vrrp->adver_int);
 		else
 			vrrp->sands = timer_add_long(time_now, vrrp->adver_int);
 	}

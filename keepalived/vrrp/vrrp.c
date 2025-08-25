@@ -1848,7 +1848,10 @@ vrrp_state_goto_master(vrrp_t * vrrp)
 
 	vrrp->state = VRRP_STATE_MAST;
 	vrrp_init_instance_sands(vrrp);
-	vrrp_state_master_tx(vrrp);
+
+	/* If a delayed start timer has not expired, then we must not transition to master yet */
+	if (!vrrp_delayed_start_time.tv_sec)
+		vrrp_state_master_tx(vrrp);
 }
 
 /* leaving master state */
