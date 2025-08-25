@@ -2822,7 +2822,7 @@ open_sockpool_socket(sock_t *sock)
 }
 
 /* Try to find a VRRP instance */
-static vrrp_t * __attribute__ ((pure))
+vrrp_t * __attribute__ ((pure))
 vrrp_exist(vrrp_t *old_vrrp, list_head_t *l)
 {
 	vrrp_t *vrrp;
