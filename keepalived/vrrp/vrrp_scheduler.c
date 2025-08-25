@@ -312,6 +312,8 @@ vrrp_init_instance_sands(vrrp_t *vrrp)
 	if (vrrp->state == VRRP_STATE_MAST) {
 		if (vrrp->reload_master)
 			vrrp->sands = time_now;
+		else if (vrrp_delayed_start_time.tv_sec)
+			vrrp->sands = timer_add_long(vrrp_delayed_start_time, vrrp->adver_int);
 		else
 			vrrp->sands = timer_add_long(time_now, vrrp->adver_int);
 	}
@@ -774,7 +776,8 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init, vrrp_fault_fl_t resolved_flag)
 	 * until it has done so. */
 	if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags) &&
 	    vrrp->ifp &&
-	    vrrp->saddr.ss_family != AF_UNSPEC) {
+	    vrrp->saddr.ss_family != AF_UNSPEC &&
+	    !vrrp_delayed_start_time.tv_sec) {
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
 			log_message(LOG_INFO, "%s: sending gratuitous %s for %s", vrrp->iname, vrrp->family == AF_INET ? "ARP" : "NA", inet_sockaddrtos(&vrrp->saddr));
 

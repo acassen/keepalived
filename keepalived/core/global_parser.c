@@ -2233,15 +2233,78 @@ umask_handler(const vector_t *strvec)
 static void
 vrrp_startup_delay_handler(const vector_t *strvec)
 {
-	unsigned startup_delay;
+	unsigned long startup_delay;
 
-	if (!read_decimal_unsigned_strvec(strvec, 1, &startup_delay, TIMER_HZ / 1000, UINT_MAX, TIMER_HZ_DIGITS, true))
+	if (!read_timer(strvec, 1, &startup_delay, TIMER_HZ / 1000, UINT_MAX, true)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_startup_delay '%s' is invalid", strvec_slot(strvec, 1));
-	else
-		global_data->vrrp_startup_delay = startup_delay;
+		return;
+	}
+
+	/* Allow use of both vrrp_startup_delay and vrrp_delay_after_boot */
+	if (startup_delay <= global_data->vrrp_startup_delay)
+		return;
+
+	global_data->vrrp_startup_delay = startup_delay;
 
 	if (global_data->vrrp_startup_delay >= 60 * TIMER_HZ)
 		log_message(LOG_INFO, "The vrrp_startup_delay is very large - %s seconds", strvec_slot(strvec, 1));
+}
+
+static void
+vrrp_delay_after_boot_handler(const vector_t *strvec)
+{
+	unsigned long startup_delay;
+	FILE *uptime_fp;
+	int res;
+	double uptime_secs;
+
+	/* To test this sometime after booting the system, UINT_MAX needs to be changed to ULONG_MAX.
+
+	   A useful script to update the configuration file to set a delay relative to current uptime:
+		#!/bin/bash
+
+		delay=${1:-10}
+
+		uptime=$(cat /proc/uptime | sed -e "s: .*::")
+		secs=$(<<<$uptime sed -e "s:\..*::")
+		cs=$(<<<$uptime sed -e "s:.*\.::")
+		new_secs=$((secs + $delay))
+
+		sed -i -e "s:\(vrrp_delay_after_boot\) .*:\1 $new_secs.$cs:" $CONFIG_FILE
+	*/
+	if (!read_timer(strvec, 1, &startup_delay, TIMER_HZ / 1000, UINT_MAX, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "vrrp_delay_after_boot '%s' is invalid", strvec_slot(strvec, 1));
+		return;
+	}
+
+	/* Read /proc/uptime to get the system uptime */
+	if (!(uptime_fp = fopen("/proc/uptime", "r"))) {
+		report_config_error(CONFIG_WARNING, "Unable to open /proc/uptime for vrrp_delay_after_boot - ignoring");
+		return;
+	}
+
+	res = fscanf(uptime_fp, "%lf", &uptime_secs);
+	fclose(uptime_fp);
+	if (res == EOF || res < 1) {
+		report_config_error(CONFIG_WARNING, "Unable to read /proc/uptime for vrrp_delay_after_boot - ignoring");
+		return;
+	}
+
+	if (uptime_secs * TIMER_HZ_DOUBLE >= startup_delay) {
+		/* uptime already exceeds startup delay */
+		return;
+	}
+
+	startup_delay -= (unsigned)(uptime_secs * TIMER_HZ_DOUBLE);
+
+	/* Allow use of both vrrp_startup_delay and vrrp_delay_after_boot */
+	if (startup_delay <= global_data->vrrp_startup_delay)
+		return;
+
+	global_data->vrrp_startup_delay = startup_delay;
+
+	if (global_data->vrrp_startup_delay >= 60 * TIMER_HZ)
+		log_message(LOG_INFO, "The vrrp_wait_after_boot is very large - %u seconds", global_data->vrrp_startup_delay / TIMER_HZ);
 }
 
 static void
@@ -2716,6 +2779,7 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_rx_bufs_policy", &vrrp_rx_bufs_policy_handler);
 	install_keyword("vrrp_rx_bufs_multiplier", &vrrp_rx_bufs_multiplier_handler);
 	install_keyword("vrrp_startup_delay", &vrrp_startup_delay_handler);
+	install_keyword("vrrp_delay_after_boot", &vrrp_delay_after_boot_handler);
 	install_keyword("log_unknown_vrids", &vrrp_log_unknown_vrids_handler);
 	install_keyword("vrrp_owner_ignore_adverts", &vrrp_owner_ignore_adverts_handler);
 #ifdef _HAVE_VRRP_VMAC_

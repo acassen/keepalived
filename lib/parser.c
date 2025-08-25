@@ -1423,7 +1423,7 @@ add_seq(char *buf)
 	p += strcspn(p, " \t,)");
 	var_end = p;
 	p += strspn(p, " \t");
-	if (!*p || *p == ')' || p == var) {
+	if (!*p || *p == ')' || p == var || var[0] == BOB[0]) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Invalid ~SEQ definition '%s'", buf);
 		return false;
 	}
@@ -1432,6 +1432,10 @@ add_seq(char *buf)
 	p++;
 	p += strspn(p, " \t");
 	end_seq = strchr(p, ')');
+	if (!end_seq) {
+		report_config_error(CONFIG_GENERAL_ERROR, "~SEQ missing terminating ')' '%s'", buf);
+		return false;
+	}
 	if ((size_t)(end_seq + 1 - p + 1) > sizeof(seq_buf)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "~SEQ parameter strings too long '%s'", buf);
 		return false;
@@ -1883,20 +1887,20 @@ find_definition(const char *name, size_t len, bool definition)
 
 		/* Check we have a suitable end character */
 		if (using_braces) {
-			if (!definition) {
-				/* Allow for parameters to the definition */
-				while (*p && (*p == ' ' || isdigit (*p))) {
-					if (*p != ' ') {
-					       if (!param_start)
-						       param_start = p;
-					       param_end = p;
-					}
-					p++;
+			/* Allow for parameters to the definition */
+			while (*p && (*p == ' ' || *p == '\t' || isdigit (*p))) {
+				if (*p != ' ' && *p != '\t') {
+				       if (!param_start)
+					       param_start = p;
+				       param_end = p;
 				}
-				/* Ensure don't end with a space */
-				if (param_start && param_end + 1 != p)
-					return NULL;
+				p++;
 			}
+
+			/* Ensure don't end with a space */
+			if (param_start && param_end + 1 != p)
+				return NULL;
+
 			if (*p != EOB[0])
 				return NULL;
 		} else if (!definition && *p != ' ' && *p != '\t' && *p != ',' && *p != ')' && *p != '\0')
@@ -2097,11 +2101,10 @@ set_definition(const char *name, const char *value)
 	def_t *def;
 	size_t name_len = strlen(name);
 
-	if ((def = find_definition(name, name_len, false))) {
+	if ((def = find_definition(name, name_len, true))) {
 		FREE_CONST(def->value);
 		def->fn = NULL;		/* Allow a standard definition to be overridden */
-	}
-	else {
+	} else {
 		PMALLOC(def);
 		INIT_LIST_HEAD(&def->e_list);
 		def->name_len = name_len;
@@ -2166,6 +2169,10 @@ check_definition(const char *buf)
 	/* Skip leading whitespace */
 	p += strspn(p + 1, " \t") + 1;
 	def->value_len = strlen(p);
+	/* The following line can cause a sanitizer false positive. Changing it to:
+		if (*(p + def->value_len - 1) == '\\') {
+	   stops the warning, but since there is nothing wrong with the code as it is,
+	   and indeed the change is identical, I am not changing it. */
 	if (p[def->value_len - 1] == '\\') {
 		/* Remove trailing whitespace */
 		while (def->value_len >= 2 &&
@@ -2248,7 +2255,6 @@ decomment(char *str)
 {
 	bool quote = false;
 	bool cont = false;
-	char *skip = NULL;
 	char *p = str + strspn(str, " \t");
 
 	/* Remove leading whitespace */
@@ -2258,8 +2264,7 @@ decomment(char *str)
 	p = str;
 	while ((p = strpbrk(p, "!#\"\\"))) {
 		if (*p == '"') {
-			if (!skip)
-				quote = !quote;
+			quote = !quote;
 			p++;
 			continue;
 		}
@@ -2277,25 +2282,23 @@ decomment(char *str)
 			cont = true;
 			break;
 		}
-		if (!quote && !skip && (*p == '!' || *p == '#'))
-			skip = p;
+		if (!quote && (*p == '!' || *p == '#')) {
+			*p = '\0';
+			break;
+		}
 		p++;
 	}
 
 	if (quote)
 		report_config_error(CONFIG_GENERAL_ERROR, "Unterminated quote '%s'", str);
 
-	if (skip)
-		*skip = '\0';
-
 	/* Remove trailing whitespace */
 	p = str + strlen(str) - 1;
 	while (p >= str && isblank(*p))		// This line causes a strict-overflow=4 warning in gcc 5.4.0
-		*p-- = '\0';
-	if (cont) {
+		p--;
+	if (cont)
 		*++p = '\\';
-		*++p = '\0';
-	}
+	*++p = '\0';
 }
 
 static vector_t *read_value_block_vec;
@@ -2586,7 +2589,6 @@ read_line(char *buf, size_t size)
 	char *buf_start;
 	bool rev_cmp;
 	size_t ofs;
-	bool recheck;
 	bool multiline_param_def = false;
 	char *end;
 	size_t skip;
@@ -2749,6 +2751,16 @@ read_line(char *buf, size_t size)
 				if (len && buf[len-1] == '\n') {
 					file->current_line_no++;
 					len--;
+				} else if (len == size - 1) {
+					report_config_error(CONFIG_GENERAL_ERROR, "line too long - ignoring");
+					file->current_line_no++;
+					len = 0;
+					buf[0] = '\0';
+				} else if (!feof(file->stream)) {
+					report_config_error(CONFIG_GENERAL_ERROR, "configuration appears to have embedded NULs - ignoring line");
+					file->current_line_no++;
+					len = 0;
+					buf[0] = '\0';
 				}
 
 				/* Remove end of line chars */
@@ -2819,7 +2831,6 @@ read_line(char *buf, size_t size)
 			continue;
 
 		do {
-			recheck = false;
 			if (buf[0] == '@') {
 				/* If the line starts '@', check the following word matches the system id.
 				   @^ reverses the sense of the match */
@@ -2890,15 +2901,12 @@ read_line(char *buf, size_t size)
 
 				decomment(buf);
 
-				if (buf[0] == '@')
-					recheck = true;
-				if (strchr(buf, '$'))
-					recheck = true;
-
-				if (recheck)
+				if (buf[0] == '@' || strchr(buf, '$')) {
 					len = strlen(buf);
+					continue;
+				}
 			}
-		} while (recheck);
+		} while (false);
 	} while (buf[0] == '\0' || check_include(buf));
 
 	/* Search for BOB[0] or EOB[0] not in "" */

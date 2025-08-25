@@ -1848,7 +1848,10 @@ vrrp_state_goto_master(vrrp_t * vrrp)
 
 	vrrp->state = VRRP_STATE_MAST;
 	vrrp_init_instance_sands(vrrp);
-	vrrp_state_master_tx(vrrp);
+
+	/* If a delayed start timer has not expired, then we must not transition to master yet */
+	if (!vrrp_delayed_start_time.tv_sec)
+		vrrp_state_master_tx(vrrp);
 }
 
 /* leaving master state */
@@ -2819,7 +2822,7 @@ open_sockpool_socket(sock_t *sock)
 }
 
 /* Try to find a VRRP instance */
-static vrrp_t * __attribute__ ((pure))
+vrrp_t * __attribute__ ((pure))
 vrrp_exist(vrrp_t *old_vrrp, list_head_t *l)
 {
 	vrrp_t *vrrp;

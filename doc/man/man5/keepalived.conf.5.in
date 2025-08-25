@@ -854,8 +854,17 @@ possibly following any cleanup actions needed.
     # bond interfaces are being created, keepalived doesn't receive adverts and hence
     # can become master despite an instance with higher priority sending adverts.
     # This option specifies a delay in seconds before vrrp instances start up after
-    # keepalived starts,
+    # keepalived starts. See also \fBvrrp_delay_after_boot\fR below.
     \fBvrrp_startup_delay \fR5.5
+
+    # Probably a better alternative to \fBvrrp_startup_delay \fR is to use
+    # \fBvrrp_delay_after_boot\fB. This will ensure that vrrp instances are delayed starting
+    # until at least the specified number of seconds after the system boots. Therefore,
+    # when keepalived is started at boot time, it can delay starting the VRRP instances
+    # until the specified time has elapsed, but if keepalived is stopped and restarted
+    # it will not have any delay. keepalived will use the longer delay of
+    # \fBvrrp_startup_delay\fR and \fBvrrp_delay_after_boot\fR.
+    \fBvrrp_delay_after_boot \fR15.23
 
     # The following will cause logging of receipt of VRRP adverts for VRIDs not configured
     # on the interface on which they are received.

@@ -585,6 +585,8 @@ vrrp_set_effective_priority(vrrp_t *vrrp)
 {
 	uint8_t new_prio;
 	uint32_t old_down_timer;
+	vrrp_t *old_vrrp = NULL;
+	int saved_state;
 
 	/* Don't change priority if address owner */
 	if (vrrp->base_priority == VRRP_PRIO_OWNER)
@@ -615,8 +617,24 @@ vrrp_set_effective_priority(vrrp_t *vrrp)
 		vrrp_thread_requeue_read(vrrp);
 	}
 
-	if (vrrp->notify_priority_changes)
+	if (reload &&
+	    (old_vrrp = vrrp_exist(vrrp, &old_vrrp_data->vrrp)) &&
+	    vrrp->effective_priority == old_vrrp->effective_priority) {
+		return;
+	}
+
+	if (old_vrrp && old_vrrp->state == VRRP_STATE_FAULT)
+		old_vrrp = NULL;
+
+	if (vrrp->notify_priority_changes) {
+		if (old_vrrp) {
+			saved_state = vrrp->state;
+			vrrp->state = old_vrrp->state;
+		}
 		send_instance_priority_notifies(vrrp);
+		if (old_vrrp)
+			vrrp->state = saved_state;
+	}
 }
 
 static void
