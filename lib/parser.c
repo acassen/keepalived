@@ -2165,6 +2165,10 @@ check_definition(const char *buf)
 	/* Skip leading whitespace */
 	p += strspn(p + 1, " \t") + 1;
 	def->value_len = strlen(p);
+	/* The following line can cause a sanitizer false positive. Changing it to:
+		if (*(p + def->value_len - 1) == '\\') {
+	   stops the warning, but since there is nothing wrong with the code as it is,
+	   and indeed the change is identical, I am not changing it. */
 	if (p[def->value_len - 1] == '\\') {
 		/* Remove trailing whitespace */
 		while (def->value_len >= 2 &&
