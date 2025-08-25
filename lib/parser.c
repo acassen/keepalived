@@ -1432,6 +1432,10 @@ add_seq(char *buf)
 	p++;
 	p += strspn(p, " \t");
 	end_seq = strchr(p, ')');
+	if (!end_seq) {
+		report_config_error(CONFIG_GENERAL_ERROR, "~SEQ missing terminating ')' '%s'", buf);
+		return false;
+	}
 	if ((size_t)(end_seq + 1 - p + 1) > sizeof(seq_buf)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "~SEQ parameter strings too long '%s'", buf);
 		return false;
