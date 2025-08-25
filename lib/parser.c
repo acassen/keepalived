@@ -2743,6 +2743,16 @@ read_line(char *buf, size_t size)
 				if (len && buf[len-1] == '\n') {
 					file->current_line_no++;
 					len--;
+				} else if (len == size - 1) {
+					report_config_error(CONFIG_GENERAL_ERROR, "line too long - ignoring");
+					file->current_line_no++;
+					len = 0;
+					buf[0] = '\0';
+				} else if (!feof(file->stream)) {
+					report_config_error(CONFIG_GENERAL_ERROR, "configuration appears to have embedded NULs - ignoring line");
+					file->current_line_no++;
+					len = 0;
+					buf[0] = '\0';
 				}
 
 				/* Remove end of line chars */
