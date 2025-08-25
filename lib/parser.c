@@ -2247,7 +2247,6 @@ decomment(char *str)
 {
 	bool quote = false;
 	bool cont = false;
-	char *skip = NULL;
 	char *p = str + strspn(str, " \t");
 
 	/* Remove leading whitespace */
@@ -2257,8 +2256,7 @@ decomment(char *str)
 	p = str;
 	while ((p = strpbrk(p, "!#\"\\"))) {
 		if (*p == '"') {
-			if (!skip)
-				quote = !quote;
+			quote = !quote;
 			p++;
 			continue;
 		}
@@ -2276,25 +2274,23 @@ decomment(char *str)
 			cont = true;
 			break;
 		}
-		if (!quote && !skip && (*p == '!' || *p == '#'))
-			skip = p;
+		if (!quote && (*p == '!' || *p == '#')) {
+			*p = '\0';
+			break;
+		}
 		p++;
 	}
 
 	if (quote)
 		report_config_error(CONFIG_GENERAL_ERROR, "Unterminated quote '%s'", str);
 
-	if (skip)
-		*skip = '\0';
-
 	/* Remove trailing whitespace */
 	p = str + strlen(str) - 1;
 	while (p >= str && isblank(*p))		// This line causes a strict-overflow=4 warning in gcc 5.4.0
-		*p-- = '\0';
-	if (cont) {
+		p--;
+	if (cont)
 		*++p = '\\';
-		*++p = '\0';
-	}
+	*++p = '\0';
 }
 
 static vector_t *read_value_block_vec;
