@@ -208,6 +208,7 @@ enum check_snmp_realserver_magic {
 	CHECK_SNMP_RSRATEINBPS64,
 	CHECK_SNMP_RSRATEOUTBPS64,
 #endif
+	CHECK_SNMP_RSNOTRUNCHECKERS,
 };
 
 #define STATE_VSGM_FWMARK 1
@@ -886,6 +887,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	int state;
 	int type;
 	snmp_ret_t ret;
+	checker_t *checker;
 
 	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
 		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
@@ -1274,6 +1276,13 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		*var_len = sizeof(struct counter64);
 		return PTR_CAST(u_char, &counter64_ret);
 #endif
+	case CHECK_SNMP_RSNOTRUNCHECKERS:
+		long_ret.u = 0;
+		list_for_each_entry(checker, &rs->checkers_list, rs_list) {
+			if (!checker->has_run)
+				long_ret.u++;
+		}
+		return PTR_CAST(u_char, &long_ret);
 	default:
 		return NULL;
 	}
@@ -1702,6 +1711,8 @@ static struct variable3 check_vars[] = {
 	{CHECK_SNMP_RSRATEOUTBPS64, ASN_COUNTER64, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 62}},
 #endif
+	{CHECK_SNMP_RSNOTRUNCHECKERS, ASN_UNSIGNED, RONLY,
+	 check_snmp_realserver, 3, {4, 1, 63}},
 
 #ifdef _WITH_VRRP_
 	/* LVS sync daemon configuration */

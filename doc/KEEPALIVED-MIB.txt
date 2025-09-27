@@ -4240,7 +4240,8 @@ RealServerEntry ::= SEQUENCE {
     realServerRateInPPS64 Counter64,
     realServerRateOutPPS64 Counter64,
     realServerRateInBPS64 Counter64,
-    realServerRateOutBPS64 Counter64
+    realServerRateOutBPS64 Counter64,
+    realServerNotRunCheckers Unsigned32
 }
 
 realServerIndex OBJECT-TYPE
@@ -4789,6 +4790,14 @@ realServerRateOutBPS64 OBJECT-TYPE
     DESCRIPTION
         "Current outgoing rate for this real server."
     ::= { realServerEntry 62 }
+
+realServerNotRunCheckers OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Number of checkers that haven't yet run."
+    ::= { realServerEntry 63 }
 
 lvsSyncDaemon    OBJECT IDENTIFIER ::= { check 6 }
 
@@ -5499,7 +5508,8 @@ realServerGroup OBJECT-GROUP
     realServerRateInPPS64,
     realServerRateOutPPS64,
     realServerRateInBPS64,
-    realServerRateOutBPS64
+    realServerRateOutBPS64,
+    realServerNotRunCheckers
     }
     STATUS current
     DESCRIPTION
