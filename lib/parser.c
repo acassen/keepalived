@@ -121,9 +121,11 @@ typedef struct _defs {
 	size_t value_len;
 	bool multiline;
 	const char *(*fn)(const struct _defs *);
+	unsigned min_params;
 	unsigned max_params;
 	const char *params;
 	const char *params_end;
+	bool numbers_only;
 
 	/* Linked list member */
 	list_head_t e_list;
@@ -1026,11 +1028,8 @@ get_random(const def_t *def)
 	 * only spaces and decimal digits */
 	if (def->params) {
 		min = strtoul(def->params, &endp, 10);
-		if (endp < def->params_end) {
+		if (endp < def->params_end)
 			max = strtoul(endp, &endp, 10);
-			if (endp != def->params_end + 1)
-				log_message(LOG_INFO, "Too many parameters or extra text for ${_RANDOM %.*s}", (int)(def->params_end - def->params + 1), def->params);
-		}
 	}
 
 	val = max;
@@ -1044,6 +1043,19 @@ get_random(const def_t *def)
 	snprintf(rand_str, rand_str_len + 1, "%ld", val);
 
 	return rand_str;
+}
+
+static const char *
+get_env_var(const def_t *def)
+{
+	char *name, *env;
+
+	name = MALLOC(def->params_end - def->params + 2);
+	strncpy(name, def->params, def->params_end - def->params + 1);
+	env = getenv(name);
+	FREE(name);
+
+	return env;
 }
 
 static const vector_t *
@@ -1870,6 +1882,9 @@ find_definition(const char *name, size_t len, bool definition)
 	bool allow_multiline;
 	const char *param_start = NULL;
 	const char *param_end = NULL;
+	bool numbers_only = true;
+	bool in_param = false;
+	unsigned int num_params = 0;
 
 	if (list_empty(&defs))
 		return NULL;
@@ -1888,12 +1903,21 @@ find_definition(const char *name, size_t len, bool definition)
 		/* Check we have a suitable end character */
 		if (using_braces) {
 			/* Allow for parameters to the definition */
-			while (*p && (*p == ' ' || *p == '\t' || isdigit (*p))) {
+			while (*p && (*p == ' ' || *p == '\t' || isalnum (*p) || *p == '_')) {
 				if (*p != ' ' && *p != '\t') {
-				       if (!param_start)
-					       param_start = p;
-				       param_end = p;
-				}
+					if (!param_start)
+						param_start = p;
+					param_end = p;
+
+					if (!isdigit(*p))
+						numbers_only = false;
+					if (!in_param) {
+						in_param = true;
+						num_params++;
+					}
+				} else if (in_param)
+					in_param = false;
+
 				p++;
 			}
 
@@ -1918,9 +1942,17 @@ find_definition(const char *name, size_t len, bool definition)
 		if (def->name_len == len &&
 		    (allow_multiline || !def->multiline) &&
 		    !strncmp(def->name, name, len)) {
-			if (param_start && !def->max_params)
-				return NULL;
 			if (param_start) {
+				if (!def->max_params)
+					return NULL;
+				if (def->numbers_only && !numbers_only) {
+					report_config_error(CONFIG_GENERAL_ERROR, "Definition %s requires numeric parameters only.", def->name);
+					return NULL;
+				}
+				if (num_params > def->max_params || num_params < def->min_params) {
+					report_config_error(CONFIG_GENERAL_ERROR, "Definition %s requires between %u and %u parameters, %u specified.", def->name, def->min_params, def->max_params, num_params);
+					return NULL;
+				}
 				def->params = param_start;
 				def->params_end = param_end;
 			}
@@ -2011,7 +2043,7 @@ replace_param(char *buf, size_t max_len, char const **multiline_ptr_ptr)
 				if (def->value)
 					FREE_CONST(def->value);
 				def->value = (*def->fn)(def);
-				def->value_len = strlen(def->value);
+				def->value_len = def->value ? strlen(def->value) : 0;
 			}
 
 			/* Ensure there is enough room to replace $PARAM or ${PARAM} with value */
@@ -2062,10 +2094,12 @@ replace_param(char *buf, size_t max_len, char const **multiline_ptr_ptr)
 			}
 
 			/* Now copy the replacement text */
-			strncpy(cur_pos, def->value, replacing_len);
+			if (replacing_len) {
+				strncpy(cur_pos, def->value, replacing_len);
 
-			if (def->value[strspn(def->value, " \t")] == '~')
-				break;
+				if (def->value[strspn(def->value, " \t")] == '~')
+					break;
+			}
 		}
 		else
 			cur_pos++;
@@ -2202,7 +2236,7 @@ check_definition(const char *buf)
 }
 
 static void
-add_std_definition(const char *name, const char *value, const char *(*fn)(const def_t *), unsigned max_params)
+add_std_definition(const char *name, const char *value, const char *(*fn)(const def_t *), unsigned min_params, unsigned max_params, bool numbers_only)
 {
 	def_t* def;
 
@@ -2215,7 +2249,9 @@ add_std_definition(const char *name, const char *value, const char *(*fn)(const 
 		def->value = STRNDUP(value, def->value_len);
 	}
 	def->fn = fn;
+	def->min_params = min_params;
 	def->max_params = max_params;
+	def->numbers_only = numbers_only;
 
 	list_add_tail(&def->e_list, &defs);
 }
@@ -2225,11 +2261,12 @@ set_std_definitions(void)
 {
 	time_t tim;
 
-	add_std_definition("_PWD", NULL, get_cwd, 0);
-	add_std_definition("_INSTANCE", NULL, get_instance, 0);
-	add_std_definition("_RANDOM", NULL, get_random, 2);
-	add_std_definition("_HASH", "#", NULL, 0);
-	add_std_definition("_BANG", "!", NULL, 0);
+	add_std_definition("_PWD", NULL, get_cwd, 0, 0, false);
+	add_std_definition("_INSTANCE", NULL, get_instance, 0, 0, false);
+	add_std_definition("_RANDOM", NULL, get_random, 0, 2, true);
+	add_std_definition("_ENV", NULL, get_env_var, 1, 1, false);
+	add_std_definition("_HASH", "#", NULL, 0, 0, false);
+	add_std_definition("_BANG", "!", NULL, 0, 0, false);
 
 	/* In case $_RANDOM is used, seed the pseudo RNG */
 	if (random_seed_configured)

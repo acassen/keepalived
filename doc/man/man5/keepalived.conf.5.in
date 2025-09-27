@@ -2959,6 +2959,8 @@ The following definitions are pre-defined:
 \fB${_RANDOM [MIN [MAX]]} : \fRThis is replaced by a random integer in the range [MIN, MAX],
 where MIN and MAX are optional non-negative integers. Defaults are MIN=0 and MAX=32767.
 .br
+\fB${_ENV ENV_VAR} : \fRThis is replaced by the value of the environment variable $ENV_VAR.
+.br
 \fB${_HASH} : \fR This is replaced by a '#' character, which would otherwise start a comment
 .br
 \fB${_BANG} : \fR This is replaced by a '!' character, which would otherwise start a comment
