@@ -25,8 +25,10 @@
 #include "config.h"
 #include "vrrp_json.h"
 
+#include <fcntl.h>
 #include <errno.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include "vrrp.h"
 #include "vrrp_track.h"
@@ -360,19 +362,47 @@ vrrp_json_dump(FILE *fp)
 void
 vrrp_print_json(void)
 {
+	int fd;
 	FILE *fp;
 	const char *filename;
+	char file_tmp_name[PATH_MAX];
+	int sav_errno;
 
 	if (list_empty(&vrrp_data->vrrp))
 		return;
 
 	filename = make_tmp_filename("keepalived.json");
-	fp = fopen_safe(filename, "we");
+
+	/* write to a temporary file and rename it afterwards to avoid dealing with filesystem locks */
+	strcpy_safe(file_tmp_name, filename);
+	if (strlen(filename) + 6 < sizeof(file_tmp_name))
+		strcat(file_tmp_name, "XXXXXX");
+	else
+		strcpy(file_tmp_name + sizeof(file_tmp_name) - 6 - 1, "XXXXXX");
+
+	fd = mkostemp(file_tmp_name, O_CLOEXEC);
+	if (fd == -1) {
+		sav_errno = errno;
+		log_message(LOG_INFO, "Unable to create temporary json file '%s' - errno %d (%m)", file_tmp_name, errno);
+		errno = sav_errno;
+		FREE_CONST(filename);
+		return;
+	} else
+		close(fd);
+
+	fp = fopen_safe(file_tmp_name, "ae");
 	if (fp) {
 		vrrp_json_dump(fp);
 		fclose(fp);
+		if (rename(file_tmp_name, filename)) {
+			sav_errno = errno;
+			log_message(LOG_INFO, "Failed to rename %s to %s - errno %d (%m)", file_tmp_name, filename, errno);
+			errno = sav_errno;
+			FREE_CONST(filename);
+			return;
+		}
 	} else
-		log_message(LOG_INFO, "Can't open %s/keepalived.json (%d: %m)", tmp_dir, errno);
+		log_message(LOG_INFO, "Can't create %s (%d: %m)", filename, errno);
 
 	FREE_CONST(filename);
 }
