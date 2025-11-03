@@ -36,6 +36,7 @@
 #include "config.h"
 
 #include <fcntl.h>
+#include <errno.h>
 
 #include "vrrp_if_config.h"
 #include "keepalived_netlink.h"
@@ -105,23 +106,25 @@ make_sysctl_filename(char *dest, const char* prefix, const char* iface, const ch
 static int
 set_sysctl(const char* prefix, const char* iface, const char* parameter, unsigned value)
 {
-	char* filename;
+	char filename[PATH_MAX];;
 	char buf[1];
 	int fd;
 	ssize_t len;
 
 	/* Make the filename */
-	filename = MALLOC(PATH_MAX);
 	make_sysctl_filename(filename, prefix, iface, parameter);
 
 	fd = open(filename, O_WRONLY | O_CLOEXEC);
-	FREE(filename);
-	if (fd < 0)
+	if (fd < 0) {
+		log_message(LOG_ERR, "Failed to open %s for write, errno %d (%m)", filename, errno);
 		return -1;
+	}
 
 	/* We only write integers 0-9 */
 	buf[0] = (char)('0' + value);
 	len = write(fd, &buf, 1);
+	if (len < 0)
+		log_message(LOG_ERR, "Failed to write %u to %s, errno %d (%m)", value, filename, errno);
 	close(fd);
 
 	if (len != 1)
