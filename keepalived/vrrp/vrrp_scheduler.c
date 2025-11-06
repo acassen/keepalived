@@ -241,6 +241,15 @@ vrrp_init_state(list_head_t *l)
 				 * very quickly (1usec) */
 				vrrp->state = VRRP_STATE_BACK;
 				vrrp->ms_down_timer = 1;
+				if (vrrp->fault_init_exit_delay > 0)
+				{
+					vrrp->fault_init_delay_needed = true;
+					vrrp->block_socket_time = timer_add_long(
+						vrrp_delayed_start_time.tv_sec ? vrrp_delayed_start_time: time_now,
+						vrrp->fault_init_exit_delay);
+					vrrp->fault_init_exit_time = timer_add_long(vrrp->block_socket_time, vrrp->ms_down_timer);
+				}
+
 			}
 
 // TODO Do we need ->	vrrp_restore_interface(vrrp, false, false);
@@ -251,6 +260,15 @@ vrrp_init_state(list_head_t *l)
 				vrrp->ms_down_timer = vrrp->master_adver_int + VRRP_TIMER_SKEW_MIN(vrrp);
 			} else
 				vrrp->ms_down_timer = VRRP_MS_DOWN_TIMER(vrrp);
+
+			if (!reload && vrrp->fault_init_exit_delay > 0)
+			{
+				vrrp->fault_init_delay_needed = true;
+				vrrp->block_socket_time = timer_add_long(
+					vrrp_delayed_start_time.tv_sec ? vrrp_delayed_start_time: time_now,
+					vrrp->fault_init_exit_delay);
+				vrrp->fault_init_exit_time = timer_add_long(vrrp->block_socket_time, vrrp->ms_down_timer);
+			}
 
 #ifdef _WITH_SNMP_RFCV3_
 			vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_MASTER_NO_RESPONSE;
@@ -278,6 +296,7 @@ vrrp_init_state(list_head_t *l)
 				if (vrrp->state != VRRP_STATE_BACK) {
 					log_message(LOG_INFO, "(%s) Entering BACKUP STATE (init)", vrrp->iname);
 					vrrp->state = VRRP_STATE_BACK;
+					vrrp->fault_init_delay_needed = true;
 				}
 			} else {
 				/* Note: if we have alpha mode scripts, we enter fault state, but don't want
@@ -327,6 +346,18 @@ vrrp_init_instance_sands(vrrp_t *vrrp)
 			vrrp->sands = timer_add_long(vrrp_delayed_start_time, vrrp->ms_down_timer);
 		else
 			vrrp->sands = timer_add_long(time_now, vrrp->ms_down_timer);
+		if (vrrp->fault_init_delay_needed)
+		{
+			log_message(LOG_INFO, "Applied vrrp fault init exit delay of %f seconds on instance (%s)",
+				    (float)vrrp->fault_init_exit_delay/TIMER_HZ, vrrp->iname);
+			vrrp->sands = timer_add_long(vrrp->sands, vrrp->fault_init_exit_delay);
+			vrrp->fault_init_delay_needed = false;
+			vrrp->fault_init_exit_time = timer_add_long(time_now, vrrp->fault_init_exit_delay);
+			if (vrrp_delayed_start_time.tv_sec)
+				vrrp->block_socket_time = timer_add_long(vrrp_delayed_start_time, vrrp->fault_init_exit_delay);
+			else
+				vrrp->block_socket_time = timer_add_long(time_now, vrrp->fault_init_exit_delay);
+		}
 	}
 	else if (vrrp->state == VRRP_STATE_FAULT || vrrp->state == VRRP_STATE_INIT)
 		vrrp->sands.tv_sec = TIMER_DISABLED;
@@ -900,6 +931,16 @@ vrrp_dispatcher_read_timeout(sock_t *sock)
 		prev_state = vrrp->state;
 
 		if (vrrp->state == VRRP_STATE_BACK) {
+			if (vrrp->fault_init_exit_delay > 0)
+			{
+				timeval_t now = timer_now();
+				/* Do not transition to master before fault_init_exit_time */
+				if (timercmp(&vrrp->fault_init_exit_time, &now, >)) {
+					vrrp_init_instance_sands(vrrp);
+					break;
+				}
+			}
+
 			if (__test_bit(LOG_DETAIL_BIT, &debug))
 				log_message(LOG_INFO, "(%s) Receive advertisement timeout", vrrp->iname);
 			vrrp_goto_master(vrrp);
@@ -1110,6 +1151,16 @@ vrrp_dispatcher_read(sock_t *sock)
 			/* We just ignore a message received when we are in fault state or
 			 * not yet fully initialised */
 			continue;
+		}
+
+		if (vrrp->fault_init_exit_delay > 0)
+		{
+			/* Ignore the messages received on this socket till
+			 * fault_init_exit_delay (+ possible startup_delay) have expired. */
+			set_time_now();
+			if (timercmp(&time_now, &vrrp->block_socket_time, <)) {
+				continue;
+			}
 		}
 
 		/* Save non packet data */
