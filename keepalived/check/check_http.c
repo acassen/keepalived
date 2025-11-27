@@ -128,11 +128,13 @@ static const char *request_template =
 			"GET %s HTTP/1.%d\r\n"
 			"User-Agent: KeepAliveClient\r\n"
 			"%s"
+			"%s"
 			"Host: %s%s\r\n\r\n";
 
 static const char *request_template_ipv6 =
 			"GET %s HTTP/1.%d\r\n"
 			"User-Agent: KeepAliveClient\r\n"
+			"%s"
 			"%s"
 			"Host: [%s]%s\r\n\r\n";
 
@@ -177,6 +179,8 @@ free_url(url_t *url)
 	FREE_CONST_PTR(url->path);
 	FREE_CONST_PTR(url->digest);
 	FREE_CONST_PTR(url->virtualhost);
+	FREE_CONST_PTR(url->username);
+	FREE_CONST_PTR(url->password);
 #ifdef _WITH_REGEX_CHECK_
 	if (url->regex) {
 		if (!--url->regex->refcnt) {
@@ -259,6 +263,8 @@ dump_url(FILE *fp, bool is_ssl, const url_t *url)
 
 	if (url->virtualhost)
 		conf_write(fp, "     Virtual host = %s", url->virtualhost);
+	if (url->username && url->password)
+		conf_write(fp, "     Auth = %s:%s", url->username, url->password);
 	if (url->last_ssl_error)
 		conf_write(fp, "     Last SSL error = 0x%lx", url->last_ssl_error);
 
@@ -411,6 +417,14 @@ compare_http_check(const checker_t *old_c, checker_t *new_c)
 		if (!u1->virtualhost != !u2->virtualhost)
 			return false;
 		if (u1->virtualhost && strcmp(u1->virtualhost, u2->virtualhost))
+			return false;
+		if (!u1->username != !u2->username)
+			return false;
+		if (u1->username && strcmp(u1->username, u2->username))
+			return false;
+		if (!u1->password != !u2->password)
+			return false;
+		if (u1->password && strcmp(u1->password, u2->password))
 			return false;
 #ifdef _WITH_REGEX_CHECK_
 		if (!u1->regex != !u2->regex)
@@ -615,6 +629,28 @@ url_virtualhost_handler(const vector_t *strvec)
 	}
 
 	set_string(&current_url->virtualhost, strvec, "url virtualhost");
+}
+
+static void
+url_username_handler(const vector_t *strvec)
+{
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Missing HTTP_GET username");
+		return;
+	}
+
+	set_string(&current_url->username, strvec, "url username");
+}
+
+static void
+url_password_handler(const vector_t *strvec)
+{
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Missing HTTP_GET password");
+		return;
+	}
+
+	set_string(&current_url->password, strvec, "url password");
 }
 
 static void
@@ -962,6 +998,8 @@ install_http_ssl_check_keyword(const char *keyword)
 	install_keyword("digest", &digest_handler);
 	install_keyword("status_code", &status_code_handler);
 	install_keyword("virtualhost", &url_virtualhost_handler);
+	install_keyword("username", &url_username_handler);
+	install_keyword("password", &url_password_handler);
 #ifdef _WITH_REGEX_CHECK_
 	install_keyword("regex", &regex_handler);
 	install_keyword("regex_no_match", &regex_no_match_handler);
@@ -1642,6 +1680,8 @@ http_request(thread_ref_t thread)
 	const char *request_host;
 	char request_host_port[7];	/* ":" [0-9][0-9][0-9][0-9][0-9] "\0" */
 	char *str_request;
+	const char *auth_header = "";
+	char auth_buf[512];
 	url_t *fetched_url;
 	int ret = 0;
 
@@ -1649,6 +1689,21 @@ http_request(thread_ref_t thread)
 	str_request = PTR_CAST(char, MALLOC(GET_BUFFER_LENGTH));
 
 	fetched_url = fetch_next_url(http_get_check);
+
+	/* Create Authorization header if username and password are provided */
+	if (fetched_url->username && fetched_url->password) {
+		char credentials[128];
+		char encoded[256];
+		int len;
+
+		snprintf(credentials, sizeof(credentials), "%s:%s", fetched_url->username, fetched_url->password);
+		len = EVP_EncodeBlock((unsigned char *)encoded, (unsigned char *)credentials, strlen(credentials));
+		if (len > 0) {
+			encoded[len] = '\0';
+			snprintf(auth_buf, sizeof(auth_buf), "Authorization: Basic %s\r\n", encoded);
+			auth_header = auth_buf;
+		}
+	}
 
 	if (fetched_url->virtualhost)
 		vhost = fetched_url->virtualhost;
@@ -1677,6 +1732,7 @@ http_request(thread_ref_t thread)
 			fetched_url->path,
 			http_get_check->http_protocol == HTTP_PROTOCOL_1_1 ? 1 : 0,
 			http_get_check->http_protocol == HTTP_PROTOCOL_1_0C || http_get_check->http_protocol == HTTP_PROTOCOL_1_1 ? "Connection: close\r\n" : "",
+			auth_header,
 			request_host, request_host_port);
 
 #ifdef _CHECKER_DEBUG_
