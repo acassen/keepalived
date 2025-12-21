@@ -1372,8 +1372,56 @@ if_setsockopt_no_receive(int *sd)
 void
 interface_up(interface_t *ifp)
 {
+	tracking_obj_t *top;
+	vrrp_t *vrrp;
+
 	/* We need to re-add static addresses and static routes */
 	static_track_group_reinstate_config(ifp);
+
+	/* When an interface goes down and back up (e.g., driver restart),
+	 * the kernel drops multicast group membership. We need to close
+	 * and reopen VRRP sockets to restore multicast membership.
+	 * Without this, keepalived stops receiving VRRP advertisements
+	 * and stays stuck in BACKUP state. */
+	list_for_each_entry(top, &ifp->tracking_vrrp, e_list) {
+		vrrp = top->obj.vrrp;
+
+		if (!vrrp->ifp || !vrrp->sockets)
+			continue;
+
+		/* Skip if this is just a tracked interface, not the main one */
+		if (vrrp->ifp != ifp
+#ifdef _HAVE_VRRP_VMAC_
+		    && IF_BASE_IFP(vrrp->ifp) != ifp
+#endif
+		)
+			continue;
+
+#ifdef _HAVE_VRRP_VMAC_
+		/* Skip VMACs and IPVLANs - they are handled separately */
+		if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags)
+#ifdef _HAVE_VRRP_IPVLAN_
+		    || __test_bit(VRRP_IPVLAN_BIT, &vrrp->flags)
+#endif
+		)
+			continue;
+#endif
+
+		/* Close existing sockets to force recreation with fresh
+		 * multicast group membership */
+		if (vrrp->sockets->fd_in != -1) {
+			thread_cancel_read(master, vrrp->sockets->fd_in);
+			close(vrrp->sockets->fd_in);
+			vrrp->sockets->fd_in = -1;
+		}
+		if (vrrp->sockets->fd_out != -1) {
+			close(vrrp->sockets->fd_out);
+			vrrp->sockets->fd_out = -1;
+		}
+
+		/* Reopen sockets with restored multicast membership */
+		setup_interface(vrrp);
+	}
 }
 
 void
