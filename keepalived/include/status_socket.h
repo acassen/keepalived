@@ -33,6 +33,11 @@
 /* Local includes */
 #include "scheduler.h"
 
+/* Pipe management - called from main.c */
+extern bool open_status_pipes(void);
+extern void close_status_write_pipes(void);
+
+/* Socket management - called from main.c after children start */
 extern bool status_socket_init(thread_master_t *);
 extern void status_socket_close(void);
 

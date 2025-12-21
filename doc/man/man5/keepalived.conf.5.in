@@ -726,10 +726,16 @@ possibly following any cleanup actions needed.
     # If Keepalived has been built with status socket support
     # (--enable-status-socket), the following keywords are available.
     # --
-    # Enable a Unix domain socket for status queries and health checks.
+    # Enable a Unix domain socket for unified status queries and health checks.
+    # The socket runs in the parent process and aggregates state from all
+    # child daemons (VRRP, Checker, BFD).
     # The socket accepts simple text commands:
-    #   HEALTH - returns "MASTER", "BACKUP", or "FAULT" based on VRRP state
-    #   STATUS - returns JSON with details of all VRRP instances
+    #   HEALTH - returns "MASTER", "BACKUP", or "FAULT" based on aggregated state
+    #            FAULT if any daemon reports fault state
+    #            MASTER if VRRP has at least one instance in MASTER state
+    #            BACKUP otherwise
+    #   STATUS - returns JSON with details from all running daemons:
+    #            {"vrrp":{...},"checker":{...},"bfd":{...}}
     # Useful for container health checks (e.g., Kubernetes liveness probes).
     # Example: echo "HEALTH" | socat - UNIX:/var/run/keepalived/status.sock
     # (default: /var/run/keepalived/status.sock)

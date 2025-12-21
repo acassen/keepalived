@@ -68,6 +68,7 @@
 #endif
 #ifdef _WITH_STATUS_SOCKET_
   #include "status_socket.h"
+  #include "status_event.h"
 #endif
 #include "list_head.h"
 #include "main.h"
@@ -1119,6 +1120,35 @@ start_vrrp_child(void)
 #ifdef _WITH_LVS_
 	close(bfd_checker_event_pipe[0]);
 	close(bfd_checker_event_pipe[1]);
+#endif
+#endif
+
+#ifdef _WITH_STATUS_SOCKET_
+	/* VRRP child keeps only write end of its status pipe */
+	if (status_vrrp_pipe[0] >= 0) {
+		close(status_vrrp_pipe[0]);
+		status_vrrp_pipe[0] = -1;
+	}
+	/* Close all of checker and BFD status pipes */
+#ifdef _WITH_LVS_
+	if (status_checker_pipe[0] >= 0) {
+		close(status_checker_pipe[0]);
+		status_checker_pipe[0] = -1;
+	}
+	if (status_checker_pipe[1] >= 0) {
+		close(status_checker_pipe[1]);
+		status_checker_pipe[1] = -1;
+	}
+#endif
+#ifdef _WITH_BFD_
+	if (status_bfd_pipe[0] >= 0) {
+		close(status_bfd_pipe[0]);
+		status_bfd_pipe[0] = -1;
+	}
+	if (status_bfd_pipe[1] >= 0) {
+		close(status_bfd_pipe[1]);
+		status_bfd_pipe[1] = -1;
+	}
 #endif
 #endif
 

@@ -78,6 +78,9 @@
 #include "bfd_daemon.h"
 #include "bfd_parser.h"
 #endif
+#ifdef _WITH_STATUS_SOCKET_
+#include "status_socket.h"
+#endif
 #include "global_parser.h"
 #include "namespaces.h"
 #include "scheduler.h"
@@ -488,6 +491,11 @@ static void
 stop_keepalived(void)
 {
 #ifndef _ONE_PROCESS_DEBUG_
+#ifdef _WITH_STATUS_SOCKET_
+	if (global_data && global_data->enable_status_socket)
+		status_socket_close();
+#endif
+
 	/* Just cleanup memory & exit */
 	thread_destroy_master(master);
 
@@ -534,6 +542,16 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 	}
 #endif
 
+#ifdef _WITH_STATUS_SOCKET_
+	/* Status pipes must be opened before children start */
+	if (global_data->enable_status_socket) {
+		if (!open_status_pipes()) {
+			log_message(LOG_ERR, "Failed to create status pipes");
+			/* Non-fatal, continue without status socket */
+		}
+	}
+#endif
+
 #ifdef _WITH_LVS_
 	/* start healthchecker child */
 	if (running_checker()) {
@@ -563,6 +581,14 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 #endif
 
 	children_started = true;
+
+#ifdef _WITH_STATUS_SOCKET_
+	/* Initialize status socket after children are forked */
+	if (global_data->enable_status_socket) {
+		if (!status_socket_init(thread->master))
+			log_message(LOG_ERR, "Failed to init status socket");
+	}
+#endif
 
 #ifndef _ONE_PROCESS_DEBUG_
 	/* Do we have a reload file to monitor */

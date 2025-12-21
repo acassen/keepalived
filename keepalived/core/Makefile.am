@@ -50,4 +50,9 @@ if WITH_SANITIZER
   EXTRA_libcore_a_SOURCES += sanitizer.c
 endif
 
+if WITH_STATUS_SOCKET
+  libcore_a_LIBADD	+= status_socket.o
+  EXTRA_libcore_a_SOURCES += status_socket.c
+endif
+
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@

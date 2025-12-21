@@ -41,6 +41,41 @@
 #include "check_nftables.h"
 #include "check_data.h"
 #endif
+#ifdef _WITH_STATUS_SOCKET_
+#include "status_event.h"
+#endif
+
+#ifdef _WITH_STATUS_SOCKET_
+static void
+checker_send_status_event(void)
+{
+	virtual_server_t *vs;
+	real_server_t *rs;
+	uint32_t num_rs = 0;
+	uint32_t num_down = 0;
+	uint8_t state;
+
+	if (!check_data)
+		return;
+
+	list_for_each_entry(vs, &check_data->vs, e_list) {
+		list_for_each_entry(rs, &vs->rs, e_list) {
+			num_rs++;
+			if (!ISALIVE(rs))
+				num_down++;
+		}
+	}
+
+	if (num_rs == 0)
+		state = STATUS_STATE_INIT;
+	else if (num_down > 0)
+		state = (num_down == num_rs) ? STATUS_STATE_FAULT : STATUS_STATE_DOWN;
+	else
+		state = STATUS_STATE_UP;
+
+	status_send_checker_event(state, num_rs, num_down);
+}
+#endif
 
 static bool __attribute((pure))
 vs_iseq(const virtual_server_t *vs_a, const virtual_server_t *vs_b)
@@ -620,6 +655,10 @@ perform_svr_state(bool alive, checker_t *checker)
 	/* We may have changed quorum state. If the quorum wasn't up
 	 * but is now up, this is where the rs is added. */
 	update_quorum_state(vs, false);
+
+#ifdef _WITH_STATUS_SOCKET_
+	checker_send_status_event();
+#endif
 
 	return true;
 }

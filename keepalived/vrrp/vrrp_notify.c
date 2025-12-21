@@ -40,6 +40,10 @@
 #include "vrrp_snmp.h"
 #endif
 #include "smtp.h"
+#ifdef _WITH_STATUS_SOCKET_
+#include "status_event.h"
+#include "list_head.h"
+#endif
 
 static notify_script_t*
 get_iscript(vrrp_t * vrrp)
@@ -266,6 +270,38 @@ send_event_notify(vrrp_t *vrrp, int event)
 	notify_fifo(vrrp->iname, event, false, vrrp->effective_priority);
 }
 
+#ifdef _WITH_STATUS_SOCKET_
+static void
+vrrp_send_status_event(void)
+{
+	vrrp_t *vrrp;
+	uint32_t num_inst = 0;
+	uint32_t num_fault = 0;
+	uint32_t num_master = 0;
+	uint8_t state;
+
+	if (!vrrp_data || list_empty(&vrrp_data->vrrp))
+		return;
+
+	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
+		num_inst++;
+		if (vrrp->state == VRRP_STATE_FAULT)
+			num_fault++;
+		if (vrrp->state == VRRP_STATE_MAST)
+			num_master++;
+	}
+
+	if (num_fault > 0)
+		state = STATUS_STATE_FAULT;
+	else if (num_master > 0)
+		state = STATUS_STATE_UP;
+	else
+		state = STATUS_STATE_DOWN;
+
+	status_send_vrrp_event(state, num_inst, num_fault, num_master);
+}
+#endif
+
 void
 send_instance_notifies(vrrp_t *vrrp)
 {
@@ -317,6 +353,10 @@ send_instance_notifies(vrrp_t *vrrp)
 #endif
 	}
 	vrrp_smtp_notifier(vrrp);
+
+#ifdef _WITH_STATUS_SOCKET_
+	vrrp_send_status_event();
+#endif
 }
 
 void

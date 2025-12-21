@@ -59,6 +59,9 @@
 #ifndef _ONE_PROCESS_DEBUG_
 #include "config_notify.h"
 #endif
+#ifdef _WITH_STATUS_SOCKET_
+#include "status_event.h"
+#endif
 
 
 /* Global variables */
@@ -425,6 +428,35 @@ start_bfd_child(void)
 #endif
 #ifdef _WITH_LVS_
 	close(bfd_checker_event_pipe[0]);
+#endif
+
+#ifdef _WITH_STATUS_SOCKET_
+	/* BFD child keeps only write end of its status pipe */
+	if (status_bfd_pipe[0] >= 0) {
+		close(status_bfd_pipe[0]);
+		status_bfd_pipe[0] = -1;
+	}
+	/* Close all of VRRP and checker status pipes */
+#ifdef _WITH_VRRP_
+	if (status_vrrp_pipe[0] >= 0) {
+		close(status_vrrp_pipe[0]);
+		status_vrrp_pipe[0] = -1;
+	}
+	if (status_vrrp_pipe[1] >= 0) {
+		close(status_vrrp_pipe[1]);
+		status_vrrp_pipe[1] = -1;
+	}
+#endif
+#ifdef _WITH_LVS_
+	if (status_checker_pipe[0] >= 0) {
+		close(status_checker_pipe[0]);
+		status_checker_pipe[0] = -1;
+	}
+	if (status_checker_pipe[1] >= 0) {
+		close(status_checker_pipe[1]);
+		status_checker_pipe[1] = -1;
+	}
+#endif
 #endif
 
 #ifdef THREAD_DUMP
