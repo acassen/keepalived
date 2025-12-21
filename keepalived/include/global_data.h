@@ -260,6 +260,11 @@ typedef struct _data {
 	const char			*dbus_service_name;
 	const char			*dbus_no_interface_name;
 #endif
+#ifdef _WITH_STATUS_SOCKET_
+	bool				enable_status_socket;
+	const char			*status_socket_path;
+	mode_t				status_socket_mode;
+#endif
 #ifdef _WITH_VRRP_
 	unsigned			vrrp_netlink_cmd_rcv_bufs;
 	bool				vrrp_netlink_cmd_rcv_bufs_force;

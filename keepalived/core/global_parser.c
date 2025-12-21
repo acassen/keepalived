@@ -1797,6 +1797,39 @@ dbus_no_interface_name_handler(const vector_t *strvec)
 }
 #endif
 
+#ifdef _WITH_STATUS_SOCKET_
+static void
+status_socket_handler(const vector_t *strvec)
+{
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "status_socket requires path - ignoring");
+		return;
+	}
+
+	FREE_CONST_PTR(global_data->status_socket_path);
+	global_data->status_socket_path = set_value(strvec);
+	global_data->enable_status_socket = true;
+}
+
+static void
+status_socket_mode_handler(const vector_t *strvec)
+{
+	unsigned mode;
+
+	if (vector_size(strvec) < 2) {
+		report_config_error(CONFIG_GENERAL_ERROR, "status_socket_mode requires mode value - ignoring");
+		return;
+	}
+
+	if (!read_unsigned(strvec_slot(strvec, 1), &mode, 0, 0777, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "status_socket_mode %s invalid - ignoring", strvec_slot(strvec, 1));
+		return;
+	}
+
+	global_data->status_socket_mode = mode;
+}
+#endif
+
 static void
 instance_handler(const vector_t *strvec)
 {
@@ -2754,6 +2787,10 @@ init_global_keywords(bool global_active)
 	install_keyword("enable_dbus", &enable_dbus_handler);
 	install_keyword("dbus_service_name", &dbus_service_name_handler);
 	install_keyword("dbus_no_interface_name", &dbus_no_interface_name_handler);
+#endif
+#ifdef _WITH_STATUS_SOCKET_
+	install_keyword("status_socket", &status_socket_handler);
+	install_keyword("status_socket_mode", &status_socket_mode_handler);
 #endif
 	install_keyword("script_user", &script_user_handler);
 	install_keyword("enable_script_security", &script_security_handler);

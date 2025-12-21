@@ -186,6 +186,8 @@ AC_ARG_ENABLE(regex-timers,
   [AS_HELP_STRING([--enable-regex-timers], [build with HTTP_GET regex timers])])
 AC_ARG_ENABLE(json,
   [AS_HELP_STRING([--enable-json], [compile with signal to dump configuration and stats as json])])
+AC_ARG_ENABLE(status-socket,
+  [AS_HELP_STRING([--enable-status-socket], [enable unix socket for status queries and health checks])])
 AC_ARG_ENABLE(clang,
   [AS_HELP_STRING([--enable-clang], [use clang compiler])])
 AC_ARG_ENABLE(lto,
@@ -2372,6 +2374,7 @@ VRRP_SUPPORT=No
 VRRP_AUTH_SUPPORT=No
 MACVLAN_SUPPORT=No
 ENABLE_JSON=No
+STATUS_SOCKET_SUPPORT=No
 BFD_SUPPORT=No
 HAVE_CN_PROC=No
 WITH_TRACK_PROCESS=No
@@ -2436,6 +2439,13 @@ if test "$enable_vrrp" != no; then
     add_config_opt([JSON])
   fi
 
+  dnl ----[ Status socket support ? ]----
+  if test "${enable_status_socket}" = yes; then
+    STATUS_SOCKET_SUPPORT=Yes
+    AC_DEFINE([_WITH_STATUS_SOCKET_], [ 1 ], [Define to 1 to enable status socket for health checks])
+    add_config_opt([STATUS_SOCKET])
+  fi
+
   dnl ----[ BFD support ? ]----
   if test "${enable_bfd}" = yes; then
     BFD_SUPPORT=Yes
@@ -2454,6 +2464,7 @@ AM_CONDITIONAL([WITH_VRRP], [test $VRRP_SUPPORT = Yes])
 AM_CONDITIONAL([VRRP_AUTH], [test $VRRP_AUTH_SUPPORT = Yes])
 AM_CONDITIONAL([VMAC], [test $MACVLAN_SUPPORT = Yes])
 AM_CONDITIONAL([WITH_JSON], [test $ENABLE_JSON = Yes])
+AM_CONDITIONAL([WITH_STATUS_SOCKET], [test $STATUS_SOCKET_SUPPORT = Yes])
 AM_CONDITIONAL([WITH_BFD], [test $BFD_SUPPORT = Yes])
 AM_CONDITIONAL([TRACK_PROCESS], [test $WITH_TRACK_PROCESS = Yes])
 

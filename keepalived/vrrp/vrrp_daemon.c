@@ -66,6 +66,9 @@
 #ifdef _WITH_DBUS_
   #include "vrrp_dbus.h"
 #endif
+#ifdef _WITH_STATUS_SOCKET_
+  #include "status_socket.h"
+#endif
 #include "list_head.h"
 #include "main.h"
 #include "parser.h"
@@ -314,6 +317,11 @@ vrrp_terminate_phase2(int exit_status)
 #ifdef _WITH_DBUS_
 	if (global_data->enable_dbus)
 		dbus_stop();
+#endif
+
+#ifdef _WITH_STATUS_SOCKET_
+	if (global_data->enable_status_socket)
+		status_socket_close();
 #endif
 
 	clear_rt_names();
@@ -700,6 +708,17 @@ start_vrrp(data_t *prev_global_data)
 		dbus_stop();
 #endif
 
+#ifdef _WITH_STATUS_SOCKET_
+	if (global_data->enable_status_socket) {
+		if (reload && old_global_data->enable_status_socket)
+			status_socket_close();
+		if (!status_socket_init(master))
+			global_data->enable_status_socket = false;
+	}
+	else if (reload && old_global_data->enable_status_socket)
+		status_socket_close();
+#endif
+
 	/* Set static entries */
 	netlink_iplist(&vrrp_data->static_addresses, IPADDRESS_ADD, false);
 	netlink_rtlist(&vrrp_data->static_routes, IPROUTE_ADD, false);
@@ -994,6 +1013,9 @@ register_vrrp_thread_addresses(void)
 	register_vrrp_scheduler_addresses();
 #ifdef _WITH_DBUS_
 	register_vrrp_dbus_addresses();
+#endif
+#ifdef _WITH_STATUS_SOCKET_
+	register_status_socket_addresses();
 #endif
 	register_vrrp_fifo_addresses();
 	register_track_file_inotify_addresses();
