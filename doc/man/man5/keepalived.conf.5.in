@@ -723,6 +723,28 @@ possibly following any cleanup actions needed.
     # (default: "none")
     \fBdbus_no_interface_name \fRNAME
 
+    # If Keepalived has been built with status socket support
+    # (--enable-status-socket), the following keywords are available.
+    # --
+    # Enable a Unix domain socket for unified status queries and health checks.
+    # The socket runs in the parent process and aggregates state from all
+    # child daemons (VRRP, Checker, BFD).
+    # The socket accepts simple text commands:
+    #   HEALTH - returns "MASTER", "BACKUP", or "FAULT" based on aggregated state
+    #            FAULT if any daemon reports fault state
+    #            MASTER if VRRP has at least one instance in MASTER state
+    #            BACKUP otherwise
+    #   STATUS - returns JSON with details from all running daemons:
+    #            {"vrrp":{...},"checker":{...},"bfd":{...}}
+    # Useful for container health checks (e.g., Kubernetes liveness probes).
+    # Example: echo "HEALTH" | socat - UNIX:/var/run/keepalived/status.sock
+    # (default: /var/run/keepalived/status.sock)
+    \fBstatus_socket \fRPATH
+
+    # Unix file permissions for the status socket
+    # (default: 0600)
+    \fBstatus_socket_mode \fRMODE
+
     # Specify the default username/groupname to run scripts under.
     # If this option is not specified, the user defaults to keepalived_script
     # if that user exists, otherwise the uid/gid under which keepalived is running.

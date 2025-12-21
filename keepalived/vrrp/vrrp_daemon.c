@@ -66,6 +66,10 @@
 #ifdef _WITH_DBUS_
   #include "vrrp_dbus.h"
 #endif
+#ifdef _WITH_STATUS_SOCKET_
+  #include "status_socket.h"
+  #include "status_event.h"
+#endif
 #include "list_head.h"
 #include "main.h"
 #include "parser.h"
@@ -314,6 +318,11 @@ vrrp_terminate_phase2(int exit_status)
 #ifdef _WITH_DBUS_
 	if (global_data->enable_dbus)
 		dbus_stop();
+#endif
+
+#ifdef _WITH_STATUS_SOCKET_
+	if (global_data->enable_status_socket)
+		status_socket_close();
 #endif
 
 	clear_rt_names();
@@ -700,6 +709,17 @@ start_vrrp(data_t *prev_global_data)
 		dbus_stop();
 #endif
 
+#ifdef _WITH_STATUS_SOCKET_
+	if (global_data->enable_status_socket) {
+		if (reload && old_global_data->enable_status_socket)
+			status_socket_close();
+		if (!status_socket_init(master))
+			global_data->enable_status_socket = false;
+	}
+	else if (reload && old_global_data->enable_status_socket)
+		status_socket_close();
+#endif
+
 	/* Set static entries */
 	netlink_iplist(&vrrp_data->static_addresses, IPADDRESS_ADD, false);
 	netlink_rtlist(&vrrp_data->static_routes, IPROUTE_ADD, false);
@@ -995,6 +1015,9 @@ register_vrrp_thread_addresses(void)
 #ifdef _WITH_DBUS_
 	register_vrrp_dbus_addresses();
 #endif
+#ifdef _WITH_STATUS_SOCKET_
+	register_status_socket_addresses();
+#endif
 	register_vrrp_fifo_addresses();
 	register_track_file_inotify_addresses();
 #ifdef _WITH_TRACK_PROCESS_
@@ -1097,6 +1120,35 @@ start_vrrp_child(void)
 #ifdef _WITH_LVS_
 	close(bfd_checker_event_pipe[0]);
 	close(bfd_checker_event_pipe[1]);
+#endif
+#endif
+
+#ifdef _WITH_STATUS_SOCKET_
+	/* VRRP child keeps only write end of its status pipe */
+	if (status_vrrp_pipe[0] >= 0) {
+		close(status_vrrp_pipe[0]);
+		status_vrrp_pipe[0] = -1;
+	}
+	/* Close all of checker and BFD status pipes */
+#ifdef _WITH_LVS_
+	if (status_checker_pipe[0] >= 0) {
+		close(status_checker_pipe[0]);
+		status_checker_pipe[0] = -1;
+	}
+	if (status_checker_pipe[1] >= 0) {
+		close(status_checker_pipe[1]);
+		status_checker_pipe[1] = -1;
+	}
+#endif
+#ifdef _WITH_BFD_
+	if (status_bfd_pipe[0] >= 0) {
+		close(status_bfd_pipe[0]);
+		status_bfd_pipe[0] = -1;
+	}
+	if (status_bfd_pipe[1] >= 0) {
+		close(status_bfd_pipe[1]);
+		status_bfd_pipe[1] = -1;
+	}
 #endif
 #endif
 

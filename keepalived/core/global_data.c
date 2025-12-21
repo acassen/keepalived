@@ -509,6 +509,9 @@ free_global_data(data_t **datap)
 	FREE_CONST_PTR(data->dbus_service_name);
 	FREE_CONST_PTR(data->dbus_no_interface_name);
 #endif
+#ifdef _WITH_STATUS_SOCKET_
+	FREE_CONST_PTR(data->status_socket_path);
+#endif
 #ifndef _ONE_PROCESS_DEBUG_
 	FREE_CONST_PTR(data->reload_check_config);
 	FREE_CONST_PTR(data->reload_file);
@@ -920,6 +923,11 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " DBus %s", data->enable_dbus ? "enabled" : "disabled");
 	conf_write(fp, " DBus service name = %s", data->dbus_service_name ? data->dbus_service_name : "");
 	conf_write(fp, " DBus no interface name = %s", data->dbus_no_interface_name ? data->dbus_no_interface_name : dbus_no_interface_name);
+#endif
+#ifdef _WITH_STATUS_SOCKET_
+	conf_write(fp, " Status socket %s", data->enable_status_socket ? "enabled" : "disabled");
+	if (data->status_socket_path)
+		conf_write(fp, " Status socket path = %s", data->status_socket_path);
 #endif
 	conf_write(fp, " Script security %s", script_security ? "enabled" : "disabled");
 	if (!get_default_script_user(&uid, &gid))

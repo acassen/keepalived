@@ -27,6 +27,7 @@
 #include "bfd.h"
 #include "bfd_event.h"
 #include "bfd_daemon.h"
+#include "bfd_data.h"
 #include "logger.h"
 #include "main.h"
 #include "memory.h"
@@ -34,6 +35,37 @@
 #include "utils.h"
 #include "global_data.h"
 #include "assert_debug.h"
+#ifdef _WITH_STATUS_SOCKET_
+#include "status_event.h"
+#include "list_head.h"
+
+static void
+bfd_send_status_event(void)
+{
+	bfd_t *bfd;
+	uint32_t num_inst = 0;
+	uint32_t num_down = 0;
+	uint8_t state;
+
+	if (!bfd_data || list_empty(&bfd_data->bfd))
+		return;
+
+	list_for_each_entry(bfd, &bfd_data->bfd, e_list) {
+		num_inst++;
+		if (bfd->local_state != BFD_STATE_UP)
+			num_down++;
+	}
+
+	if (num_inst == 0)
+		state = STATUS_STATE_INIT;
+	else if (num_down > 0)
+		state = (num_down == num_inst) ? STATUS_STATE_FAULT : STATUS_STATE_DOWN;
+	else
+		state = STATUS_STATE_UP;
+
+	status_send_bfd_event(state, num_inst, num_down);
+}
+#endif
 
 void
 bfd_event_send(bfd_t *bfd)
@@ -81,5 +113,9 @@ bfd_event_send(bfd_t *bfd)
 			log_message(LOG_ERR, "(%s) checker pipe write() error %m",
 				    bfd->iname);
 	}
+#endif
+
+#ifdef _WITH_STATUS_SOCKET_
+	bfd_send_status_event();
 #endif
 }
