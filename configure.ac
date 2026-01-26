@@ -1570,6 +1570,18 @@ if test "$enable_lvs" != no; then
   NEED_EVP=yes
   NEED_SSL=yes
 fi
+
+$PKG_CONFIG --exists openssl
+if test $? -eq 0; then
+  add_pkg_config([openssl], [OPENSSL])
+  add_to_var([KA_CPPFLAGS], [$OPENSSL_CPPFLAGS])
+  add_to_var([KA_CFLAGS], [$OPENSSL_CFLAGS])
+else
+  OPENSSL_LIBS="-lssl -lcrypto"
+fi
+
+SAV_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$OPENSSL_CPPFLAGS $CPPFLAGS"
 AC_CHECK_HEADERS([openssl/ssl.h openssl/err.h], [],
   [
     if test $NEED_SSL = yes; then
@@ -1586,14 +1598,8 @@ AC_CHECK_HEADERS([openssl/md5.h openssl/evp.h], [],
   !!! Can not include OpenSSL EVP headers files.        !!!])
     fi
   ])
+CPPFLAGS="$SAV_CPPFLAGS"
 unset LIBS
-
-$PKG_CONFIG --exists openssl
-if test $? -eq 0; then
-  add_pkg_config([openssl], [OPENSSL])
-else
-  OPENSSL_LIBS="-lssl -lcrypto"
-fi
 
 EXTRA_LIBS=`echo $OPENSSL_LIBS | sed -e "s/-lssl//"`
 AC_CHECK_LIB(ssl, SSL_CTX_new, [],
@@ -1602,9 +1608,6 @@ AC_CHECK_LIB(ssl, SSL_CTX_new, [],
       AC_MSG_ERROR([OpenSSL libraries are required])
     fi
   ], [$EXTRA_LIBS])
-if test $NEED_SSL = yes; then
-  add_to_var([KA_LIBS], [$LIBS])
-fi
 unset LIBS
 
 EXTRA_LIBS=`echo $OPENSSL_LIBS | sed -e "s/-lcrypto//"`
@@ -1615,7 +1618,11 @@ AC_CHECK_LIB(crypto, EVP_DigestInit_ex, [],
     fi
   ], [$EXTRA_LIBS])
 if test $NEED_EVP = yes; then
-  add_to_var([KA_LIBS], [$LIBS])
+  if test $NEED_SSL = yes; then
+    add_to_var([KA_LIBS], [$OPENSSL_LIBS])
+  else
+    add_to_var([KA_LIBS], [`echo $OPENSSL_LIBS | sed -e "s/-lssl//"`])
+  fi
   AC_CHECK_LIB(crypto, EVP_MD_CTX_new, [],
     [
       AC_DEFINE([EVP_MD_CTX_new()], [EVP_MD_CTX_create()], [Named changed in OpenSSL v1.1.0])
@@ -1623,6 +1630,8 @@ if test $NEED_EVP = yes; then
       AC_DEFINE([EVP_MD_CTX_reset(ctx)], [EVP_MD_CTX_init(ctx)], [Named changed in OpenSSL v1.1.0])
     ],
     [$EXTRA_LIBS])
+elif test $NEED_SSL = yes; then
+  add_to_var([KA_LIBS], [`echo $OPENSSL_LIBS | sed -e "s/-lcrypto//"`])
 fi
 unset LIBS
 
