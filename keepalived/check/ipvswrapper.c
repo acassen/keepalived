@@ -199,6 +199,27 @@ ipvs_talk(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, ipvs_daemon_t *dae
 #endif
 		case IP_VS_SO_SET_ADDDEST:
 			result = ipvs_add_dest(srule, drule);
+			if (result && errno == ENOENT) {
+				/*
+				 * The parent IPVS service is missing in the
+				 * kernel: this can happen when several VSGs
+				 * resolve to the same (proto,addr,port) tuple
+				 * and an earlier diff issued a LVS_CMD_DEL on
+				 * the shared service while the surviving VSG
+				 * was just marked "reloaded". Re-create the
+				 * service from srule and retry the dest add
+				 * once.
+				 */
+				int saved_errno = errno;
+
+				if (!ipvs_add_service(srule)) {
+					log_message(LOG_INFO,
+						    "IPVS: re-created missing parent service for ADDDEST");
+					result = ipvs_add_dest(srule, drule);
+				} else {
+					errno = saved_errno;
+				}
+			}
 			break;
 		case IP_VS_SO_SET_DELDEST:
 			result = ipvs_del_dest(srule, drule);
@@ -208,6 +229,17 @@ ipvs_talk(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, ipvs_daemon_t *dae
 			    (errno == ENOENT)) {
 				cmd = IP_VS_SO_SET_ADDDEST;
 				result = ipvs_add_dest(srule, drule);
+				if (result && errno == ENOENT) {
+					int saved_errno = errno;
+
+					if (!ipvs_add_service(srule)) {
+						log_message(LOG_INFO,
+							    "IPVS: re-created missing parent service for ADDDEST (via EDITDEST)");
+						result = ipvs_add_dest(srule, drule);
+					} else {
+						errno = saved_errno;
+					}
+				}
 			}
 			break;
 		default:
