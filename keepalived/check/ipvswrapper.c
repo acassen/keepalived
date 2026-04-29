@@ -250,26 +250,33 @@ ipvs_talk(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, ipvs_daemon_t *dae
 		result = 0;
 	else if (result) {
 		char buf[2 + INET6_ADDRSTRLEN + 6 + 5 + 4 + INET6_ADDRSTRLEN + 1 + 5 + 1 + 1];	/* " (" + IPv6 + ":sctp:" + port + " -> " + IPV6 + ":" + port + ")" */
+		bool benign;
 
-		if (errno == EEXIST &&
-			(cmd == IP_VS_SO_SET_ADD || cmd == IP_VS_SO_SET_ADDDEST))
+		/*
+		 * EEXIST on ADD/ADDDEST and ENOENT on DEL/DELDEST are
+		 * silently turned into success because they are
+		 * informational at best and noise at worst.
+		 */
+		benign = (errno == EEXIST &&
+			  (cmd == IP_VS_SO_SET_ADD || cmd == IP_VS_SO_SET_ADDDEST)) ||
+			 (errno == ENOENT &&
+			  (cmd == IP_VS_SO_SET_DEL || cmd == IP_VS_SO_SET_DELDEST));
+		if (benign)
 			result = 0;
-		else if (errno == ENOENT &&
-			(cmd == IP_VS_SO_SET_DEL || cmd == IP_VS_SO_SET_DELDEST))
-			result = 0;
+		else {
+			buf[0] = ' ';
+			buf[1] = '(';
+			if (cmd == IP_VS_SO_SET_ADD || cmd == IP_VS_SO_SET_DEL || cmd == IP_VS_SO_SET_EDIT)
+				format_srule(buf + 2, srule);
+			else if (cmd == IP_VS_SO_SET_ADDDEST || cmd == IP_VS_SO_SET_DELDEST || cmd == IP_VS_SO_SET_EDITDEST)
+				format_drule(buf + 2 + format_srule(buf + 2, srule), drule);
+			else
+				buf[0] = '\0';
+			if (buf[0])
+				strcat(buf, ")");
 
-		buf[0] = ' ';
-		buf[1] = '(';
-		if (cmd == IP_VS_SO_SET_ADD || cmd == IP_VS_SO_SET_DEL || cmd == IP_VS_SO_SET_EDIT)
-			format_srule(buf + 2, srule);
-		else if (cmd == IP_VS_SO_SET_ADDDEST || cmd == IP_VS_SO_SET_DELDEST || cmd == IP_VS_SO_SET_EDITDEST)
-			format_drule(buf + 2 + format_srule(buf + 2, srule), drule);
-		else
-			buf[0] = '\0';
-		if (buf[0])
-			strcat(buf, ")");
-
-		log_message(LOG_INFO, "IPVS cmd %s(%d) error: %s(%d)%s", ipvs_cmd_str(cmd), cmd, ipvs_strerror(errno), errno, buf);
+			log_message(LOG_INFO, "IPVS cmd %s(%d) error: %s(%d)%s", ipvs_cmd_str(cmd), cmd, ipvs_strerror(errno), errno, buf);
+		}
 	}
 	return result;
 }
@@ -463,10 +470,19 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_serve
 
 	/* visit addr_range list */
 	list_for_each_entry(vsg_entry, &vsg->addr_range, e_list) {
-		if (cmd == IP_VS_SO_SET_ADD && reload && vsg_entry->reloaded)
-			continue;
-
-		if (ipvs_change_needed(cmd, vsg_entry, vs, rs)) {
+		/*
+		 * For LVS_CMD_ADD always reach the kernel as neither
+		 * vsg_entry->reloaded nor !is_vsge_alive() are
+		 * authoritative about kernel state. Distinct VSGs can
+		 * resolve to the same (proto,vip,port) tuple and one of
+		 * them tearing down on diff would silently delete the
+		 * shared service while the others were just marked
+		 * "reloaded" and so skipped. ipvs_talk() now
+		 * unconditionally re-issues the command, safe and
+		 * idempotent.
+		 */
+		if (cmd == IP_VS_SO_SET_ADD ||
+		    ipvs_change_needed(cmd, vsg_entry, vs, rs)) {
 			srule->user.port = inet_sockaddrport(&vsg_entry->addr);
 			if (rs) {
 				if (rs->forwarding_method != IP_VS_CONN_F_MASQ)
@@ -494,9 +510,6 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_serve
 	}
 
 	list_for_each_entry(vsg_entry, &vsg->vfwmark, e_list) {
-		if (cmd == IP_VS_SO_SET_ADD && reload && vsg_entry->reloaded)
-			continue;
-
 		srule->user.fwmark = vsg_entry->vfwmark;
 
 		if (vsg_entry->fwm_family != AF_UNSPEC)
@@ -508,7 +521,8 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_serve
 		srule->user.netmask = (srule->af == AF_INET6) ? 128 : ((uint32_t) 0xffffffff);
 
 		/* Talk to the IPVS channel */
-		if (ipvs_change_needed(cmd, vsg_entry, vs, rs)) {
+		if (cmd == IP_VS_SO_SET_ADD ||
+		    ipvs_change_needed(cmd, vsg_entry, vs, rs)) {
 			if (ipvs_talk(cmd, srule, drule, NULL, false))
 				return -1;
 		}
