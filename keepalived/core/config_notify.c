@@ -108,7 +108,8 @@ save_config(bool post, const char *process, void(*func)(FILE *))
 {
 	static unsigned reload_num = 0;
 	FILE *file;
-	char buf[128];
+	const size_t buf_len = 128;
+	char buf[buf_len];
 
 	if (!config_save_dir)
 		return;
@@ -116,7 +117,7 @@ save_config(bool post, const char *process, void(*func)(FILE *))
 	if (!post)
 		reload_num++;
 
-	sprintf(buf, "%s/keepalived_%s.%d.%u.%s", config_save_dir, process, our_pid, reload_num, post ? "post" : "pre");
+	snprintf(buf, buf_len, "%s/keepalived_%s.%d.%u.%s", config_save_dir, process, our_pid, reload_num, post ? "post" : "pre");
 
 	file = fopen_safe(buf, "we");
 	if (!file) {
