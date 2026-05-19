@@ -3374,10 +3374,11 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 
 #ifndef _ONE_PROCESS_DEBUG_
 		if (config_save_dir) {
-			char buf[128];
+			const size_t buf_len = 128;
+			char buf[buf_len];
 			pid_t pid = our_pid;
 
-			sprintf(buf, "cp /proc/%d/fd/%d %s/keepalived.conf.%d.%u", pid, fileno(conf_copy), config_save_dir, pid, conf_num++);
+			snprintf(buf, buf_len, "cp /proc/%d/fd/%d %s/keepalived.conf.%d.%u", pid, fileno(conf_copy), config_save_dir, pid, conf_num++);
 			if (system(buf)) {
 				/* If it fails, there is nothing we can do about it */
 			};
