@@ -3703,7 +3703,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				if (!old_vmac_deleted) {
 					strcpy(vrrp->vmac_ifname, ifp->ifname);
 					vrrp->ifp = ifp;
-					__set_bit(VRRP_VMAC_UP_BIT, &vrrp->flags);
+					if (IF_FLAGS_UP(ifp))
+						__set_bit(VRRP_VMAC_UP_BIT, &vrrp->flags);
 					ifp->is_ours = true;
 
 					/* The interface existed, so it may have config set on it */
