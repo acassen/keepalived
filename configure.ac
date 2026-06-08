@@ -2896,7 +2896,7 @@ AS_IF([test .${with_iproute_usr_dir} = . && test .${with_iproute_etc_dir} = . ],
       ],
       [
         # try finding the paths in the executable
-	set $(strings $(type -p ip) | grep /rt_tables | $SED -e "s:/rt_tables::")
+	set $(strings $(command -v ip) | grep /rt_tables | $SED -e "s:/rt_tables::")
 	for i in $1 $2; do
 	  echo $i | grep -q /etc
 	  AS_IF([test $? -eq 0], [iproute_etc_dir=$i])
