@@ -407,7 +407,7 @@ AS_IF([test .$enable_clang = .yes ],
   [
     USE_CC=clang
     AC_CHECK_TOOL([USE_LLD], [lld], [:])
-    AS_IF([test $USE_LLD != :], [LDFLAGS+=" -fuse-ld=lld -rtlib=compiler-rt"])
+    AS_IF([test $USE_LLD != :], [add_to_var([LDFLAGS], [-fuse-ld=lld -rtlib=compiler-rt])])
   ],
   [
     USE_CC="gcc cc"
@@ -500,7 +500,7 @@ AC_DEFINE_UNQUOTED(KEEPALIVED_CONFIGURE_OPTIONS,"$args", [configure options spec
 
 AS_IF([test .$enable_lto = .yes],
   [
-    AS_IF([test .$enable_clang = .yes], [CFLAGS+=" -flto"], [CFLAGS+=" -flto=auto -ffat-lto-objects"])
+    AS_IF([test .$enable_clang = .yes], [add_to_var([CFLAGS], [-flto])], [add_to_var([CFLAGS], [-flto=auto -ffat-lto-objects])])
   ])
 
 # Save the CPPFLAGS, CFLAGS, LDFLAGS and LDLIBS settings for make time
@@ -2621,7 +2621,7 @@ if test "$enable_snmp" = yes -o \
   NEW_FLAGS=
   for f in `echo $NETSNMP_CFLAGS | tr " " "\n" | grep "^-I"`; do
 	  DIR=`echo $f | sed -e "s/^-I *//"`
-	  AS_IF([ test -d $DIR ], [ NEW_FLAGS+=" -I$DIR" ])
+	  AS_IF([ test -d $DIR ], [ add_to_var([NEW_FLAGS], [-I$DIR]) ])
   done
   NETSNMP_CFLAGS=$NEW_FLAGS
 
@@ -3460,7 +3460,7 @@ AS_IF([test .$INIT_TYPE = .systemd],
 	AC_DEFINE([_USE_SYSTEMD_NOTIFY_], [ 1 ], [Define to 1 if want systemd notify support])
 	add_config_opt([SYSTEMD_NOTIFY])
 	SYSTEMD_SERVICE_TYPE="notify"
-	SYSTEMD_EXEC_START_OPTIONS+="--dont-fork"
+	add_to_var([SYSTEMD_EXEC_START_OPTIONS], [--dont-fork])
 	SAV_CFLAGS=$CFLAGS
 	CFLAGS="$CFLAGS -Werror"
 	AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
