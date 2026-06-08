@@ -3246,7 +3246,7 @@ else
 fi
 AS_IF([test -n "$SANITIZERS"],
   [
-    add_to_var([KA_CFLAGS], ["-fsanitize=${SANITIZERS:1}"])	# Skip leading ,
+    add_to_var([KA_CFLAGS], ["-fsanitize=${SANITIZERS@%:@?}"])	# Skip leading ,
     add_to_var([KA_CFLAGS], ["-g"])
     AC_DEFINE([_WITH_SANITIZER_], [ 1 ], [Define to 1 if any sanitizer is enabled])
   ])
@@ -3510,7 +3510,7 @@ while [[ $sysconfdir_real != $sysconfdir_sav ]]; do
 	eval sysconfdir_real=$sysconfdir_real
 done
 
-AS_IF([test ${sysconfdir_real:0:5} = "NONE/"], [ sysconfdir_real=${sysconfdir_real:4} ])
+AS_CASE([$sysconfdir_real], [NONE/*], [sysconfdir_real=${sysconfdir_real@%:@NONE}])
 AS_IF([test -n "$default_config_file"],
   [
     AS_IF([test $default_config_file = yes -o $default_config_file = no],
