@@ -901,7 +901,7 @@ do
   LOCAL_WARN_VAR=HAVE_WARNING_`echo $WARN | sed -e "s/=.*//" | tr "a-z-" "A-Z_"`
   grep -q "^#undef $WARN_VAR$" $CONFIG_WARNINGS
   AS_IF([test $? -ne 0],
-	[echo -e "\n/* Define to 1 if -W$WARN in use */\n#undef $WARN_VAR" >>$CONFIG_WARNINGS]
+	[printf '\n/* Define to 1 if -W%s in use */\n#undef %s\n' "$WARN" "$WARN_VAR" >>$CONFIG_WARNINGS]
        )
 
   test `echo $WARN | grep "=[[0-9]][[0-9]]*$"`
@@ -910,7 +910,7 @@ do
 	  WARN_VAR_SHORT=_HAVE_WARNING_`echo $WARN_SHORT | tr "a-z=-" "A-Z__"`_
 	  grep -q "^#undef $WARN_VAR_SHORT$" $CONFIG_WARNINGS
 	  AS_IF([test $? -ne 0],
-		[echo -e "\n/* Define to 1 if -W$WARN_SHORT in use */\n#undef $WARN_VAR_SHORT" >>$CONFIG_WARNINGS]
+		[printf '\n/* Define to 1 if -W%s in use */\n#undef %s\n' "$WARN_SHORT" "$WARN_VAR_SHORT" >>$CONFIG_WARNINGS]
 	       )
 	],
 	[ unset WARN_VAR_SHORT ]
@@ -1550,7 +1550,7 @@ AC_CHECK_DECLS([IPV6_MULTICAST_ALL],
       ])], [],
       [
         # Find the defined value of IPV6_MULTICAST_ALL
-	INCLUDE_FILES=`echo -e "#include <linux/in6.h>\n int main(void) { int var = IPV6_MULTICAST_ALL; }" | $CC -H -E - -o/dev/null 2>&1 | sed -e "s/^[.]*//" | grep "^ "`
+	INCLUDE_FILES=`printf '#include <linux/in6.h>\n int main(void) { int var = IPV6_MULTICAST_ALL; }\n' | $CC -H -E - -o/dev/null 2>&1 | sed -e "s/^[.]*//" | grep "^ "`
 	IPV6_MCA=`grep "#define.*IPV6_MULTICAST_ALL" $INCLUDE_FILES | sed -e "s/.*IPV6_MULTICAST_ALL[[ \t]]*//"`
 	AC_DEFINE_UNQUOTED([IPV6_MULTICAST_ALL], [$IPV6_MCA], [Defined in linux/in6.h but not in netinet/in.h])
       ])
