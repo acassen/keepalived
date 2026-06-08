@@ -540,7 +540,7 @@ add_to_var([KA_LIBS], [-lm])
 
 # Some sanity checks on configure options
 AS_IF([test .$enable_vrrp = .no],
-    AS_IF([test .$IPTABLES_SILENT == .Yes], [enable_iptables=no])
+    AS_IF([test .$IPTABLES_SILENT = .Yes], [enable_iptables=no])
 
     AS_IF([test .$enable_perf != .], [AC_MSG_ERROR([enable-perf requires vrrp])])
     AS_IF([test $with_fixed_if_type], [AC_MSG_ERROR([with-fixed-if-type requires vrrp])])
