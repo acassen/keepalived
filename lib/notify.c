@@ -113,36 +113,69 @@ set_script_env(uid_t uid, gid_t gid)
 	return false;
 }
 
+/* Append arg to str_p wrapped in single quotes, escaping any embedded single
+ * quote as '\'' since a quote cannot appear inside single quotes. Returns the
+ * new write position, or NULL if it would not fit before end. */
+static char *
+append_quoted_arg(char *str_p, const char *end, const char *arg)
+{
+	if (str_p >= end)
+		return NULL;
+	*str_p++ = '\'';
+
+	for (; *arg; arg++) {
+		if (*arg != '\'') {
+			if (str_p >= end)
+				return NULL;
+			*str_p++ = *arg;
+			continue;
+		}
+		if (str_p + 4 > end)
+			return NULL;
+		*str_p++ = '\'';
+		*str_p++ = '\\';
+		*str_p++ = '\'';
+		*str_p++ = '\'';
+	}
+
+	if (str_p >= end)
+		return NULL;
+	*str_p++ = '\'';
+
+	return str_p;
+}
+
 const char *
 cmd_str_r(const notify_script_t *script, char *buf, size_t len)
 {
-	char *str_p;
+	char *str_p = buf;
+	const char *end = buf + len;
 	int i;
-	size_t str_len;
-
-	str_p = buf;
 
 	for (i = 0; i < script->num_args; i++) {
-		/* Check there is enough room for the next word */
-		str_len = strlen(script->args[i]);
-		if (str_p + str_len + 2 + (i ? 1 : 0) >= buf + len)
-			return NULL;
+		const char *arg = script->args[i];
 
-		if (i)
+		if (i) {
+			if (str_p >= end)
+				return NULL;
 			*str_p++ = ' ';
+		}
 
 		/* Allow special case of bash script which is redirection only to
 		 * test for file existence. */
-		if (i || (script->args[i][0] != '<' && script->args[i][0] != '>'))
-			*str_p++ = '\'';
+		if (!i && (arg[0] == '<' || arg[0] == '>')) {
+			size_t arg_len = strlen(arg);
 
-		strcpy(str_p, script->args[i]);
-		str_p += str_len;
-
-		/* Close opening ' if we added one */
-		if (i || (script->args[i][0] != '<' && script->args[i][0] != '>'))
-			*str_p++ = '\'';
+			if (str_p + arg_len >= end)
+				return NULL;
+			memcpy(str_p, arg, arg_len);
+			str_p += arg_len;
+		} else if (!(str_p = append_quoted_arg(str_p, end, arg)))
+			return NULL;
 	}
+
+	if (str_p >= end)
+		return NULL;
 	*str_p = '\0';
 
 	return buf;
@@ -225,6 +258,11 @@ system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned 
 	/* Move us into our own process group, so if the script needs to be killed
 	 * all its child processes will also be killed. */
 	setpgid(0, 0);
+
+	/* Defence in depth: drop loader and field-splitting overrides before exec. */
+	unsetenv("IFS");
+	unsetenv("LD_PRELOAD");
+	unsetenv("LD_LIBRARY_PATH");
 
 	if (script->flags & SC_EXECABLE) {
 		/* If keepalived dies, we want the script to die */
