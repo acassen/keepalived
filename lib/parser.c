@@ -1032,6 +1032,12 @@ get_random(const def_t *def)
 			max = strtoul(endp, &endp, 10);
 	}
 
+	/* Reversed bounds would make the modulus below zero, raising SIGFPE. */
+	if (min > max) {
+		report_config_error(CONFIG_GENERAL_ERROR, "${_RANDOM}: min %lu exceeds max %lu, using %lu", min, max, min);
+		max = min;
+	}
+
 	val = max;
 	do {
 		rand_str_len++;
@@ -1055,7 +1061,9 @@ get_env_var(const def_t *def)
 	env = getenv(name);
 	FREE(name);
 
-	return env;
+	/* getenv() returns a pointer into environ which we must not free,
+	 * so return a copy the parser owns like the other definitions. */
+	return env ? STRDUP(env) : NULL;
 }
 
 static const vector_t *
