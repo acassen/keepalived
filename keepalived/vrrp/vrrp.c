@@ -2052,9 +2052,6 @@ vrrp_state_backup(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buf, ssize_t bu
 	     !IN6_ARE_ADDR_EQUAL(&PTR_CAST(struct sockaddr_in6, &vrrp->pkt_saddr)->sin6_addr, &PTR_CAST(struct sockaddr_in6, &vrrp->master_saddr)->sin6_addr))) {
 		master_change = true;
 
-		/* We want to reset the rate-limit flags since the master has changed */
-		vrrp->rlflags = 0 ;
-
 		if (__test_bit(LOG_DETAIL_BIT, &debug)) {
 			if (vrrp->master_saddr.ss_family == AF_UNSPEC)
 				log_message(LOG_INFO, "(%s) master set to %s", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
@@ -2072,6 +2069,12 @@ vrrp_state_backup(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buf, ssize_t bu
 	if (ret != VRRP_PACKET_OK)
 		ignore_advert = true;
 	else {
+		/* Reset the rate-limit flags only now that a packet has been
+		 * accepted, so a rejected advert with a spoofed source address
+		 * cannot defeat the rate limiting. */
+		if (master_change)
+			vrrp->rlflags = 0;
+
 		/* If we and another instance were both configured as priority 255
 		 * we may have reduced our priority to avoid a conflict. 
 		 * We are now no longer receiving priority 255 adverts from the same
