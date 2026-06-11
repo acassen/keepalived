@@ -139,9 +139,12 @@ extern void *zalloc(unsigned long size);
 #define FREE_ONLY(p) (free(p))
 
 #ifndef _MALLOC_CHECK_
-#define REALLOC(p,n) (realloc((p),(n)))
-#define STRDUP(p)    (strdup(p))
-#define STRNDUP(p,n) (strndup((p),(n)))
+extern void *xrealloc(void *buffer, unsigned long size);
+extern char *xstrdup(const char *str);
+extern char *xstrndup(const char *str, size_t size);
+#define REALLOC(p,n) (xrealloc((p),(n)))
+#define STRDUP(p)    (xstrdup(p))
+#define STRNDUP(p,n) (xstrndup((p),(n)))
 #else
 #define REALLOC(p,n) (realloc_check((p),(n)))
 #define STRDUP(p)    (strdup_check(p))

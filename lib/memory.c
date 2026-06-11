@@ -92,21 +92,64 @@ static struct mem_domain keepalived_mem = { .log_op = NULL, .clear_alloc = true,
 static struct mem_domain openssl_mem = { .log_op = NULL, .clear_alloc = false, .ignore_invalid = true, .alloc_list = RB_ROOT, .bad_list = LIST_HEAD_INITIALIZER(openssl_mem.bad_list) };
 #endif
 
+static void __attribute__((noreturn))
+mem_alloc_error(const char *func)
+{
+	if (__test_bit(DONT_FORK_BIT, &debug))
+		perror("Keepalived");
+	else
+		log_message(LOG_INFO, "Keepalived %s error - %s", func, strerror(errno));
+	exit(KEEPALIVED_EXIT_NO_MEMORY);
+}
+
 static void * __attribute__ ((malloc))
 xalloc(unsigned long size)
 {
 	void *mem = malloc(size);
 
-	if (mem == NULL) {
-		if (__test_bit(DONT_FORK_BIT, &debug))
-			perror("Keepalived");
-		else
-			log_message(LOG_INFO, "Keepalived xalloc() error - %s", strerror(errno));
-		exit(KEEPALIVED_EXIT_NO_MEMORY);
-	}
+	if (mem == NULL)
+		mem_alloc_error("xalloc()");
 
 	return mem;
 }
+
+#if !defined(_MEM_CHECK_) && !defined(_MALLOC_CHECK_)
+/* In the default build STRDUP, STRNDUP and REALLOC otherwise map to raw libc
+ * and can return NULL, unlike MALLOC. These wrappers abort on exhaustion so the
+ * codebase assumption that allocations succeed holds uniformly. */
+void * __attribute__ ((malloc))
+xrealloc(void *buffer, unsigned long size)
+{
+	void *mem = realloc(buffer, size);
+
+	if (size && mem == NULL)
+		mem_alloc_error("xrealloc()");
+
+	return mem;
+}
+
+char * __attribute__ ((malloc))
+xstrdup(const char *str)
+{
+	char *mem = strdup(str);
+
+	if (mem == NULL)
+		mem_alloc_error("xstrdup()");
+
+	return mem;
+}
+
+char * __attribute__ ((malloc))
+xstrndup(const char *str, size_t size)
+{
+	char *mem = strndup(str, size);
+
+	if (mem == NULL)
+		mem_alloc_error("xstrndup()");
+
+	return mem;
+}
+#endif
 
 #ifdef _MEM_CHECK_
 static
