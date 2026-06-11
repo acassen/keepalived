@@ -1270,8 +1270,8 @@ check_regex(url_t *url, request_t *req)
 		if (do_regex_debug)
 			log_message(LOG_INFO, "Partial returned, ovector %zu, max_lookbehind %u", ovector[0], url->regex->pcre2_max_lookbehind);
 #endif
-		if ((keep = ovector[0] - url->regex->pcre2_max_lookbehind) <= 0)
-			keep = 0;
+		keep = ovector[0] > url->regex->pcre2_max_lookbehind ?
+		       ovector[0] - url->regex->pcre2_max_lookbehind : 0;
 
 		if (keep) {
 			req->start_offset = url->regex->pcre2_max_lookbehind;
