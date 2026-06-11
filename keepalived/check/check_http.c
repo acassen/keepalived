@@ -312,6 +312,8 @@ free_http_request(request_t *req)
 		return;
 	if (req->ssl)
 		SSL_free(req->ssl);
+	if (req->context)
+		EVP_MD_CTX_free(req->context);
 	FREE_PTR(req->buffer);
 	FREE(req);
 }

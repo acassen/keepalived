@@ -199,7 +199,7 @@ dns_recv_thread(thread_ref_t thread)
 		return;
 	}
 
-	if (ret < (ssize_t) sizeof (r_header)) {
+	if (ret < (ssize_t) sizeof (*r_header)) {
 #ifdef _CHECKER_DEBUG_
 		if (do_checker_debug)
 			dns_log_message(thread, LOG_DEBUG, "too small message. (%zd bytes)", ret);
