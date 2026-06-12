@@ -1891,9 +1891,11 @@ _get_instance(oid *name, size_t name_len)
 	instance = name[name_len - 1];
 
 	list_for_each_entry(vrrp, &vrrp_data->vrrp, e_list) {
-		if (--instance == 0) break;
+		if (--instance == 0)
+			return vrrp;
 	}
-	return vrrp;
+
+	return NULL;
 }
 
 #ifdef _WITH_FIREWALL_
