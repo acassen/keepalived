@@ -311,6 +311,10 @@ vrrp_adv_len(const vrrp_t *vrrp)
 #endif
 	}
 
+#ifdef _WITH_VRRP_AUTH_
+	len += vrrp_auth_hmac_trailer_len(vrrp);
+#endif
+
 	return len;
 }
 
@@ -814,6 +818,97 @@ check_ttl_hl(vrrp_t *vrrp, const unicast_peer_t *up_addr)
 	return true;
 }
 
+#ifdef _WITH_VRRP_AUTH_
+/*
+ * Match a received source address against the configured unicast peers. The
+ * address comparison mirrors the legacy unicast source check.
+ */
+static unicast_peer_t * __attribute__ ((pure))
+vrrp_unicast_peer_lookup(vrrp_t *vrrp)
+{
+	unicast_peer_t *peer;
+
+	list_for_each_entry(peer, &vrrp->unicast_peer, e_list) {
+		if (vrrp->family == AF_INET6) {
+			if (IN6_ARE_ADDR_EQUAL(&PTR_CAST(struct sockaddr_in6, &vrrp->pkt_saddr)->sin6_addr,
+					       &PTR_CAST(struct sockaddr_in6, &peer->address)->sin6_addr))
+				return peer;
+		} else if (PTR_CAST(struct sockaddr_in, &vrrp->pkt_saddr)->sin_addr.s_addr ==
+			   PTR_CAST(struct sockaddr_in, &peer->address)->sin_addr.s_addr)
+			return peer;
+	}
+
+	return NULL;
+}
+
+/*
+ * Authenticate a received advert against the configured extension. Resolves the
+ * per sender replay slot, runs the verification and maps the outcome to a stat
+ * and a rate limited log.
+ */
+static int
+vrrp_auth_ext_verify(vrrp_t *vrrp, const vrrphdr_t *hd, size_t pkt_len, const vrrp_auth_ext_t *trailer)
+{
+	vrrp_auth_hmac_t *ah = vrrp->auth_hmac;
+	vrrp_replay_state_t *uni_state = NULL;
+	vrrp_auth_hmac_result_t result;
+	int skew = 0;
+	int half_window;
+
+	if (!trailer) {
+		if (!ah->enforce)
+			return VRRP_PACKET_OK;	/* migration mode accepts legacy adverts */
+		++vrrp->stats->auth_ext_missing;
+		log_rate_limited_error(vrrp, VRRP_RLFLAG_AUTH_EXT_MISSING, "(%s) missing authentication trailer from %s", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
+		return VRRP_PACKET_KO;
+	}
+
+	/* A unicast sender must map to a configured peer that anchors its replay state */
+	if (__test_bit(VRRP_FLAG_UNICAST, &vrrp->flags)) {
+		unicast_peer_t *peer = vrrp_unicast_peer_lookup(vrrp);
+
+		if (!peer) {
+			log_rate_limited_error(vrrp, VRRP_RLFLAG_UNKNOWN_UNICAST_SRC, "(%s) unicast source address %s not a unicast peer", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
+			return VRRP_PACKET_KO;
+		}
+		uni_state = &peer->replay;
+	}
+
+	result = vrrp_auth_hmac_check(vrrp, hd, pkt_len, trailer, uni_state, &skew);
+
+	switch (result) {
+	case VRRP_AUTH_HMAC_OK:
+		/* Warn early when the clock drifts toward the window edge */
+		half_window = (int)ah->time_window / 2;
+		if (ah->anti_replay_time && (skew > half_window || skew < -half_window))
+			log_rate_limited_error(vrrp, VRRP_RLFLAG_AUTH_EXT_CLOCK_SKEW, "(%s) authentication clock skew %d sec from %s approaching window %u sec", vrrp->iname, skew, inet_sockaddrtos(&vrrp->pkt_saddr), ah->time_window);
+		return VRRP_PACKET_OK;
+	case VRRP_AUTH_HMAC_MALFORMED:
+		++vrrp->stats->auth_ext_malformed;
+		log_rate_limited_error(vrrp, VRRP_RLFLAG_AUTH_EXT_MALFORMED, "(%s) malformed authentication trailer from %s", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
+		break;
+	case VRRP_AUTH_HMAC_UNKNOWN_KEY:
+		++vrrp->stats->auth_ext_unknown_key;
+		log_rate_limited_error(vrrp, VRRP_RLFLAG_AUTH_EXT_UNKNOWN_KEY, "(%s) unknown authentication key id %u from %s", vrrp->iname, trailer->key_id, inet_sockaddrtos(&vrrp->pkt_saddr));
+		break;
+	case VRRP_AUTH_HMAC_BAD_MAC:
+		++vrrp->stats->auth_ext_invalid_mac;
+		log_rate_limited_error(vrrp, VRRP_RLFLAG_AUTH_EXT_BAD_MAC, "(%s) invalid authentication MAC from %s", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
+		break;
+	case VRRP_AUTH_HMAC_STALE:
+		++vrrp->stats->auth_ext_stale;
+		log_rate_limited_error(vrrp, VRRP_RLFLAG_AUTH_EXT_STALE, "(%s) stale authentication trailer from %s, clock skew %d sec exceeds window %u sec", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr), skew, ah->time_window);
+		break;
+	case VRRP_AUTH_HMAC_REPLAY:
+		++vrrp->stats->auth_ext_replay;
+		log_rate_limited_error(vrrp, VRRP_RLFLAG_AUTH_EXT_REPLAY, "(%s) replayed authentication trailer from %s", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
+		break;
+	}
+
+	return VRRP_PACKET_KO;
+}
+#endif
+
 /*
  * VRRP incoming packet check.
  * return VRRP_PACKET_OK if the pkt is valid, or
@@ -845,6 +940,9 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 	uint32_t acc_csum = 0;
 	unicast_peer_t *up_addr = NULL;
 	size_t buflen, expected_len;
+#ifdef _WITH_VRRP_AUTH_
+	const vrrp_auth_ext_t *trailer = NULL;
+#endif
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 	bool chksum_error;
 #endif
@@ -885,6 +983,17 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 
 	/* Now calculate expected_len to include everything */
 	expected_len += expected_vrrp_pkt_len(hd, vrrp->family);
+
+#ifdef _WITH_VRRP_AUTH_
+	/*
+	 * An authentication trailer extends the packet by a fixed amount. Detection
+	 * from the length is unambiguous since padding cannot reach this size.
+	 */
+	if (vrrp->auth_hmac && buflen == expected_len + sizeof(vrrp_auth_ext_t)) {
+		trailer = PTR_CAST_CONST(vrrp_auth_ext_t, buffer + expected_len);
+		expected_len += sizeof(vrrp_auth_ext_t);
+	}
+#endif
 
 	/*
 	 * MUST verify that the received packet contains the complete VRRP
@@ -941,6 +1050,16 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 #endif
 		return VRRP_PACKET_KO;
 	}
+
+#ifdef _WITH_VRRP_AUTH_
+	/* Authenticate the advert before any field reaches the state machine */
+	if (vrrp->auth_hmac) {
+		int auth_ret = vrrp_auth_ext_verify(vrrp, hd, expected_vrrp_pkt_len(hd, vrrp->family), trailer);
+
+		if (auth_ret != VRRP_PACKET_OK)
+			return auth_ret;
+	}
+#endif
 
 	if (vrrp->version == VRRP_VERSION_2) {
 		/* Check that authentication of packet is correct */
@@ -1259,6 +1378,9 @@ vrrp_build_ip4(vrrp_t *vrrp, char *buffer)
 	/* set tos to internet network control */
 	ip->tos = 0xc0;
 	ip->tot_len = (uint16_t)(sizeof (struct iphdr) + vrrp_pkt_len(vrrp));
+#ifdef _WITH_VRRP_AUTH_
+	ip->tot_len += (uint16_t)vrrp_auth_hmac_trailer_len(vrrp);
+#endif
 	ip->tot_len = htons(ip->tot_len);
 	ip->id = 0;
 	ip->frag_off = 0;
@@ -1532,6 +1654,14 @@ vrrp_send_pkt(vrrp_t * vrrp, unicast_peer_t *peer)
 	struct msghdr msg;
 	struct iovec iov;
 	char cbuf[256] __attribute__((aligned(__alignof__(struct cmsghdr))));
+
+#ifdef _WITH_VRRP_AUTH_
+	/*
+	 * Sign the trailer per transmitted packet so each receiver sees a
+	 * strictly growing sequence
+	 */
+	vrrp_auth_hmac_sign(vrrp);
+#endif
 
 	/* Build the message data */
 	memset(&msg, 0, sizeof(msg));
@@ -3218,6 +3348,38 @@ vrrp_complete_instance(vrrp_t * vrrp)
 							  " authentication - clearing"
 							, vrrp->iname);
 		vrrp->wantstate = VRRP_STATE_BACK;
+	}
+
+	if (vrrp->auth_hmac) {
+		vrrp_auth_hmac_t *ah = vrrp->auth_hmac;
+
+		/* The extension supersedes the legacy mechanisms, never coexists */
+		if (vrrp->auth_type != VRRP_AUTH_NONE) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) auth_hmac cannot be combined with authentication, dropping legacy auth", vrrp->iname);
+			vrrp->auth_type = VRRP_AUTH_NONE;
+		}
+
+		if (!vrrp_auth_hmac_find_key(ah, ah->active_key)) {
+			report_config_error(CONFIG_GENERAL_ERROR, "(%s) auth_hmac active_key %u is not defined, disabling extension", vrrp->iname, ah->active_key);
+			vrrp_auth_hmac_free(ah);
+			vrrp->auth_hmac = NULL;
+		} else {
+			if (vrrp->strict_mode && !ah->enforce) {
+				report_config_error(CONFIG_GENERAL_ERROR, "(%s) strict mode requires auth_hmac mode enforce", vrrp->iname);
+				ah->enforce = true;
+			}
+
+			/* Derive the freshness window from the advert interval when unset */
+			if (ah->anti_replay_time && !ah->time_window) {
+				unsigned window = 3 * (vrrp->adver_int / TIMER_HZ);
+
+				if (window < VRRP_AUTH_HMAC_WINDOW_FLOOR)
+					window = VRRP_AUTH_HMAC_WINDOW_FLOOR;
+				else if (window > VRRP_AUTH_HMAC_WINDOW_MAX)
+					window = VRRP_AUTH_HMAC_WINDOW_MAX;
+				ah->time_window = window;
+			}
+		}
 	}
 #endif
 
