@@ -316,6 +316,7 @@ get_interface_ids(const gchar *object_path, gchar *interface, uint8_t *vrid, uin
 	int path_length = DBUS_VRRP_INSTANCE_PATH_DEFAULT_LENGTH;
 	gchar **dirs;
 	char *endptr;
+	unsigned num_dirs;
 
 	if(global_data->network_namespace)
 		path_length++;
@@ -325,7 +326,20 @@ get_interface_ids(const gchar *object_path, gchar *interface, uint8_t *vrid, uin
 	/* object_path will have interface, vrid and family as
 	 * the third to last, second to last and last levels */
 	dirs = g_strsplit(object_path, "/", path_length);
-	strcpy(interface, dirs[path_length-3]);
+
+	/* g_strsplit may return fewer segments than expected for a malformed path */
+	for (num_dirs = 0; dirs[num_dirs]; num_dirs++)
+		;
+	if (num_dirs < (unsigned)path_length) {
+		log_message(LOG_INFO, "Dbus object path %s has too few segments", object_path);
+		g_strfreev(dirs);
+		interface[0] = '\0';
+		*vrid = 0;
+		*family = AF_UNSPEC;
+		return;
+	}
+
+	g_strlcpy(interface, dirs[path_length-3], IFNAMSIZ);
 	*vrid = (uint8_t)strtoul(dirs[path_length-2], &endptr, 10);
 	if (*endptr)
 		log_message(LOG_INFO, "Dbus unexpected characters '%s' at end of number '%s'", endptr, dirs[path_length-2]);
@@ -397,6 +411,7 @@ handle_method_call(__attribute__((unused)) GDBusConnection *connection,
 	char *ifname;
 	size_t len;
 	unsigned family;
+	guint32 vrid_u;
 #endif
 	dbus_queue_ent_t ent;
 	char ifname_str[sizeof (PTR_CAST(vrrp_t, NULL))->ifp->ifname];
@@ -423,7 +438,8 @@ handle_method_call(__attribute__((unused)) GDBusConnection *connection,
 		}
 #ifdef _WITH_DBUS_CREATE_INSTANCE_
 		else if (g_strcmp0(method_name, "CreateInstance") == 0) {
-			g_variant_get(parameters, "(ssuu)", &iname, &ifname, &ent.vrid, &family);
+			g_variant_get(parameters, "(ssuu)", &iname, &ifname, &vrid_u, &family);
+			ent.vrid = (uint8_t)vrid_u;
 			len = strlen(ifname);
 			if (len == 0 || len >= IFNAMSIZ) {
 				log_message(LOG_INFO, "Interface name '%s' too long for CreateInstance", ifname);
