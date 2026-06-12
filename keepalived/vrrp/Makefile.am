@@ -31,8 +31,8 @@ if VMAC
 endif
 
 if VRRP_AUTH
-  libvrrp_a_LIBADD	+= vrrp_ipsecah.o
-  EXTRA_libvrrp_a_SOURCES += vrrp_ipsecah.c
+  libvrrp_a_LIBADD	+= vrrp_ipsecah.o vrrp_auth_hmac.o
+  EXTRA_libvrrp_a_SOURCES += vrrp_ipsecah.c vrrp_auth_hmac.c
 endif
 
 if WITH_DBUS

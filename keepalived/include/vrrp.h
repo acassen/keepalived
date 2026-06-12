@@ -47,6 +47,9 @@
 #include "vrrp_sock.h"
 #include "vrrp_track.h"
 #include "sockaddr.h"
+#if defined _WITH_VRRP_AUTH_
+#include "vrrp_auth_hmac.h"
+#endif
 
 struct _ip_address;
 
@@ -104,6 +107,15 @@ typedef enum vrrp_rlflags {
 	VRRP_RLFLAG_UNKNOWN_UNICAST_SRC	= 0x10000,
 	VRRP_RLFLAG_TTL_NOT_IN_RANGE	= 0x20000,
 	VRRP_RLFLAG_OWNER_IGNORE_ADVER	= 0x40000,
+#ifdef _WITH_VRRP_AUTH_
+	VRRP_RLFLAG_AUTH_EXT_MISSING	= 0x80000,
+	VRRP_RLFLAG_AUTH_EXT_MALFORMED	= 0x100000,
+	VRRP_RLFLAG_AUTH_EXT_UNKNOWN_KEY = 0x200000,
+	VRRP_RLFLAG_AUTH_EXT_BAD_MAC	= 0x400000,
+	VRRP_RLFLAG_AUTH_EXT_STALE	= 0x800000,
+	VRRP_RLFLAG_AUTH_EXT_REPLAY	= 0x1000000,
+	VRRP_RLFLAG_AUTH_EXT_CLOCK_SKEW	= 0x2000000,
+#endif
 } vrrp_rlflags_t;
 
 typedef struct _vrrphdr {			/* rfc2338.5.1 */
@@ -218,6 +230,14 @@ typedef struct _vrrp_stats {
 #ifdef _WITH_VRRP_AUTH_
 	uint32_t	authtype_mismatch;
 	uint32_t	auth_failure;
+
+	/* authentication extension drops, by reason */
+	uint32_t	auth_ext_missing;
+	uint32_t	auth_ext_malformed;
+	uint32_t	auth_ext_unknown_key;
+	uint32_t	auth_ext_invalid_mac;
+	uint32_t	auth_ext_stale;
+	uint32_t	auth_ext_replay;
 #endif
 
 	uint64_t	pri_zero_rcvd;
@@ -266,6 +286,9 @@ typedef struct _unicast_peer_t {
 #endif
 	unsigned char		min_ttl;
 	unsigned char		max_ttl;
+#ifdef _WITH_VRRP_AUTH_
+	vrrp_replay_state_t	replay;		/* per sender anti replay state */
+#endif
 
 	/* Linked list member */
 	list_head_t		e_list;
@@ -428,6 +451,9 @@ typedef struct _vrrp_t {
 
 	/* IPSEC AH counter def (only valid for VRRPv2) --rfc2402.3.3.2 */
 	seq_counter_t		ipsecah_counter;
+
+	/* Authentication extension state, allocated only when configured */
+	vrrp_auth_hmac_t	*auth_hmac;
 #endif
 
 	/*
