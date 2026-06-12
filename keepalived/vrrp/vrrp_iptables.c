@@ -535,6 +535,10 @@ handle_iptable_rule_to_iplist(list_head_t *ip_list1, list_head_t *ip_list2, int 
 
 		res = iptables_close(h);
 	} while (res == EAGAIN && ++tries < IPTABLES_MAX_TRIES);
+
+	if (res == EAGAIN)
+		log_message(LOG_ERR, "Gave up %s iptables rules after %d tries, VIPs may be unprotected",
+			    cmd == IPADDRESS_DEL ? "removing" : "adding", IPTABLES_MAX_TRIES);
 }
 
 void
