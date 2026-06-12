@@ -578,6 +578,9 @@ free_vrrp(vrrp_t *vrrp)
 	free_track_bfd_list(&vrrp->track_bfd);
 #endif
 	free_unicast_peer_list(&vrrp->unicast_peer);
+#ifdef _WITH_VRRP_AUTH_
+	vrrp_auth_hmac_free(vrrp->auth_hmac);
+#endif
 	free_ipaddress_list(&vrrp->vip);
 	free_ipaddress_list(&vrrp->evip);
 	free_iproute_list(&vrrp->vroutes);
@@ -795,6 +798,21 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 	}
 	else if (vrrp->version == VRRP_VERSION_2)
 		conf_write(fp, "   Authentication type = none");
+	if (vrrp->auth_hmac) {
+		const vrrp_auth_hmac_t *ah = vrrp->auth_hmac;
+		vrrp_auth_key_t *key;
+		unsigned num_keys = 0;
+
+		list_for_each_entry(key, &ah->keys, e_list)
+			num_keys++;
+		conf_write(fp, "   Authentication extension = HMAC-SHA256-128");
+		conf_write(fp, "     Keys = %u, active key id = %u", num_keys, ah->active_key);
+		conf_write(fp, "     Mode = %s", ah->enforce ? "enforce" : "permissive");
+		if (ah->anti_replay_time)
+			conf_write(fp, "     Anti replay = time, window = %u sec", ah->time_window);
+		else
+			conf_write(fp, "     Anti replay = monotonic");
+	}
 #endif
 	if (vrrp->version == VRRP_VERSION_3 &&
 	    vrrp->family == AF_INET)

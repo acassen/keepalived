@@ -1507,6 +1507,125 @@ vrrp_auth_pass_handler(const vector_t *strvec)
 	memset(current_vrrp->auth_data, 0, max_size);
 	memcpy(current_vrrp->auth_data, str, str_len);
 }
+static void
+vrrp_auth_hmac_handler(__attribute__((unused)) const vector_t *strvec)
+{
+	vrrp_auth_hmac_t *ah;
+
+	if (current_vrrp->auth_hmac)
+		return;
+
+	PMALLOC(ah);
+	INIT_LIST_HEAD(&ah->keys);
+	ah->ext_type = VRRP_AUTH_HMAC_TYPE_SHA256;
+	ah->enforce = true;
+	ah->anti_replay_time = true;
+	current_vrrp->auth_hmac = ah;
+}
+static void
+vrrp_auth_hmac_key_handler(const vector_t *strvec)
+{
+	vrrp_auth_hmac_t *ah = current_vrrp->auth_hmac;
+	const char *str;
+	unsigned id;
+	uint8_t *data = NULL;
+	uint16_t len = 0;
+
+	if (!ah)
+		return;
+
+	if (vector_size(strvec) < 3) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) auth_hmac key needs an id and a value", current_vrrp->iname);
+		return;
+	}
+	if (!read_unsigned_strvec(strvec, 1, &id, 1, 255, false)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) auth_hmac key id '%s' must be between 1 and 255", current_vrrp->iname, strvec_slot(strvec, 1));
+		return;
+	}
+
+	/* A hex: prefix carries raw key bytes, otherwise the value is ASCII */
+	str = strvec_slot(strvec, 2);
+	if (!strncmp(str, "hex:", 4))
+		len = read_hex_str(str + 4, &data, NULL);
+	else {
+		len = strlen(str);
+		data = MALLOC(len ? len : 1);
+		memcpy(data, str, len);
+	}
+
+	if (!data || len < VRRP_AUTH_HMAC_KEY_MIN || len > VRRP_AUTH_HMAC_KEY_MAX)
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) auth_hmac key %u length %u not in range [%d, %d]",
+				    current_vrrp->iname, id, len, VRRP_AUTH_HMAC_KEY_MIN, VRRP_AUTH_HMAC_KEY_MAX);
+	else if (!vrrp_auth_hmac_add_key(ah, id, data, len))
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) duplicate auth_hmac key id %u", current_vrrp->iname, id);
+
+	FREE_PTR(data);
+}
+static void
+vrrp_auth_hmac_active_key_handler(const vector_t *strvec)
+{
+	vrrp_auth_hmac_t *ah = current_vrrp->auth_hmac;
+	unsigned id;
+
+	if (!ah)
+		return;
+
+	if (!read_unsigned_strvec(strvec, 1, &id, 1, 255, false)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) auth_hmac active_key '%s' must be between 1 and 255", current_vrrp->iname, strvec_slot(strvec, 1));
+		return;
+	}
+
+	ah->active_key = (uint8_t)id;
+}
+static void
+vrrp_auth_hmac_window_handler(const vector_t *strvec)
+{
+	vrrp_auth_hmac_t *ah = current_vrrp->auth_hmac;
+	unsigned window;
+
+	if (!ah)
+		return;
+
+	if (!read_unsigned_strvec(strvec, 1, &window, VRRP_AUTH_HMAC_WINDOW_MIN, VRRP_AUTH_HMAC_WINDOW_MAX, false)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) auth_hmac time_window '%s' must be between %d and %d seconds",
+				    current_vrrp->iname, strvec_slot(strvec, 1), VRRP_AUTH_HMAC_WINDOW_MIN, VRRP_AUTH_HMAC_WINDOW_MAX);
+		return;
+	}
+
+	ah->time_window = window;
+}
+static void
+vrrp_auth_hmac_anti_replay_handler(const vector_t *strvec)
+{
+	vrrp_auth_hmac_t *ah = current_vrrp->auth_hmac;
+	const char *str = strvec_slot(strvec, 1);
+
+	if (!ah)
+		return;
+
+	if (!strcmp(str, "time"))
+		ah->anti_replay_time = true;
+	else if (!strcmp(str, "monotonic"))
+		ah->anti_replay_time = false;
+	else
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) auth_hmac anti_replay '%s' must be time or monotonic", current_vrrp->iname, str);
+}
+static void
+vrrp_auth_hmac_mode_handler(const vector_t *strvec)
+{
+	vrrp_auth_hmac_t *ah = current_vrrp->auth_hmac;
+	const char *str = strvec_slot(strvec, 1);
+
+	if (!ah)
+		return;
+
+	if (!strcmp(str, "enforce"))
+		ah->enforce = true;
+	else if (!strcmp(str, "permissive"))
+		ah->enforce = false;
+	else
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) auth_hmac mode '%s' must be enforce or permissive", current_vrrp->iname, str);
+}
 #endif
 static void
 vrrp_vip_handler(const vector_t *strvec)
@@ -2246,6 +2365,14 @@ init_vrrp_keywords(bool active)
 	check_ptr = install_sublevel(VPP &current_vrrp);
 	install_keyword("auth_type", &vrrp_auth_type_handler);
 	install_keyword("auth_pass", &vrrp_auth_pass_handler);
+	install_sublevel_end(check_ptr);
+	install_keyword("auth_hmac", &vrrp_auth_hmac_handler);
+	check_ptr = install_sublevel(VPP &current_vrrp);
+	install_keyword("key", &vrrp_auth_hmac_key_handler);
+	install_keyword("active_key", &vrrp_auth_hmac_active_key_handler);
+	install_keyword("time_window", &vrrp_auth_hmac_window_handler);
+	install_keyword("anti_replay", &vrrp_auth_hmac_anti_replay_handler);
+	install_keyword("mode", &vrrp_auth_hmac_mode_handler);
 	install_sublevel_end(check_ptr);
 #endif
 	/* Script declarations */
