@@ -386,7 +386,7 @@ static bool
 if_ioctl_flags(const int fd, interface_t *ifp)
 {
 	memset(&ifr, 0, sizeof (struct ifreq));
-	strcpy(ifr.ifr_name, ifp->ifname);
+	strcpy_safe(ifr.ifr_name, ifp->ifname);
 	if (ioctl(fd, SIOCGIFFLAGS, &ifr) < 0)
 		return (errno != ENODEV) ? LINK_UP : LINK_DOWN;
 

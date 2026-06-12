@@ -115,10 +115,13 @@ set_iface(char *vianame, unsigned char *mask, const char *iface)
 {
 	size_t vialen = strlen(iface);
 
+	if (vialen >= IFNAMSIZ)
+		vialen = IFNAMSIZ - 1;
+
 	memset(vianame, 0, IFNAMSIZ);
 	memset(mask, 0, IFNAMSIZ);
 
-	strcpy(vianame, iface);
+	memcpy(vianame, iface, vialen);
 	if (!vialen)
 		return;
 
