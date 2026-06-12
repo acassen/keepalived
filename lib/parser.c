@@ -522,7 +522,7 @@ read_unsigned64_func(const char *number, int base, uint64_t *res, uint64_t min_v
 
 	errno = 0;
 	val = strtoull(number + offset, &endptr, base);
-	*res = (unsigned)val;
+	*res = val;
 
 	if (number[offset] == '-')
 		report_config_error(CONFIG_INVALID_NUMBER, "%snegative number '%s'", warn, number);
@@ -950,7 +950,7 @@ dump_keywords(vector_t *keydump, int level, FILE *fp)
 	unsigned int i;
 	keyword_t *keyword_vec;
 	char *file_name;
-	char file_name_len;
+	size_t file_name_len;
 
 	if (!level) {
 		file_name_len = strlen(tmp_dir) + 1 + 8 + 1 + PID_MAX_DIGITS + 1;		/* TMP_DIR/keywords.PID\0 */
