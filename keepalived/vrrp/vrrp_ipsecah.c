@@ -25,6 +25,7 @@
 #include "config.h"
 
 #include <openssl/evp.h>
+#include <openssl/crypto.h>
 #include <string.h>
 
 #include "vrrp_ipsecah.h"
@@ -47,9 +48,15 @@ hmac_md5(const unsigned char *buffer1, size_t buffer1_len, const unsigned char *
 	memset(k_opad, 0, sizeof (k_opad));
 	memset(tk, 0, sizeof (tk));
 
+	/* A failed context allocation zeroes the digest so authentication fails safely */
+	memset(digest, 0, MD5_DIGEST_LENGTH);
+
 	/* If the key is longer than 64 bytes => set it to key=MD5(key) */
 	if (key_len > BLOCK_SIZE) {
 		EVP_MD_CTX *tctx = EVP_MD_CTX_new();
+
+		if (!tctx)
+			return;
 
 		/* Compute the MD5 digest */
 		EVP_DigestInit_ex(tctx, EVP_md5(), NULL);
@@ -82,6 +89,13 @@ hmac_md5(const unsigned char *buffer1, size_t buffer1_len, const unsigned char *
 
 	/* Compute inner MD5 */
 	context = EVP_MD_CTX_new();
+	if (!context) {
+		OPENSSL_cleanse(k_ipad, sizeof(k_ipad));
+		OPENSSL_cleanse(k_opad, sizeof(k_opad));
+		OPENSSL_cleanse(tk, sizeof(tk));
+		return;
+	}
+
 	EVP_DigestInit_ex(context, EVP_md5(), NULL);		/* Init context for 1st pass */
 	EVP_DigestUpdate(context, k_ipad, BLOCK_SIZE);		/* start with inner pad */
 	EVP_DigestUpdate(context, buffer1, buffer1_len);	/* next with buffer datagram */
@@ -97,4 +111,9 @@ hmac_md5(const unsigned char *buffer1, size_t buffer1_len, const unsigned char *
 	EVP_DigestFinal_ex(context, digest, NULL);		/* Finish 2nd pass */
 
 	EVP_MD_CTX_free(context);
+
+	/* Don't leave key derived material on the stack */
+	OPENSSL_cleanse(k_ipad, sizeof(k_ipad));
+	OPENSSL_cleanse(k_opad, sizeof(k_opad));
+	OPENSSL_cleanse(tk, sizeof(tk));
 }
