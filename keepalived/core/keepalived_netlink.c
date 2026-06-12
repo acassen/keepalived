@@ -1805,7 +1805,8 @@ parse_af_spec(struct rtattr* attr, interface_t *ifp)
 	parse_rtattr_nested(afspec, AF_INET6, attr);
 	if (afspec[AF_INET]) {
 		parse_rtattr_nested(inet, IFLA_INET_MAX, afspec[AF_INET]);
-		if (inet[IFLA_INET_CONF]) {
+		if (inet[IFLA_INET_CONF] &&
+		    RTA_PAYLOAD(inet[IFLA_INET_CONF]) >= IPV4_DEVCONF_PROMOTE_SECONDARIES * sizeof(uint32_t)) {
 			inet_devconf = RTA_DATA(inet[IFLA_INET_CONF]);
 #ifdef _HAVE_VRRP_VMAC_
 			ifp->arp_ignore = inet_devconf[IPV4_DEVCONF_ARP_IGNORE - 1];
@@ -2191,7 +2192,8 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 
 				if (ifp->hw_addr_len && ifp->hw_addr_len != hw_addr_len)
 					log_message(LOG_ERR, "MAC broadcast address length %zu does not match MAC address length %zu", hw_addr_len, ifp->hw_addr_len);
-				else if(memcmp(ifp->hw_addr_bcast, RTA_DATA(tb[IFLA_BROADCAST]), hw_addr_len)) {
+				else if (hw_addr_len <= sizeof(ifp->hw_addr_bcast) &&
+				 memcmp(ifp->hw_addr_bcast, RTA_DATA(tb[IFLA_BROADCAST]), hw_addr_len)) {
 					if (hw_addr_len > sizeof(ifp->hw_addr_bcast)) {
 						log_message(LOG_ERR, "MAC %s for %s is too large: %zu",
 							    get_mac_string(IFLA_BROADCAST), ifp->ifname, hw_addr_len);
@@ -2430,7 +2432,7 @@ netlink_rule_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 	if (frh->family != AF_INET && frh->family != AF_INET6)
 		return 0;
 
-	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct rtmsg));
+	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (*frh));
 
 	/* See -Wcast-align comment above, also applies to RTM_RTA */
 	parse_rtattr(tb, FRA_MAX, RTM_RTA(frh), len);
