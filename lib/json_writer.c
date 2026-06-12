@@ -62,7 +62,8 @@ static void jsonw_eor(json_writer_t *self)
 static void jsonw_puts(const json_writer_t *self, const char *str)
 {
 	putc('"', self->out);
-	for (; *str; ++str)
+	/* tolerate NULL so a failed cmd_str() does not crash the dump */
+	for (; str && *str; ++str)
 		switch (*str) {
 		case '\t':
 			fputs("\\t", self->out);
@@ -80,7 +81,7 @@ static void jsonw_puts(const json_writer_t *self, const char *str)
 			fputs("\\b", self->out);
 			break;
 		case '\\':
-			fputs("\\n", self->out);
+			fputs("\\\\", self->out);
 			break;
 		case '"':
 			fputs("\\\"", self->out);
@@ -89,7 +90,10 @@ static void jsonw_puts(const json_writer_t *self, const char *str)
 			fputs("\\/", self->out);
 			break;
 		default:
-			putc(*str, self->out);
+			if ((unsigned char)*str < 0x20)
+				fprintf(self->out, "\\u%04x", (unsigned char)*str);
+			else
+				putc(*str, self->out);
 		}
 	putc('"', self->out);
 }
