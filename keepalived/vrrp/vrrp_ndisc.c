@@ -81,7 +81,9 @@ ndisc_send_na(ip_address_t *ipaddress, struct iovec *iov, int iovlen)
 	sll.sll_hatype = ifp->hw_type;
 	sll.sll_halen = ifp->hw_addr_len;
 	sll.sll_protocol = htons(ETH_P_IPV6);
-	memcpy(sll.sll_addr, IF_HWADDR(ifp), ifp->hw_addr_len);
+	/* sll_addr holds at most an Infiniband address, clamp to avoid overflow */
+	memcpy(sll.sll_addr, IF_HWADDR(ifp),
+	       sizeof(sll.sll_addr) < ifp->hw_addr_len ? sizeof(sll.sll_addr) : ifp->hw_addr_len);
 
 	msg.msg_name = &sll;
 	msg.msg_namelen = sizeof(sll);
@@ -171,7 +173,7 @@ ndisc_send_unsolicited_na_immediate(interface_t *ifp, ip_address_t *ipaddress)
 	struct nd_neighbor_advert ndh = { .nd_na_type = ND_NEIGHBOR_ADVERT };
 	struct nd_opt_hdr nd_opt_h = { .nd_opt_type = ND_OPT_TARGET_LINKADDR };
 	uint8_t nd_opt_h_pad[2] = { 0, 0 };
-	struct iovec iov[7];
+	struct iovec iov[8];	/* one spare slot beyond the 7 used on the Infiniband path */
 	unsigned num_iov;
 	unsigned icmp6_iov;
 

@@ -103,6 +103,10 @@ ssize_t send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
 	if (ifp->hw_addr_len == 0)
 		return -1;
 
+	/* garp_buffer is sized for an Infiniband address, a longer one overflows it */
+	if (ifp->hw_addr_len > INFINIBAND_ALEN)
+		return -1;
+
 	if (!garp_buffer)
 		return -1;
 
