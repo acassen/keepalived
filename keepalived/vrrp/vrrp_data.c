@@ -596,9 +596,6 @@ free_vrrp_list(list_head_t *l)
 static void
 dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 {
-#ifdef _WITH_VRRP_AUTH_
-	char auth_data[sizeof(vrrp->auth_data) + 1];
-#endif
 	char time_str[32];	// Allow for decimal point and microseconds
 
 	/* If fp is NULL, we are writing configuration to syslog at
@@ -793,12 +790,8 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 		conf_write(fp, "   Authentication type = %s",
 		       (vrrp->auth_type ==
 			VRRP_AUTH_AH) ? "IPSEC_AH" : "SIMPLE_PASSWORD");
-		if (vrrp->auth_type != VRRP_AUTH_AH) {
-			/* vrrp->auth_data is not \0 terminated */
-			memcpy(auth_data, vrrp->auth_data, sizeof(vrrp->auth_data));
-			auth_data[sizeof(vrrp->auth_data)] = '\0';
-			conf_write(fp, "   Password = %s", auth_data);
-		}
+		if (vrrp->auth_type != VRRP_AUTH_AH)
+			conf_write(fp, "   Password = ********");
 	}
 	else if (vrrp->version == VRRP_VERSION_2)
 		conf_write(fp, "   Authentication type = none");
