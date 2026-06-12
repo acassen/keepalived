@@ -96,6 +96,13 @@ vrrp_print_stats(bool clear_stats)
 			vrrp->stats->authtype_mismatch);
 		fprintf(file, "    Failure: %u\n",
 			vrrp->stats->auth_failure);
+		fprintf(file, "  Authentication Extension Errors:\n");
+		fprintf(file, "    Missing: %u\n", vrrp->stats->auth_ext_missing);
+		fprintf(file, "    Malformed: %u\n", vrrp->stats->auth_ext_malformed);
+		fprintf(file, "    Unknown Key: %u\n", vrrp->stats->auth_ext_unknown_key);
+		fprintf(file, "    Invalid MAC: %u\n", vrrp->stats->auth_ext_invalid_mac);
+		fprintf(file, "    Stale: %u\n", vrrp->stats->auth_ext_stale);
+		fprintf(file, "    Replay: %u\n", vrrp->stats->auth_ext_replay);
 #endif
 		fprintf(file, "  Priority Zero:\n");
 		fprintf(file, "    Received: %" PRIu64 "\n", vrrp->stats->pri_zero_rcvd);

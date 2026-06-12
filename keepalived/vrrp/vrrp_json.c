@@ -253,6 +253,12 @@ vrrp_json_stats_dump(json_writer_t *wr, vrrp_t *vrrp)
 #ifdef _WITH_VRRP_AUTH_
 	jsonw_uint_field(wr, "authtype_mismatch", stats->authtype_mismatch);
 	jsonw_uint_field(wr, "auth_failure", stats->auth_failure);
+	jsonw_uint_field(wr, "auth_ext_missing", stats->auth_ext_missing);
+	jsonw_uint_field(wr, "auth_ext_malformed", stats->auth_ext_malformed);
+	jsonw_uint_field(wr, "auth_ext_unknown_key", stats->auth_ext_unknown_key);
+	jsonw_uint_field(wr, "auth_ext_invalid_mac", stats->auth_ext_invalid_mac);
+	jsonw_uint_field(wr, "auth_ext_stale", stats->auth_ext_stale);
+	jsonw_uint_field(wr, "auth_ext_replay", stats->auth_ext_replay);
 #endif
 	jsonw_uint_field(wr, "pri_zero_rcvd", stats->pri_zero_rcvd);
 	jsonw_uint_field(wr, "pri_zero_sent", stats->pri_zero_sent);
