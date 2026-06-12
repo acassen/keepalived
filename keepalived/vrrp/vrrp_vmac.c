@@ -756,6 +756,13 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 	req.ifi.ifi_family = AF_INET;
 	req.ifi.ifi_index = (int)vrrp->ifp->ifindex;
 
+#ifdef _WITH_FIREWALL_
+	/* Remove firewall rules before deleting the link since they reference its ifindex */
+	if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
+	    (vrrp->family == AF_INET6 || !global_data->disable_local_igmp))
+		firewall_remove_vmac(vrrp);
+#endif
+
 	if (netlink_talk(&nl_cmd, &req.n) < 0) {
 		log_message(LOG_INFO, "(%s) Error removing VMAC interface %s"
 				    , vrrp->iname, vrrp->vmac_ifname);
@@ -767,14 +774,6 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 		 * since promiscuity may have been decremented. */
 		netlink_link_group(vrrp->configured_ifp->base_ifp);
 	}
-
-#ifdef _WITH_FIREWALL_
-// Why do we need this test?
-// PROBLEM !!! We have deleted the link, but firewall_remove_vmac uses the ifindex.
-	if (__test_bit(VRRP_VMAC_BIT, &vrrp->flags) &&
-	    (vrrp->family == AF_INET6 || !global_data->disable_local_igmp))
-		firewall_remove_vmac(vrrp);
-#endif
 
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
 		log_message(LOG_INFO, "(%s) Success removing VMAC interface %s"
