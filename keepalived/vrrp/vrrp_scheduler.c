@@ -866,6 +866,7 @@ static void
 vrrp_bfd_thread(thread_ref_t thread)
 {
 	bfd_event_t evt;
+	ssize_t nread;
 
 	if (thread->type == THREAD_READ_ERROR) {
 		thread_close_fd(thread);
@@ -878,8 +879,13 @@ vrrp_bfd_thread(thread_ref_t thread)
 	if (thread->type != THREAD_READY_READ_FD)
 		return;
 
-	while (read(thread->u.f.fd, &evt, sizeof(bfd_event_t)) != -1)
+	while ((nread = read(thread->u.f.fd, &evt, sizeof(bfd_event_t))) != -1) {
+		if ((size_t)nread != sizeof(bfd_event_t)) {
+			log_message(LOG_INFO, "(BFD) event pipe short read %zd of %zu bytes", nread, sizeof(bfd_event_t));
+			break;
+		}
 		vrrp_handle_bfd_event(&evt);
+	}
 }
 #endif
 
