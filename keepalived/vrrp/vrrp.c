@@ -974,8 +974,8 @@ vrrp_check_packet(vrrp_t *vrrp, const vrrphdr_t *hd, const char *buffer, ssize_t
 		}
 
 		if (vrrp->auth_type == VRRP_AUTH_PASS) {
-			/* check the authentication if it is a passwd */
-			const char *pw = (const char *)ip + ntohs(ip->tot_len) - sizeof (vrrp->auth_data);
+			/* locate password from the validated length since ip->tot_len is not yet checked */
+			const char *pw = buffer + expected_len - sizeof(vrrp->auth_data);
 			if (memcmp_constant_time(pw, vrrp->auth_data, sizeof(vrrp->auth_data)) != 0) {
 				log_rate_limited_error(vrrp, VRRP_RLFLAG_WRONG_AUTH_PASSWD, "(%s) received an invalid passwd from %s!", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
 				++vrrp->stats->auth_failure;
