@@ -136,10 +136,12 @@ notify_fifo(const char *name, int state_num, bool group, uint8_t priority)
 	snprintf(line, size, "%s \"%s\" %s %d\n", type, name, state, priority);
 
 	if (global_data->notify_fifo.fd != -1) {
-		if (write(global_data->notify_fifo.fd, line, strlen(line)) == -1) { /* empty */ }
+		if (write(global_data->notify_fifo.fd, line, strlen(line)) == -1 && errno != EAGAIN)
+			log_message(LOG_INFO, "notify fifo write error: %m");
 	}
 	if (global_data->vrrp_notify_fifo.fd != -1) {
-		if (write(global_data->vrrp_notify_fifo.fd, line, strlen(line)) == -1) { /* empty */ }
+		if (write(global_data->vrrp_notify_fifo.fd, line, strlen(line)) == -1 && errno != EAGAIN)
+			log_message(LOG_INFO, "vrrp notify fifo write error: %m");
 	}
 
 	FREE(line);
