@@ -854,7 +854,7 @@ vrrp_header_ar_table(struct variable *vp, oid *name, size_t *length,
 			if (result == 0) {
 				if (!exact)
 					continue;
-			} else if (result > 0 && exact)
+			} else if (exact)
 				return NULL;
 
 			/* This is our best match */
