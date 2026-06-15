@@ -355,30 +355,21 @@ if_mii_probe(const int fd, const char *ifname)
 	return if_mii_status(fd);
 }
 
-static inline int
-if_ethtool_status(const int fd)
-{
-	struct ethtool_value edata;
-
-	edata.cmd = ETHTOOL_GLINK;
-	ifr.ifr_data = (caddr_t) & edata;
-	if (ioctl(fd, SIOCETHTOOL, &ifr))
-		return -1;
-
-	return (edata.data) ? LINK_UP : LINK_DOWN;
-}
-
 static int
 if_ethtool_probe(const int fd, const interface_t *ifp)
 {
-	int status;
+	struct ifreq ethtool_ifr;
+	struct ethtool_value edata;
 
-	memset(&ifr, 0, sizeof (struct ifreq));
-	strcpy_safe(ifr.ifr_name, ifp->ifname);
+	memset(&ethtool_ifr, 0, sizeof (struct ifreq));
+	strcpy_safe(ethtool_ifr.ifr_name, ifp->ifname);
 
-	status = if_ethtool_status(fd);
+	edata.cmd = ETHTOOL_GLINK;
+	ethtool_ifr.ifr_data = (caddr_t) & edata;
+	if (ioctl(fd, SIOCETHTOOL, &ethtool_ifr))
+		return -1;
 
-	return status;
+	return (edata.data) ? LINK_UP : LINK_DOWN;
 }
 
 /* Returns false if interface is down */
