@@ -2192,20 +2192,17 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 
 				if (ifp->hw_addr_len && ifp->hw_addr_len != hw_addr_len)
 					log_message(LOG_ERR, "MAC broadcast address length %zu does not match MAC address length %zu", hw_addr_len, ifp->hw_addr_len);
-				else if (hw_addr_len <= sizeof(ifp->hw_addr_bcast) &&
-				 memcmp(ifp->hw_addr_bcast, RTA_DATA(tb[IFLA_BROADCAST]), hw_addr_len)) {
-					if (hw_addr_len > sizeof(ifp->hw_addr_bcast)) {
-						log_message(LOG_ERR, "MAC %s for %s is too large: %zu",
-							    get_mac_string(IFLA_BROADCAST), ifp->ifname, hw_addr_len);
-					} else {
-						if (__test_bit(LOG_DETAIL_BIT, &debug))
-							format_mac_buf(old_mac_buf, sizeof old_mac_buf, ifp->hw_addr_bcast, ifp->hw_addr_len);
-						ifp->hw_addr_len = hw_addr_len;
-						memcpy(ifp->hw_addr_bcast, RTA_DATA(tb[IFLA_BROADCAST]), hw_addr_len);
-						if (__test_bit(LOG_DETAIL_BIT, &debug)) {
-							format_mac_buf(mac_buf, sizeof mac_buf, ifp->hw_addr_bcast, ifp->hw_addr_len);
-							log_message(LOG_INFO, "(%s) MAC %s changed from %s to %s", ifp->ifname, get_mac_string(IFLA_BROADCAST), old_mac_buf, mac_buf);
-						}
+				else if (hw_addr_len > sizeof(ifp->hw_addr_bcast))
+					log_message(LOG_ERR, "MAC %s for %s is too large: %zu",
+						    get_mac_string(IFLA_BROADCAST), ifp->ifname, hw_addr_len);
+				else if (memcmp(ifp->hw_addr_bcast, RTA_DATA(tb[IFLA_BROADCAST]), hw_addr_len)) {
+					if (__test_bit(LOG_DETAIL_BIT, &debug))
+						format_mac_buf(old_mac_buf, sizeof old_mac_buf, ifp->hw_addr_bcast, ifp->hw_addr_len);
+					ifp->hw_addr_len = hw_addr_len;
+					memcpy(ifp->hw_addr_bcast, RTA_DATA(tb[IFLA_BROADCAST]), hw_addr_len);
+					if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+						format_mac_buf(mac_buf, sizeof mac_buf, ifp->hw_addr_bcast, ifp->hw_addr_len);
+						log_message(LOG_INFO, "(%s) MAC %s changed from %s to %s", ifp->ifname, get_mac_string(IFLA_BROADCAST), old_mac_buf, mac_buf);
 					}
 				}
 			}
