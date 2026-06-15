@@ -407,7 +407,7 @@ AS_IF([test .$enable_clang = .yes ],
   [
     USE_CC=clang
     AC_CHECK_TOOL([USE_LLD], [lld], [:])
-    AS_IF([test $USE_LLD != :], [LDFLAGS+=" -fuse-ld=lld -rtlib=compiler-rt"])
+    AS_IF([test $USE_LLD != :], [add_to_var([LDFLAGS], [-fuse-ld=lld -rtlib=compiler-rt])])
   ],
   [
     USE_CC="gcc cc"
@@ -500,7 +500,7 @@ AC_DEFINE_UNQUOTED(KEEPALIVED_CONFIGURE_OPTIONS,"$args", [configure options spec
 
 AS_IF([test .$enable_lto = .yes],
   [
-    AS_IF([test .$enable_clang = .yes], [CFLAGS+=" -flto"], [CFLAGS+=" -flto=auto -ffat-lto-objects"])
+    AS_IF([test .$enable_clang = .yes], [add_to_var([CFLAGS], [-flto])], [add_to_var([CFLAGS], [-flto=auto -ffat-lto-objects])])
   ])
 
 # Save the CPPFLAGS, CFLAGS, LDFLAGS and LDLIBS settings for make time
@@ -540,7 +540,7 @@ add_to_var([KA_LIBS], [-lm])
 
 # Some sanity checks on configure options
 AS_IF([test .$enable_vrrp = .no],
-    AS_IF([test .$IPTABLES_SILENT == .Yes], [enable_iptables=no])
+    AS_IF([test .$IPTABLES_SILENT = .Yes], [enable_iptables=no])
 
     AS_IF([test .$enable_perf != .], [AC_MSG_ERROR([enable-perf requires vrrp])])
     AS_IF([test $with_fixed_if_type], [AC_MSG_ERROR([with-fixed-if-type requires vrrp])])
@@ -901,7 +901,7 @@ do
   LOCAL_WARN_VAR=HAVE_WARNING_`echo $WARN | sed -e "s/=.*//" | tr "a-z-" "A-Z_"`
   grep -q "^#undef $WARN_VAR$" $CONFIG_WARNINGS
   AS_IF([test $? -ne 0],
-	[echo -e "\n/* Define to 1 if -W$WARN in use */\n#undef $WARN_VAR" >>$CONFIG_WARNINGS]
+	[printf '\n/* Define to 1 if -W%s in use */\n#undef %s\n' "$WARN" "$WARN_VAR" >>$CONFIG_WARNINGS]
        )
 
   test `echo $WARN | grep "=[[0-9]][[0-9]]*$"`
@@ -910,7 +910,7 @@ do
 	  WARN_VAR_SHORT=_HAVE_WARNING_`echo $WARN_SHORT | tr "a-z=-" "A-Z__"`_
 	  grep -q "^#undef $WARN_VAR_SHORT$" $CONFIG_WARNINGS
 	  AS_IF([test $? -ne 0],
-		[echo -e "\n/* Define to 1 if -W$WARN_SHORT in use */\n#undef $WARN_VAR_SHORT" >>$CONFIG_WARNINGS]
+		[printf '\n/* Define to 1 if -W%s in use */\n#undef %s\n' "$WARN_SHORT" "$WARN_VAR_SHORT" >>$CONFIG_WARNINGS]
 	       )
 	],
 	[ unset WARN_VAR_SHORT ]
@@ -1550,7 +1550,7 @@ AC_CHECK_DECLS([IPV6_MULTICAST_ALL],
       ])], [],
       [
         # Find the defined value of IPV6_MULTICAST_ALL
-	INCLUDE_FILES=`echo -e "#include <linux/in6.h>\n int main(void) { int var = IPV6_MULTICAST_ALL; }" | $CC -H -E - -o/dev/null 2>&1 | sed -e "s/^[.]*//" | grep "^ "`
+	INCLUDE_FILES=`printf '#include <linux/in6.h>\n int main(void) { int var = IPV6_MULTICAST_ALL; }\n' | $CC -H -E - -o/dev/null 2>&1 | sed -e "s/^[.]*//" | grep "^ "`
 	IPV6_MCA=`grep "#define.*IPV6_MULTICAST_ALL" $INCLUDE_FILES | sed -e "s/.*IPV6_MULTICAST_ALL[[ \t]]*//"`
 	AC_DEFINE_UNQUOTED([IPV6_MULTICAST_ALL], [$IPV6_MCA], [Defined in linux/in6.h but not in netinet/in.h])
       ])
@@ -2621,7 +2621,7 @@ if test "$enable_snmp" = yes -o \
   NEW_FLAGS=
   for f in `echo $NETSNMP_CFLAGS | tr " " "\n" | grep "^-I"`; do
 	  DIR=`echo $f | sed -e "s/^-I *//"`
-	  AS_IF([ test -d $DIR ], [ NEW_FLAGS+=" -I$DIR" ])
+	  AS_IF([ test -d $DIR ], [ add_to_var([NEW_FLAGS], [-I$DIR]) ])
   done
   NETSNMP_CFLAGS=$NEW_FLAGS
 
@@ -2896,7 +2896,7 @@ AS_IF([test .${with_iproute_usr_dir} = . && test .${with_iproute_etc_dir} = . ],
       ],
       [
         # try finding the paths in the executable
-	set $(strings $(type -p ip) | grep /rt_tables | $SED -e "s:/rt_tables::")
+	set $(strings $(command -v ip) | grep /rt_tables | $SED -e "s:/rt_tables::")
 	for i in $1 $2; do
 	  echo $i | grep -q /etc
 	  AS_IF([test $? -eq 0], [iproute_etc_dir=$i])
@@ -3246,7 +3246,7 @@ else
 fi
 AS_IF([test -n "$SANITIZERS"],
   [
-    add_to_var([KA_CFLAGS], ["-fsanitize=${SANITIZERS:1}"])	# Skip leading ,
+    add_to_var([KA_CFLAGS], ["-fsanitize=${SANITIZERS@%:@?}"])	# Skip leading ,
     add_to_var([KA_CFLAGS], ["-g"])
     AC_DEFINE([_WITH_SANITIZER_], [ 1 ], [Define to 1 if any sanitizer is enabled])
   ])
@@ -3460,7 +3460,7 @@ AS_IF([test .$INIT_TYPE = .systemd],
 	AC_DEFINE([_USE_SYSTEMD_NOTIFY_], [ 1 ], [Define to 1 if want systemd notify support])
 	add_config_opt([SYSTEMD_NOTIFY])
 	SYSTEMD_SERVICE_TYPE="notify"
-	SYSTEMD_EXEC_START_OPTIONS+="--dont-fork"
+	add_to_var([SYSTEMD_EXEC_START_OPTIONS], [--dont-fork])
 	SAV_CFLAGS=$CFLAGS
 	CFLAGS="$CFLAGS -Werror"
 	AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
@@ -3510,7 +3510,7 @@ while [[ $sysconfdir_real != $sysconfdir_sav ]]; do
 	eval sysconfdir_real=$sysconfdir_real
 done
 
-AS_IF([test ${sysconfdir_real:0:5} = "NONE/"], [ sysconfdir_real=${sysconfdir_real:4} ])
+AS_CASE([$sysconfdir_real], [NONE/*], [sysconfdir_real=${sysconfdir_real@%:@NONE}])
 AS_IF([test -n "$default_config_file"],
   [
     AS_IF([test $default_config_file = yes -o $default_config_file = no],

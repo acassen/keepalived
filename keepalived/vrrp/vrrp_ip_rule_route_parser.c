@@ -45,7 +45,7 @@ bool
 get_realms(uint32_t *realms, const char *str)
 {
 	uint32_t val, val1;
-	char *end;
+	const char *end;
 
 	if ((end = strchr(str,'/')))
 		str = STRNDUP(str,  end - str);
@@ -143,7 +143,7 @@ get_time_rtt(uint32_t *val, const char *str, unsigned unit_mult, const char *typ
 {
 	unsigned res;
 	unsigned shift;
-	char *p;
+	const char *p;
 	char *str_cpy;
 	const char *str1;
 	bool ret;

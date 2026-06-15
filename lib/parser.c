@@ -2635,7 +2635,7 @@ read_line(char *buf, size_t size)
 	bool rev_cmp;
 	size_t ofs;
 	bool multiline_param_def = false;
-	char *end;
+	const char *end;
 	size_t skip;
 	char *p;
 	list_head_t *next_value;
