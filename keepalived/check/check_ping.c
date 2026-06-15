@@ -53,7 +53,7 @@ static void icmp_ping_thread(thread_ref_t);
 bool
 set_ping_group_range(bool set)
 {
-	char buf[10 + 1 + 10 + 1 + 1];	/* 2000000000<TAB>4294967295<NL> */
+	char buf[10 + 1 + 10 + 1 + 1 + 1];	/* 2000000000<TAB>4294967295<TAB><NL> + NUL */
 	int fd;
 	ssize_t len, ret;
 	unsigned long val[2];
