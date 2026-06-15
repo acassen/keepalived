@@ -6,7 +6,6 @@
 
 [![Keepalived CI](https://github.com/acassen/keepalived/actions/workflows/build.yml/badge.svg)](https://github.com/acassen/keepalived/actions/workflows/build.yml)
 [![CodeQL](https://github.com/acassen/keepalived/actions/workflows/codeql.yml/badge.svg)](https://github.com/acassen/keepalived/actions/workflows/codeql.yml)
-[![Coverity Status](https://scan.coverity.com/projects/22678/badge.svg)](https://scan.coverity.com/projects/acassen-keepalived)
 [![Snap Status](https://snapcraft.io/keepalived/badge.svg)](https://snapcraft.io/keepalived)
 [![License: GPL v2+](https://img.shields.io/badge/License-GPLv2+-blue.svg)](COPYING)
 [![GitHub Sponsor](https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86)](https://github.com/sponsors/acassen)
