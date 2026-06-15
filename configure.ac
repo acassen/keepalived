@@ -2957,16 +2957,6 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   [AC_DEFINE([NEED_FAVOR_BSD], [ 1 ], [Define if using VERY old (i.e. pre 2.19 - 2014) glibc])],
   )
 
-dnl ---[ check for sphinx-build executable ]----
-if test -z "$SPHINXBUILD"; then
-  SPHINXBUILDNAME=sphinx-build
-else
-  SPHINXBUILDNAME=${SPHINXBUILD}
-fi
-AC_SUBST(SPHINXBUILDNAME)
-AC_CHECK_PROG([HAVE_SPHINX_BUILD], [$SPHINXBUILDNAME], [Yes], [No])
-AM_CONDITIONAL([BUILD_DOCS], [test $HAVE_SPHINX_BUILD = Yes])
-
 dnl ----[ Memory alloc check or not ? ]----
 MEM_CHECK=No
 MEM_CHECK_LOG=No
@@ -3668,7 +3658,6 @@ echo "Use nftables             : ${USE_NFTABLES}"
 echo "init type                : ${INIT_TYPE}"
 echo "systemd notify           : ${USE_SYSTEMD_NOTIFY}"
 echo "Strict config checks     : ${STRICT_CONFIG}"
-echo "Build documentation      : ${HAVE_SPHINX_BUILD}"
 echo "iproute usr directory    : ${iproute_usr_dir}"
 echo "iproute etc directory    : ${iproute_etc_dir}"
 if test ${ENABLE_STACKTRACE} = Yes; then

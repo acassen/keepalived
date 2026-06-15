@@ -48,13 +48,6 @@ For building with sanitizers
 	libasan libubsan libhwasan liblsan (gcc)
 	compiler-rt (clang)
 
-For building the documentation, the following packages need to be installed:
-	Fedora: python-sphinx (will pull in: python2-sphinx_rtd_theme)
-	CentOS-and-friends: python-sphinx epel-release python-sphinx_rtd_theme
-   For latex or pdf files, the following are also needed:
-	Fedora: latexmk python-sphinx-latex
-	CentOS-and-friends: latexmk texlive texlive-titlesec texlive-framed texlive-threeparttable texlive-wrapfig texlive-multirow
-
 To build using clang/llvm
 	clang compiler-rt lld
 
@@ -83,11 +76,6 @@ For efficient module loading
 For setting VMAC interfaces unmanaged by NetworkManager (see comment above).
 	libnm-dev
 
-For building the documentation, the following packages need to be installed:
-	python-sphinx python-sphinx-rtd-theme
-   For latex or pdf files, the following are also needed:
-	texlive-latex-base texlive-generic-extra texlive-latex-recommended texlive-fonts-recommended texlive-latex-extra
-
 For runtime:
 For SNMP support
 	libsnmp30 (Ubuntu 18.04), libsnmp35 (Ubuntu 20.04)
@@ -112,11 +100,6 @@ For PCRE support
 For setting VMAC interfaces unmanaged by NetworkManager (see comment above).
 	networkmanager-dev
 
-For building the documentation, the following packages need to be installed:
-	py-sphinx py3-sphinx_rtd_theme
-   For latex or pdf files, you'll need texlive or similar, which is not yet
-   available as a distro package.
-
 
 Archlinux
 ---------
@@ -128,11 +111,6 @@ For SNMP support:
 	pacman -S net-snmp
 for PCRE support:
 	pcre-2 (may be installed by default)
-
-For building the documentation, the following packages need to be installed:
-	python-sphinx python-sphinx_rtd_theme
-   For latex or pdf files, the following are also needed:
-	texlive-core texlive-bin texlive-latexextra
 
 openSUSE
 ========
@@ -318,4 +296,4 @@ for further details of SElinux and keepalived.
 
 Have fun with it !
 
-Alexandre, <acassen@linux-vs.org>
+Alexandre, <acassen@gmail.com>
