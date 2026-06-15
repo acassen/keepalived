@@ -375,7 +375,7 @@ track_file_end_handler(void)
 	int ret;
 	tracked_file_t *track_file;
 	char *realpath_buf;
-	char *dir_end;
+	const char *dir_end;
 	char *resolved_path;
 
 	track_file = current_tf;
@@ -916,7 +916,7 @@ init_track_files(list_head_t *track_files)
 {
 	tracked_file_t *tfile, *tfile_tmp;
 	char *resolved_path;
-	char *dir_end = NULL;
+	const char *dir_end = NULL;
 	char *new_path;
 	struct stat stat_buf;
 	char *realpath_buf;
@@ -947,14 +947,15 @@ init_track_files(list_head_t *track_files)
 			}
 
 			file_exists = true;
-		}
-		else if (errno == ENOENT) {
+		} else if (errno == ENOENT) {
 			/* Resolve the directory */
 			if (!(dir_end = strrchr(tfile->file_path, '/')))
 				resolved_path = realpath(".", realpath_buf);
 			else {
-				*dir_end = '\0';
-				resolved_path = realpath(tfile->file_path, realpath_buf);
+				new_path = MALLOC(dir_end - tfile->file_path + 1);
+				*(char *)mempcpy(new_path, tfile->file_path, dir_end - tfile->file_path) = '\0';
+				resolved_path = realpath(new_path, realpath_buf);
+				FREE(new_path);
 
 				/* Check it is a directory */
 				if (resolved_path &&
@@ -974,17 +975,13 @@ init_track_files(list_head_t *track_files)
 
 			/* Make the file name with the resolved directory path */
 			if (strcmp(tfile->file_path, resolved_path)) {
-				new_path = MALLOC(strlen(resolved_path) + strlen((!dir_end) ? tfile->file_path : dir_end + 1) + 2);
-				strcpy(new_path, resolved_path);
-				strcat(new_path, "/");
-				strcat(new_path, dir_end ? dir_end + 1 : tfile->file_path);
+				// new_path = resolved_path + "/" + file_name
+				new_path = MALLOC(strlen(resolved_path) + 1 + strlen((!dir_end) ? tfile->file_path : dir_end + 1) + 1);
+				stpcpy(stpcpy(stpcpy(new_path, resolved_path), "/"), dir_end ? dir_end + 1 : tfile->file_path);
 				FREE_CONST(tfile->file_path);
 				tfile->file_path = new_path;
 			}
-			else if (dir_end)
-				*dir_end = '/';
-		}
-		else {
+		} else {
 			report_config_error(CONFIG_GENERAL_ERROR, "track file %s is not accessible"
 								  " - ignoring", tfile->fname);
 			remove_track_file(tfile);

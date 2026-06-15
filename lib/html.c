@@ -35,7 +35,7 @@
 /* Return the http header content length */
 size_t extract_content_length(const char *buffer, size_t size)
 {
-	char *clen = strstr(buffer, CONTENT_LENGTH);
+	const char *clen = strstr(buffer, CONTENT_LENGTH);
 	size_t len;
 	char *end;
 
