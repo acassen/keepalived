@@ -57,6 +57,5 @@ vrrpconf = templateEnv.get_template('template_vrrp_instance').render(
                 interface=interface
                 ) + "\n"
 
-output_file = open(output_file, "w")
-output_file.write(vrrpconf)
-output_file.close()
+with open(output_file, "w") as f:
+    f.write(vrrpconf)
