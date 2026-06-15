@@ -918,6 +918,7 @@ init_track_files(list_head_t *track_files)
 	char *resolved_path;
 	const char *dir_end = NULL;
 	char *new_path;
+	size_t new_path_len;
 	struct stat stat_buf;
 	char *realpath_buf;
 	bool file_exists;
@@ -976,7 +977,16 @@ init_track_files(list_head_t *track_files)
 			/* Make the file name with the resolved directory path */
 			if (strcmp(tfile->file_path, resolved_path)) {
 				// new_path = resolved_path + "/" + file_name
-				new_path = MALLOC(strlen(resolved_path) + 1 + strlen((!dir_end) ? tfile->file_path : dir_end + 1) + 1);
+				new_path_len = strlen(resolved_path) + 1 + strlen((!dir_end) ? tfile->file_path : dir_end + 1) + 1;
+				if (new_path_len > PATH_MAX) {	// PATH_MAX includes the terminating NUL character
+					report_config_error(CONFIG_GENERAL_ERROR, "Track file realpath for %s "
+										  "too long - removing"
+										, tfile->fname);
+					remove_track_file(tfile);
+					continue;
+				}
+
+				new_path = MALLOC(new_path_len);
 				stpcpy(stpcpy(stpcpy(new_path, resolved_path), "/"), dir_end ? dir_end + 1 : tfile->file_path);
 				FREE_CONST(tfile->file_path);
 				tfile->file_path = new_path;
