@@ -2228,10 +2228,10 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 		if (__test_bit(VRRP_FLAG_UNICAST, &rt->flags))
 			break;
 		if (rt->mcast_daddr.ss_family == AF_INET6) {
-			*var_len = sizeof PTR_CAST(struct sockaddr_in6, &rt->mcast_daddr)->sin6_addr;
+			*var_len = sizeof(struct in6_addr);
 			return PTR_CAST(u_char, &PTR_CAST(struct sockaddr_in6, &rt->mcast_daddr)->sin6_addr);
 		} else {
-			*var_len = sizeof PTR_CAST(struct sockaddr_in, &rt->mcast_daddr)->sin_addr;
+			*var_len = sizeof(struct in_addr);
 			return PTR_CAST(u_char, &PTR_CAST(struct sockaddr_in, &rt->mcast_daddr)->sin_addr);
 		}
 		break;
@@ -3485,7 +3485,7 @@ vrrp_rfcv2_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = rt->vip_cnt;
 		return PTR_CAST(u_char, &long_ret);
 	case VRRP_RFC_SNMP_OPER_MIP:
-		*var_len = sizeof PTR_CAST(struct sockaddr_in, &rt->master_saddr)->sin_addr.s_addr;
+		*var_len = sizeof(in_addr_t);
 		return PTR_CAST2(u_char, struct sockaddr_in, &rt->master_saddr, sin_addr.s_addr);
 	case VRRP_RFC_SNMP_OPER_PIP:
 		if (!rt->ifp)
@@ -3782,7 +3782,7 @@ vrrp_rfcv2_snmp_new_master_trap(vrrp_t *vrrp)
 				  masterip_oid, masterip_oid_len,
 				  ASN_IPADDRESS,
 				  PTR_CAST2(u_char, struct sockaddr_in, &vrrp->saddr, sin_addr.s_addr),
-				  sizeof PTR_CAST(struct sockaddr_in, &vrrp->saddr)->sin_addr.s_addr);
+				  sizeof(in_addr_t));
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
 		log_message(LOG_INFO, "(%s) Sending SNMP notification"
 				      " vrrpTrapNewMaster"
@@ -4454,13 +4454,13 @@ vrrp_rfcv3_snmp_new_master_notify(vrrp_t *vrrp)
 					  masterip_oid, masterip_oid_len,
 					  ASN_OCTET_STR,
 					  PTR_CAST2(u_char, struct sockaddr_in, &vrrp->saddr, sin_addr.s_addr),
-					  sizeof PTR_CAST(struct sockaddr_in, &vrrp->saddr)->sin_addr.s_addr);
+					  sizeof(in_addr_t));
 	else
 		snmp_varlist_add_variable(&notification_vars,
 					  masterip_oid, masterip_oid_len,
 					  ASN_OCTET_STR,
 					  PTR_CAST2(u_char, struct sockaddr_in6, &vrrp->saddr, sin6_addr),
-					  sizeof PTR_CAST(struct sockaddr_in6, &vrrp->saddr)->sin6_addr);
+					  sizeof(struct in6_addr));
 
 	snmp_varlist_add_variable(&notification_vars,
 				  master_reason_oid, master_reason_oid_len,

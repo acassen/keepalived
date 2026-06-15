@@ -252,7 +252,7 @@ static gchar * __attribute__ ((malloc))
 dbus_object_create_path_instance(const gchar *interface, int vrid, sa_family_t family)
 {
 	gchar *object_path;
-	char standardized_name[sizeof (PTR_CAST(vrrp_t, NULL))->ifp->ifname];
+	char standardized_name[IFNAMSIZ];
 	gchar *vrid_str = g_strdup_printf("%d", vrid);
 
 	set_valid_path(standardized_name, interface);
@@ -361,7 +361,7 @@ handle_get_property(__attribute__((unused)) GDBusConnection *connection,
 {
 	GVariant *ret = NULL;
 	dbus_queue_ent_t ent;
-	char ifname_str[sizeof (PTR_CAST(vrrp_t, NULL))->ifp->ifname];
+	char ifname_str[IFNAMSIZ];
 	int action;
 
 	if (g_strcmp0(interface_name, DBUS_VRRP_INSTANCE_INTERFACE)) {
@@ -414,7 +414,7 @@ handle_method_call(__attribute__((unused)) GDBusConnection *connection,
 	guint32 vrid_u;
 #endif
 	dbus_queue_ent_t ent;
-	char ifname_str[sizeof (PTR_CAST(vrrp_t, NULL))->ifp->ifname];
+	char ifname_str[IFNAMSIZ];
 
 	if (!g_strcmp0(interface_name, DBUS_VRRP_INTERFACE)) {
 		if (!g_strcmp0(method_name, "PrintData")) {
