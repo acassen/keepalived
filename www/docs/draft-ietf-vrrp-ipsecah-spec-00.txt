@@ -1,0 +1,672 @@
+
+Network Working Group                                  Alexandre Cassen
+INTERNET-DRAFT                            Keepalived OpenSource Project
+Expiration date: September 2003                           February 2003
+
+
+
+
+                   Virtual Router Redundancy Protocol
+                  IPSEC-AH authentication specification
+                  <draft-ietf-vrrp-ipsecah-spec-00.txt>
+
+
+
+Status of this Memo
+
+   This document is an Internet-Draft and is in full conformance with
+   all provisions of Section 10 of [RFC2026].
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF), its areas, and its working groups.  Note that
+   other groups may also distribute working documents as Internet-
+   Drafts.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   To view the list Internet-Draft Shadow Directories, see
+   http://www.ietf.org/shadow.html.
+
+
+Abstract
+
+   This memo defines for the Virtual Router Redundancy Protocol (VRRP)
+   the IPSEC Authentication Header method. This method provide
+   integrity and security extension for VRRP. This memo will cover
+   implementation details needed for IPSEC-AH. We will start with a
+   short VRRP Finite State Machine (FSM) extension view that will be
+   used in the IPSEC-AH description. Then we will introduce some
+   IPSEC-AH descriptions and continue with some provisions made for
+   use in a multicast environement. Finaly a detailed VRRP FSM view for
+   IPSEC-AH extension will be done to describe state optimizations
+   and security considerations.
+   
+
+
+
+
+
+
+
+
+
+draft-ietf-vrrp-ipsecah-spec-00.txt                            [Page 1]
+
+INTERNET-DRAFT           VRRP IPSEC-AH method         February 25, 2003
+
+
+
+
+Table of Contents
+
+   1. Introduction................................................2
+     1.1  Scope...................................................3
+     1.2  Definitions.............................................3
+   2.  VRRP FSM extension.........................................4
+     2.1  State Transition Diagram................................4
+     2.2  Initialize/Master/Backup state description..............4
+     2.3  Fault state description.................................4
+     2.4  Why transiting to FAULT state ? ........................5
+   3. IPSEC Authentication Header for VRRP........................5
+     3.1  Authentication Header Location..........................6
+     3.2  Authentication Header Format............................6
+       3.2.1  Next Header.........................................6
+       3.2.2  Payload Len.........................................7
+       3.2.3  RESEVED.............................................7
+       3.2.4  Security Parameters Index (SPI) ....................7
+       3.2.4  Sequence Number.....................................7
+       3.2.5  Authentication Data.................................8
+     3.3 Authentication Header Processing.........................8
+   4. IPSEC Authentication Header for VRRP benefits...............8
+   5. VRRP FSM extensions.........................................8
+     5.1  Incoming packet processing..............................9
+     5.2  Dropping side effect on VRRP timers.....................9
+     5.3  BACKUP state extensions.................................9
+     5.4  MASTER state extensions................................10
+     5.5  FAULT state extensions.................................10
+   6. References.................................................11
+   7. Authors....................................................11
+   8. Full Copyright Statement...................................12
+
+
+1.  Introduction
+
+   VRRP specifies an election protocol that dynamically assigns
+   responsibility for a virtual router to one of the VRRP routers on a
+   LAN.  The VRRP router controlling the IP address associated with a
+   virtual router is called the Master, and forwards packets sent to
+   this IP address.  The election process provides dynamic fail over in
+   the forwarding responsibility should the Master become unavailable.
+
+   VRRP provides a function similar to a Cisco Systems, Inc. proprietary
+   protocol named Hot Standby Router Protocol (HSRP) [HSRP] and to a
+   Digital Equipment Corporation, Inc. proprietary protocol named IP
+   Standby Protocol [IPSTB].
+
+
+
+
+draft-ietf-vrrp-ipsecah-spec-00.txt                            [Page 2]
+
+INTERNET-DRAFT           VRRP IPSEC-AH method         February 25, 2003
+
+
+   VRRP operates using Mulicast design, some security considerations
+   can be made to prevent against malicious attacks based on some
+   packet injection. VRRP is mainly deployed on routers and firewall,
+   so some filtering settings can be made to prevent attackers packets
+   replay. A security extension of VRRP is the IPSEC-AH authentication
+   method that will provide native protocol way of fight. The main
+   benefit brought by this security extension is the anti-replay
+   design in charge of sequencing VRRP advertisements to prevent 
+   protocol side effects.
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in [RFC 2119].
+
+   The IESG/IETF take no position regarding the validity or scope of any
+   intellectual property right or other rights that might be claimed to
+   pertain to the implementation or use of the technology, or the extent
+   to which any license under such rights might or might not be
+   available.  See the IETF IPR web page at http://www.ietf.org/ipr.html
+   for additional information.
+
+
+1.1  Scope
+
+   The remainder of this document describes the features, design goals,
+   and theory of operation of VRRP IPSEC-AH method. The message format,
+   protocol processing rules and state machine that guarantee
+   safe and secure convergence to a single Virtual Router Master are
+   presented. 
+
+   This authentication method is discussed into [VRRP] section 5.3.6.3
+   and 10.3.
+
+
+1.2  Definitions
+
+   FSM                    Finite State Machine. Coming from Discret
+                          Mathematics scheme. It defines structure
+                          handling each state and state transitions.
+
+   ICV                    Integrity Check Value. Computed as described
+                          in [HMAC]/[HMAC-MD5].
+
+
+
+
+
+
+
+
+
+draft-ietf-vrrp-ipsecah-spec-00.txt                            [Page 3]
+
+INTERNET-DRAFT           VRRP IPSEC-AH method         February 25, 2003
+
+
+2. VRRP FSM extension
+
+   This section introduces the VRRP FSM that will be used in the rest
+   of our discussion. This part extends the VRRP FSM presented in
+   [VRRP] section 6.
+
+
+2.1 State Transition Diagram
+
+                          +---------------+
+                          |               |
+         +--------------->|     Fault     |<---------------+
+         |                |               |                |
+         |                +---------------+                |
+         |                      |   ^                      |
+         |                      v   |                      |
+         |                +---------------+                |
+         |    +---------->|               |<----------+    |
+         |    |           |  Initialize   |           |    |
+         |    |    +------|               |------+    |    |
+         |    |    |      +---------------+      |    |    |
+         |    |    |                             |    |    |
+         |    |    V                             V    |    |
+      +---------------+                       +---------------+
+      |               |---------------------->|               |
+      |    Master     |                       |    Backup     |
+      |               |<----------------------|               |
+      +---------------+                       +---------------+
+
+
+2.2 Initialize/Master/Backup state description
+
+   In the states described below, the intrinsec meaning of states
+   Initialize, Master and Backup are the same as described into
+   [VRRP] section 6.3. We only discuss an extension with the Fault
+   state addition.
+   
+2.3 Fault state description
+
+   VRRP is acting at layer4. This protocol is closed to the
+   physical router interface. This mean that any kind of Network
+   Interface Card failure or state MUST be reflected and considered
+   by the VRRP FSM. In this paper we propose to call this new state :
+   The FAULT state. A protocol state transition to this FAULT state is
+   due to one of the following reasons :
+
+   - Interface have been administrativly shutted down.
+   - Media link failure detection.
+   - Interface hardware failure.
+   - ...
+
+draft-ietf-vrrp-ipsecah-spec-00.txt                            [Page 4]
+
+INTERNET-DRAFT           VRRP IPSEC-AH method         February 25, 2003
+
+
+   All events introducing a low-level corruption that introduce
+   side effect into the VRRP protocol.
+
+   We will detail the FSM state transition to this FAULT finite state
+   after discussing some IPSEC-AH provisions needed for use with our
+   multicast design : many-to-many.
+
+   This state is considered as BACKUP state concerning Timer settings.
+   It just transit to Initialize state if :
+
+   - An advertisement is received
+   - FAULT key transition event is terminated. (Interface down, media
+     link failure detection, Interface hardware failure, ...)
+
+2.4 Why transiting to FAULT state ?
+
+   First of all, VRRP is closed to hardware since it is binded to an
+   interface. So any hardware changes must be handled and reflected to
+   the VRRP Instance as a potential state transition event.
+
+   Secondly, when using security extension like IPSEC-AH where sequence
+   number is one of the most important key feature, why continuing
+   incrementing IPSEC sequence number if the interface doesn't permit
+   any datagram transmission ? This preserve IPSEC-AH sequence number
+   counter with a consistent takeover, this mean that introducing this
+   new state offer by transitivity the ability to introduce IPSEC-AH
+   sequence number takeover.
+
+   Finaly, this provide a full meshed FSM that provides the ability
+   to define specific handler for such a state. A VRRP instance must be
+   able to transmit and receive data. This means a Master state instance
+   must be able to receive a higher priority advertisements from other
+   VRRP instance. So using this new state provide flexibility to handle
+   differently both case, reception and transmition.
+
+
+3. IPSEC Authentication Header for VRRP
+
+   In this section we will discuss the design of IPSEC-AH and the
+   security advantages introduced by this new method. In a first
+   part we will describe briefly the IPSEC-AH protocol and some
+   considerations made for use with VRRP multicast needs. Providing
+   Security provisions for multicast stream are described in the
+   IETF [MSEC] working group, but for our VRRP needs we will not 
+   consider using complicated design like GSAKMP. The goal here 
+   is to try keeping the things as simple as possible.
+
+
+
+
+
+draft-ietf-vrrp-ipsecah-spec-00.txt                            [Page 5]
+
+INTERNET-DRAFT           VRRP IPSEC-AH method         February 25, 2003
+
+
+3.1 Authentication Header Location
+
+   As described in [IPAH] section 3.1, AH header is placed between IP
+   header and VRRP header. The following diagram illustrates AH
+   positioning for typical IPv4 packet, on a "before and after" basis.
+
+             BEFORE APPLYING AH
+            ----------------------
+      IPv4  |orig IP hdr  |      |
+            |(any options)| VRRP |
+            ----------------------
+
+             AFTER APPLYING AH
+            ---------------------------
+      IPv4  |orig IP hdr  |    |      |
+            |(any options)| AH | VRRP |
+            ---------------------------
+            |<---- authenticated ---->|
+             except for mutable fields
+
+   As described in [IPAH] section 2, the protocol header (IPv4)
+   immediately preceding the AH header will contain the value 51 in its
+   Protocol (IPv4) field.
+
+3.2 Authentication Header Format
+
+   The IPSEC Authentication Header has the following representation :
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   | Next Header   |  Payload Len  |          RESERVED             |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                 Security Parameters Index (SPI)               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                    Sequence Number Field                      |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                Authentication Data (variable)                 |
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   In the next part we will describe each fields and provisions made
+   for use with VRRP (multicast).
+
+3.2.1 Next Header
+
+   8-bit field that identifies the type of the next payload after the
+   Authentication Header. For our VRRP use this field will be fixed to
+   112 as described into [VRRP] section 5.2.4.
+
+draft-ietf-vrrp-ipsecah-spec-00.txt                            [Page 6]
+
+INTERNET-DRAFT           VRRP IPSEC-AH method         February 25, 2003
+
+
+3.2.2 Payload Len
+
+   This 8-bit field specifies the length of AH in 32-bit words minus
+   "2". As we will describe below, we will use a 96-bit Authentication
+   Data fixed field to prevent against explicite padding. So we will
+   use a fixed value for this field to :
+
+   Authentication Data Length = 96-bit
+
+   AH Payload Len = (96 + 3 * 32)/32 - 2 = 0x04
+
+3.2.3 RESEVED
+
+   This field is set to 0 and reserved for futur use.
+
+3.2.4 Security Parameters Index (SPI)
+
+   Since VRRP is acting in multicast we propose the following provision
+   for this field as specified in [XCAST].
+
+   /* The SPI value is filled with the ip header source address.
+      SPI uniquely identify the Security Association (SA). This value
+      is chosen by the recipient itself when setting up the SA. In a
+      multicast environment, this becomes unfeasible.
+   */
+
+   If left to the sender, the choice of the SPI value should be done
+   so by the sender that it cannot possibly conflict with SPI values
+   chosen by other entities sending IPSEC traffic to any of the
+   receivers. To overpass this problem, the rule we have chosen to
+   use here is that the SPI value chosen by the sender is based on
+   unique information such as its IP address.
+
+3.2.4 Sequence Number
+
+   This 32-bit field contains a monotonically increasing counter value,
+   the so called "sequence number". This field is very important and
+   provide malicious attack detection by the anti-replay mecanism.
+
+   This "sequence number" must be implemented with an anti-cycle
+   design. This mean, for our VRRP needs, if the sequence number
+   reach its maximum value, then the VRRP state must be freed and
+   submit a new VRRP protocol election to reinitialize securely this
+   counter.
+
+
+
+
+
+
+
+draft-ietf-vrrp-ipsecah-spec-00.txt                            [Page 7]
+
+INTERNET-DRAFT           VRRP IPSEC-AH method         February 25, 2003
+
+
+3.2.5 Authentication Data
+
+   To not deal with explicite padding, we propose a 96-bit truncated
+   digest. This field contains a 96-bit value computed over the whole
+   packet IP+AH+VRRP. The algorithm described in [HMAC]/[HMAC-MD5] can 
+   be used for digest computation.
+
+3.3 Authentication Header Processing
+
+   VRRP packet is not considered as changing during transit, the rules
+   used for digest computation is described indepth in [IPAH] section
+   3.
+
+
+4. IPSEC Authentication Header for VRRP benefits
+
+   VRRP advertisements are transmitted throught IP multicast. VRRP
+   sanity check prevent against malformed incoming packets. Those
+   checks doesn't provide security integrity check. Attacks like
+
+
+   packet replay can be used to introduce protocol side effect and
+   corruption.
+
+   IPSEC-AH is designed for this purpose. The main goal is to deal
+   with anti-replay injection attacks. An intruder sniffing VRRP
+   multicast packets can grab and re-transmit packets, this attack
+   can be noisy when a transition state packet is re-injected. The
+   IPSEC-AH provides a good design to fight against such an attack. The
+   goal is to use a "sequence number" increased monotonically each time
+   a VRRP packet is sent. This counter is part of the digest computed
+   by AH protocol. Any "sequence number" modification will corrupt the
+   IPSEC-AH Authentication Data. So replayed packet are dropped by
+   internal AH design.
+
+   For security reasons and simplicity, key exchange protocols are not
+   used, the crypto algorithm used is HMAC-MD5-96bit, the keying
+   password is configured locally on each VRRP router, no distribution
+   protocol is used.
+
+
+5. VRRP FSM extensions
+
+   In this section we will describe VRRP integration of IPSEC-AH
+   authentication method. All sections will refer to a VRRP instance.
+
+
+
+
+
+
+draft-ietf-vrrp-ipsecah-spec-00.txt                            [Page 8]
+
+INTERNET-DRAFT           VRRP IPSEC-AH method         February 25, 2003
+
+
+5.1 Incoming packet processing
+
+   This process is common to all VRRP FSM state, Backup, Master, Fault.
+   VRRP protocol provide VRRP packet sanity check. If used with AH
+   then we benefit the IPSEC-AH ICV digest. To optimize the global
+   incoming packet processing, VRRP packet sanity check must be
+   performed before IPSEC-AH ICV check. This is due to the fact that
+   there is no need to compute IPSEC-AH ICV over the incomiong VRRP
+   packet if packet has already considered bogus by VRRP sanity check.
+
+   Another generic sanity check can be added to the incoming packet
+   processing. Considering an incoming VRRP advertisement, when a VRRP
+   instance receives this new packet, it checks for the IPSEC-AH 
+   sequence number. The strategy consists on "counter audition" : before 
+   any other packet processing, receiver increments its own local 
+   sequence number by one. Because IPSEC-AH sequences number are 
+   monotonically incremented (by one), the sender sequence number 
+   (present into the incoming VRRP advertisement) MUST be greater or 
+   equal to local receiver sequence number. This sequence number check 
+   MUST be realized after IPSEC-AH ICV check in order to drop any 
+   malicious incoming advertisements that simply increase sequence 
+   number and doesn't update ICV field. Finally, if all the previous
+   checks grant incoming packet, the local sequence number is set to the
+   incoming packet sequence number. This packet processing step can be 
+   named "IPSEC-AH sequence number synchronization".
+
+   If locally computed ICV differs from incoming packet ICV, then the 
+   packet is simply dropped or ignored.
+
+5.2 Dropping side effect on VRRP timers
+
+   Dropping an incoming packet take time, this time is VRRP
+   instance specific. The delta time imply by this dropping action can
+   introduce side effects in the VRRP FSM if one specific instance is
+   flooded by an attacker packets injection. Even if packets are bogus
+   they need to be checked. To minor this potential security issue,
+   before dropping an incoming packet a timer can be set to audit the
+   time needed for packet processing. If packet is considered bogus
+   then the delta time is simply added to the timer value to suppress
+   dropping incidence on VRRP instance timer.
+
+5.3 BACKUP state extensions
+
+   This part discuss the VRRP Backup state enhancements needed for use
+   With IPSEC-AH authentication method. We will make considerations for
+   Both receiving and sending process :
+
+
+
+
+
+draft-ietf-vrrp-ipsecah-spec-00.txt                            [Page 9]
+
+INTERNET-DRAFT           VRRP IPSEC-AH method         February 25, 2003
+
+
+   Receiving:
+    In Backup state VRRP instance is listening for remote advertisements
+    this is the stable standard state. In this packet handling no
+    needs for enhancements, VRRP instance in Backup state just use the
+    policy defined in 5.1 section.
+
+   Sending:
+    This packet handling makes no senses. VRRP only transit to Master
+    state if Master_Down_Timer fired.
+
+5.4 MASTER state extensions
+
+   This part discuss the VRRP Master state enhancements needed for use
+   With IPSEC-AH authentication method. We will make considerations for
+   Both receiving and sending process :
+
+   Receiving:
+    When processing incoming packet in Master state this is a potential
+    state transition request. If incoming VRRP packet priority is higher
+    than local VRRP priority then decrement by one sequence number and
+    transit to Backup state. If incoming VRRP packet priority is lower
+    than local VRRP priority then increment by one sequence number and
+    keep the Master state sending new VRRP advertisement and gratuitous
+    ARP. Policy from 5.1 section is used.
+
+   Sending:
+    In Master state VRRP instance is sending advertisements to the
+    multicast audience, this is the stable standard state. This packet
+    handling doesn't require enhancements, sequence number is 
+    monotonically incremented by one.
+
+5.5 FAULT state extensions
+
+   This part discuss the VRRP Fault state enhancements needed for use
+   With IPSEC-AH authentication method. We will make considerations for
+   Both receiving and sending process :
+
+   Receiving:
+    When a VRRP instance in Fault state receives packets, it transits to
+    Initialize state, because Fault sate doesn't make sense anymore.
+
+   Pending:
+     Instance in Fault state doesn't send any advertisements, it is only
+     waiting for Interface back to live. When monitored Interface become
+     available, it transits to Initialize state for IPSEC-AH sequence
+     number synchronization.
+
+
+
+
+
+draft-ietf-vrrp-ipsecah-spec-00.txt                           [Page 10]
+
+INTERNET-DRAFT           VRRP IPSEC-AH method         February 25, 2003
+
+
+6. References
+
+    [VRRP]    S. Knight, D. Weaver, D. Whipple, R. Hinden, D. Mitzel,
+             P. Hunt, P. Higginson, M. Shand, A. Lindem, "Virtual
+             Router Redundancy Protocol", RFC 2238, April 1998.
+
+   [HSRP]    Li, T., Cole, B., Morton, P., and D. Li, "Cisco Hot Standby
+             Router Protocol (HSRP)", RFC 2281, March 1998.
+
+   [IPSTB]   Higginson, P., M. Shand, "Development of Router Clusters to
+             Provide Fast Failover in IP Networks", Digital Technical
+             Journal, Volume 9 Number 3, Winter 1997.
+
+   [SA]      S. Kent, R. Atkinson, "Security Architecture for the
+             Internet Protocol", RFC 2401, November 1998.
+
+   [IPAH]    S. Kent, R. Atkinson, « IP Authentication Header »,
+             RFC 2402, November 1998.
+
+   [XCAST]   O. Paridaens, D. Ooms, B. Sales, "Security Framework for
+             Explicit Multicast", DRAFT, November 2000.
+
+   [HMAC]    Madson, C., and R. Glenn, "The Use of HMAC-MD5-96 within
+             ESP and AH", Work in Progress.
+
+   [HMAC-MD5] H. Krawczyk, M. Bellare, R. Canetti, "HMAC: Keyed-Hashing
+              for Message Authentication", RFC 2104, February 1997.
+
+   [MSEC]    "Multicast Security" (msec), IETF Working Group : Security
+             Area.
+    
+
+7. Authors
+
+   Alexandre Cassen                EMail : acassen@linux-vs.org
+   Keepalived OpenSource Project
+   http://www.keepalived.org
+   France
+
+
+
+
+
+
+
+
+
+
+
+
+
+draft-ietf-vrrp-ipsecah-spec-00.txt                           [Page 11]
+
+INTERNET-DRAFT           VRRP IPSEC-AH method         February 25, 2003
+
+
+8. Full Copyright Statement
+
+   Copyright (C) The Internet Society (1998).  All Rights Reserved.
+
+   This document and translations of it may be copied and furnished to
+   others, and derivative works that comment on or otherwise explain it
+   or assist in its implementation may be prepared, copied, published
+   and distributed, in whole or in part, without restriction of any
+   kind, provided that the above copyright notice and this paragraph are
+   included on all such copies and derivative works.  However, this
+   document itself may not be modified in any way, such as by removing
+   the copyright notice or references to the Internet Society or other
+   Internet organizations, except as needed for the purpose of
+   developing Internet standards in which case the procedures for
+   copyrights defined in the Internet Standards process must be
+   followed, or as required to translate it into languages other than
+   English.
+
+   The limited permissions granted above are perpetual and will not be
+   revoked by the Internet Society or its successors or assigns.
+
+   This document and the information contained herein is provided on an
+   "AS IS" basis and THE INTERNET SOCIETY AND THE INTERNET ENGINEERING
+   TASK FORCE DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING
+   BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE INFORMATION
+   HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED WARRANTIES OF
+   MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+draft-ietf-vrrp-ipsecah-spec-00.txt                           [Page 12]

@@ -1,0 +1,176 @@
+/*
+ * Keepalived, Material theme customisation.
+ */
+
+:root {
+  --md-primary-fg-color:        #F7931E;
+  --md-primary-fg-color--light: #f9a94e;
+  --md-primary-fg-color--dark:  #e07d09;
+  --md-accent-fg-color:         #e07d09;
+}
+
+/* Deep orange so link text stays readable on white (AA contrast) */
+[data-md-color-scheme="default"] {
+  --md-typeset-a-color: #b35f08;
+}
+
+/* Brighter orange because the slate background is dark */
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #F7931E;
+  --md-accent-fg-color:  #ffb35c;
+  --md-typeset-a-color:  #ffae57;
+}
+
+/*
+   Tall header with the gtp-guard code banner, sized like gtp-guard. The search
+   bar and repository link keep Material defaults, so they render white over the
+   dark banner exactly as on gtp-guard.
+*/
+.md-header {
+  height: 150px;
+}
+[data-md-color-scheme="default"] .md-header {
+  background-color: #ffffff;
+  background-image: url("../images/header-code.png");
+  background-repeat: repeat-x;
+  background-position: left top;
+}
+[data-md-color-scheme="slate"] .md-header {
+  background-color: #1b1d24;
+  background-image: url("../images/header-code-dark.png");
+  background-repeat: repeat-x;
+  background-position: left top;
+}
+
+/* The logo already reads "Keepalived", so drop the redundant site name */
+.md-header__title .md-header__topic:first-child {
+  display: none;
+}
+
+/* Logo size, with a light lettered variant swapped in for dark mode */
+.md-header__button.md-logo img,
+.md-nav__button.md-logo img {
+  height: 2.4rem;
+  width: auto;
+}
+[data-md-color-scheme="slate"] .md-header__button.md-logo img,
+[data-md-color-scheme="slate"] .md-nav__button.md-logo img {
+  content: url("../assets/keepalived-logo-dark.png");
+}
+
+/*
+   Mobile navigation drawer header. Material paints the logo block and the
+   repository link with the orange primary colour, which buries the logo, so use
+   a white background with dark text and a thin separator instead.
+*/
+.md-nav--primary .md-nav__title[for="__drawer"],
+.md-nav--primary .md-nav__source {
+  background-color: #ffffff;
+  color: var(--md-default-fg-color);
+}
+.md-nav--primary .md-nav__source {
+  border-bottom: .05rem solid var(--md-default-fg-color--lightest);
+}
+
+/* Home hero */
+.ka-hero {
+  text-align: center;
+  padding: 1rem 0 1.4rem;
+}
+.ka-hero img.ka-logo {
+  display: block;
+  width: 58%;
+  max-width: 340px;
+  height: auto;
+  margin: 0 auto 1rem;
+}
+[data-md-color-scheme="slate"] .ka-hero img.ka-logo {
+  content: url("../assets/keepalived-logo-dark.png");
+}
+.ka-hero h1 {
+  font-size: 1.85rem;
+  font-weight: 700;
+  line-height: 1.25;
+  margin: .2rem auto .5rem;
+  max-width: 34rem;
+}
+.ka-hero .ka-sub {
+  color: var(--md-default-fg-color--light);
+  font-size: .85rem;
+  max-width: 42rem;
+  margin: 0 auto 1.3rem;
+}
+.ka-hero .md-button {
+  margin: .3rem .25rem 0;
+}
+/* "Latest release" pill that nudges visitors towards the News tab */
+.ka-hero .ka-latest {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  margin: 0 0 1.2rem;
+  padding: .3rem .9rem;
+  font-size: .72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--md-default-fg-color--light);
+  background-color: var(--md-default-fg-color--lightest);
+  border: 1px solid var(--md-default-fg-color--lighter);
+  border-radius: 2rem;
+  transition: color .2s, border-color .2s;
+}
+.ka-hero .ka-latest:hover {
+  color: var(--md-accent-fg-color);
+  border-color: var(--md-accent-fg-color);
+}
+.ka-hero .ka-latest .twemoji:first-child {
+  color: var(--md-primary-fg-color);
+}
+
+/* Feature cards */
+.md-typeset .grid.cards > ul > li,
+.md-typeset .grid.cards > :is(ul, ol) > li {
+  border-radius: .35rem;
+  transition: border-color .2s, box-shadow .2s;
+}
+.md-typeset .grid.cards > ul > li:hover {
+  border-color: var(--md-accent-fg-color);
+  box-shadow: 0 .2rem .6rem rgba(0, 0, 0, .12);
+}
+.md-typeset .grid.cards .twemoji svg {
+  fill: var(--md-primary-fg-color);
+}
+
+/* Tables for the download and release lists */
+.md-typeset table:not([class]) {
+  font-size: .76rem;
+}
+.md-typeset table:not([class]) th {
+  background-color: var(--md-primary-fg-color);
+  color: #000000de;
+}
+
+/* Drop the next-page link from the footer trailer */
+.md-footer__link--next {
+  display: none;
+}
+
+/*
+   Sponsor logos. A white rounded card keeps every logo legible whatever its own
+   background, in both the light and the dark scheme. Logos share one normalised
+   height and flow inline so they wrap on narrow screens.
+*/
+.md-typeset img.sponsor-logo {
+  height: 42px;
+  width: auto;
+  background: #ffffff;
+  padding: .4rem .6rem;
+  border-radius: .3rem;
+  box-shadow: 0 .1rem .35rem rgba(0, 0, 0, .18);
+  margin: .3rem .7rem .3rem 0;
+  vertical-align: middle;
+}
+/* A current sponsor stands out a little more */
+.md-typeset img.sponsor-logo.sponsor-logo--lg {
+  height: 64px;
+}

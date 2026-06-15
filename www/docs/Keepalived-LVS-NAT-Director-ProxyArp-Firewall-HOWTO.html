@@ -1,0 +1,3021 @@
+<html>
+<head>
+<title>Running a Proxy-Arp LVS-NAT Director/Firewall with Keepalived</title>
+<link rel="stylesheet" href="textdocs.css" type="text/css">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</head>
+
+<body bgcolor="#FFFFFF" text="#000000">
+
+<H1>Running a Proxy-Arp LVS-NAT Director/Firewall with Keepalived</H1>
+
+<H2>(C) 2003 Vince Worthington, released under GPL</H2>
+
+<P><HR>
+<EM>How to have one Linux box be your LVS-NAT director with Keepalived, and be a Proxy-Arp firewall/gateway with Stateful Inspection too.</EM>
+<HR>
+<P>
+
+<b>Last Revised: 
+ 05/15/2003
+  </b> (Document is Still In <b>Development/Beta</b> Status)<br><br>
+
+The most recent revision of this document should always be available at our <a href="http://www.lvwnet.com">website</a>, with the following direct URL:<br><br>
+
+<a href="http://www.lvwnet.com/vince/linux/Keepalived-LVS-NAT-Director-ProxyArp-Firewall-HOWTO.html">http://www.lvwnet.com/vince/linux/Keepalived-LVS-NAT-Director-ProxyArp-Firewall-HOWTO.html</a><br>
+
+<H1>1. Introduction</H1>
+
+<h3>Keepalived - At the Center of our Linux Virtual Server Setup</h3>
+Keepalived is a powerful virtual server manager package written in C by Alexandre Cassen,
+which works with the IPVS/Linux Virtual Server (LVS) software and kernel patches.  Keepalived
+can create, monitor, and manage virtual services on your LVS Director, and is also well-suited to
+running a redundant pair (or group) of directors, via its implementation of the VRRPv2
+Virtual Router Redundancy Protocol.<BR><BR>
+
+Keepalived uses native kernel netlink functions to dynamically manage VIP's and routes on the Directors, rather than the old-style IP/interface aliases (ie, eth0:0, eth0:110, etc.).  <b><i>So having multiple IP/VIP addresses per interface is not a problem, and you don't run into problems trying to write iptables rules for an &quot;interface&quot; whose name has a ':' in it, either.</i></b><br><br>
+
+When a failover to a different master director occurs, keepalived on the new master takes over the VIP's and routes from the failed master, and sends out gratuitous ARP messages for the VIP's it has taken over.  Keepalived also supports IPVS Connection Synchronization between Directors, so transition at point of failover is rapid, and the LVS Real Servers start using the new master Director with hardly even a hiccup.<br><br>
+
+<h3>Making the LVS Director pair a Stateful Firewall</h3>
+Extending upon the functionality provided by Keepalived itself, with some additional work, it is possible to create a highly-available LVS-NAT Director pair which also functions as the primary firewall/gateway for a network of servers and hosts -- even a &quot;mixed DMZ&quot; containing some LVS Real Servers, (where the VIP's are actually on the director), and other hosts which have routable IP's themselves, and only need the director/firewall to route and netfilter their traffic, without performing any LVS or NAT tricks on it.<BR><BR>
+
+<b>Proxy Arp</b><br>
+We will use the Proxy Arp facility of the Linux kernel to cause the Master Director to answer ARP requests for routable hosts on both &quot;sides&quot; of the director/firewall (DMZ and ISP gateway), and therefore route and filter their traffic through the firewall.  While using Proxy Arp can be most helpful when you want a &quot;hidden firewall&quot;, it still has advantages which are not diminished by having IP's defined on its interfaces. <BR><BR>
+
+Because we are running a Proxy Arp setup, we will make use of the <b>tcp_nonlocal_bind</b> ip sysctl, and the <b>arping</b> utility (from the iproute2 utils) in a <b>notify_master</b> script.  This script will deal with updating our DMZ hosts (and our ISP's gateway) with the newly-elected MASTER Director's MAC addresses when a failover occurs, so that our DMZ hosts will not experience a loss of connectivity to the internet.  We need to do this because Keepalived does not send gratuitous arps for addresses it hasn't taken over.<br><br>
+
+<b>Return of the Antefacto Patch</b><br>
+With the help of an additional patch to the IPVS and linux (2.4-series) kernel sources called the &quot;Antefacto&quot; patch (documented in the <A HREF="http://www.linuxvirtualserver.org/Documents.html#manuals">LVS-HOWTO</A>, section 21 or so), we will reacquire the ability to run an iptables firewall rule set on the Director which performs <b>Stateful Inspection</b> of <b>ALL</b> traffic moving through the firewall -- even traffic to/from LVS RealServers.  <i>So it is no longer necessary for your LVS Director and your main firewall to be on separate boxes -- The Antefacto patch adds enough netfilter connection state tracking support to IPVS to allow netfilter to be aware of IPVS-managed connections.</i><br><br>
+
+<i>With some very helpful information from Ben North, I have managed to hand-fit the Antefacto patch into the 2.4.19 kernel and IPVS v1.0.7 source code, and come up with a modified IPVS v1.0.7 Single Kernel Patch for kernel 2.4.19 which has the Antefacto code in it.</i>  I've been running a Director/Firewall for over 3 weeks with this code, and all is working well, and as expected.  Apparently this will be available now in some way as a contrib feature for the IPVS source code.  Since my programming skills are not very good, if the IPVS or Kernel sources change drastically at some point in the future, maintenance of the Antefacto patch to bring its functionality forward into those kernel/IPVS sources may need to be done by others.  I'll be glad to host/distribute any updates here.  If only Antefacto could be merged into the main IPVS source code...<br><br>
+
+I have included a basic sample iptables firewall script near the end of this HOWTO.<br><br>
+
+<b>NOTE about the Antefacto patch:</b><BR>
+To this point, neither Ben North nor I have been able to test IPVS patched with Antefacto on an SMP machine. (My director/firewall boxes are older UP boxes).<BR><BR>
+
+Ben said that at one time, there was apparently potential in IPVS for a race condition with this patch, but there was code added to handle it, and he does not know if it is even an issue anymore.  Ben said he believes the code is solid, but cautioned me that it has not been tested on an SMP machine.  Any info from testers with SMP machines would probably be very welcome, and I suspect that multiple success stories may help the Antefacto patch get merged into the main IPVS source code distribution.<BR><BR>
+
+
+<H1>2. Setting it up</H1>
+
+<H2>Hardware Requirements and Notes</H2>
+
+To build a box according to this HOW-TO, you will need:<BR>
+<UL>
+  <LI><b>TWO (or more) network cards per Director</b> - one for the firewall's connection to the outside world, and one for its connection to the internal subnet(s). It is easier (and safer) to write a firewall script that protects your network when traffic to/from the outside world, and traffic to/from internal hosts, are happening on separate interfaces.<BR><BR>
+
+I do not recommend trying to run a firewall/router machine of any kind which only has one network interface in it.<br><br>
+
+It has been said that you can derive substantial performance improvements from having one (or more) NIC's per Director for each internal subnet the firewall routes traffic for, and maybe even a separate NIC per Director for the IPVS connection sync daemon to communicate over.  Let your taste, budget, and throughput measurements/requirements be the judge.<BR><BR>
+
+  <LI><b>Adequate CPU horsepower and RAM</b> - this will vary, depending on the throughput and number of simultaneous connections the Director/firewall will be expected to handle.<BR><BR>
+  
+  On our setup here, we have 3.5Mbps/576Kbps (down/up) ADSL service, with one moderately-busy website hosted (along with a couple others), and our 166MHz Pentium MMX backup Director with 128MB SDRAM handles everything fine.  This is with TCP connect checks running on 11 virtual services, with 2 real servers each, every 3 seconds.  I've not seen the CPU Idle percentage drop below 80%, even when running sustained download speedtests through this box at 350KB/sec.  And the firewall rule set we run on the Director boxes is, umm, a lot more comprehensive than the example shown in this document. ;)
+</UL><BR>
+
+
+<H2>Software you will need</H2>
+
+<UL>
+  <LI><b>Pristine Linux kernel version 2.4.19 source</b>, available from <A HREF="http://www.kernel.org">www.kernel.org</A>
+  <LI><b>IPVS v1.0.7 Single Kernel Patch for Linux 2.4.19 (with Antefacto netfilter-conntrack support built-in)</b>, available <A HREF="http://www.lvwnet.com/vince/files/linux-2.4.19_ipvs1.0.7_single-patch+antefacto-netfilter-conntrack.zip">here</A>.  I will update this link once I have ascertained the correct URL for the file from normal IPVS distribution sites, or that it is being distributed with the IPVS source.<BR>
+  Also, when time permits, I will come up with a &quot;just the Antefacto stuff&quot; patch for folks who have already patched their (kernel.org-distributed) 2.4.19 kernel for IPVS support.  This will hopefully also alleviate the need to build/rebuild the iptables package and start with a fresh kernel tree.<BR>
+  <LI>Latest <b>keepalived</b>, available from SourceForge's <A HREF="http://keepalived.sourceforge.net">keepalived page</A>.
+  <LI>Latest <b>iptables</b> source code (and optionally latest patch-o-matic), available from the <A HREF="http://www.netfilter.org">Netfilter</A> website.  We're going to be building iptables from scratch, so if your distro uses RPM's or other types of binary/lib packages, you will probably want to remove the old iptables packages, and any others which depend on it (examples: gnome-lokkit, lokkit).  And while you're at it, get rid of any trace of ipchains.  This is 2003! ;)
+  <LI><b>(optional) ipvsadm utility, v1.2.1 or newer</b> - available from the <A HREF="http://www.linuxvirtualserver.org/software/index.html">Linux Virtual Server Project</A> software page.
+</UL>
+<b>Note:</b> As a general practice, you should rebuild iptables any time you are building a new kernel from fresh kernel sources, since all but a few of the iptables pending, extra, or other patches are patches against the kernel source you are working with.  I also recommend NOT using the pre-compiled iptables package(s) distributed with many Linux distributions, since they are built against against the pre-compiled KERNELS also distributed with them.  Your iptables binaries and libraries need to stay in sync with the kernel sources they were built with - if you build a kernel with fresh kernel sources, you need to build/rebuild iptables too.<BR><BR>
+
+<EM>REAL penguins build their own kernels and binaries!</EM><BR><BR>
+
+
+<H2>Assumptions made</H2>
+The assumption is made that you are already familiar/comfortable with typical Linux system/network administrative tasks and customization, such as:
+<UL>
+  <LI>How to install your Linux distro of choice - remember, this is a firewall machine, so you don't want a lot of junk or unnecessary services running on it.
+  <LI>Using the &quot;patch&quot; utility to patch source code
+  <LI>Properly configuring, compiling, and installing your own Linux kernel and software packages
+  <LI>Knowing what kernel config options need to be selected to support your CPU, hardware, etc. and produce a kernel that will boot your system and get your filesystems mounted. ;)
+  <LI>TCP/IP networking and routing
+  <LI>How Proxy Arp works
+  <LI>How to use the iproute2 ip utility to add/remove IP addresses and routes on interfaces
+  <LI>How to build, install, and use iptables to construct a firewall
+</UL>
+Any of these subjects are beyond the scope of this document, or my ability to provide any support for.  Excellent documentation is already available elsewhere. ;)<BR><BR>
+
+I will document any of the above that needs to be done a certain way for things to work according to this HOWTO, but otherwise, the standard documentation for the software packages involved applies.  Please refer to their documentation or support mechanisms (web pages, mailing list archives, etc.).<BR><BR>
+
+Also, I have included a section below which documents the kernel configuration options I have used for our Director/Firewall boxes.<BR><BR>
+
+Anyway, let's move on to getting the keepalived director set up.<BR><BR>
+
+
+
+
+<H2>General Plan for Building the Setup</H2>
+
+1. Unpack the 2.4.19 kernel source tarball somewhere<BR><BR>
+2. Fix /usr/src/linux symlinks (and kernel headers symlinks if you use them) to point to the new kernel source tree<BR><BR>
+3. cd into the dir you unpacked your new kernel source tree, and 'make mrproper'<BR><BR>
+4. (optional) copy your previous 2.4-series custom kernel's .config file and edit out the netfilter options (see tips below), then run 'make oldconfig'.<BR><BR>
+5. Patch the kernel source with the IPVS v1.0.7/Antefacto single kernel patch<BR><BR>
+6. Unpack the iptables source tree somewhere<BR><BR>
+7. (optional) Unpack iptables patch-o-matic and run it to add any iptables/netfilter patches you want/need<BR><BR>
+8. Build and install iptables<BR><BR>
+9. Configure the kernel (ie, 'make menuconfig'), selecting any options you want/need. See LVS HOWTO for options you have to have enabled for the type of LVS setup you will run.<BR><BR>
+10. Build and install the kernel.  Keep a known-good kernel available, and don't forget to update your lilo/grub configuration!<BR><BR>
+11. Reboot with new kernel.<BR><BR>
+12. (optional) Build and install ipvsadm v1.2.1<BR><BR>
+13. Build and install keepalived.<BR><BR>
+
+When you get past Step 13, you should be almost ready get keepalived running.<BR><BR>
+
+
+<H2>Building the Kernel for the Director/Firewall</H2>
+
+Any kernel-building trickery you normally employ can of course be applied.<br>
+
+<h3>A Couple of Free Kernel Building Tips:</h3>
+
+<b>1. Use the .config file from your last customized kernel</b><br>
+If you already have a custom-built 2.4.19 (or earlier 2.4-series) kernel, you can save yourself the time and hassle of manually configuring every kernel option you need.  This may also help you avoid the risk of forgetting to set something you need to get this server booted up properly, like filesystem or storage hardware support the server needs.<br><br>
+
+Copy the .config file from that kernel's source tree into the fresh 2.4.19 source tree, and run &quot;make oldconfig&quot; on it.  You will only be prompted for &quot;new&quot; (non-existent) options, and the others will retain their original settings.  <i>Just make sure you WAIT to do this trick until AFTER you have run 'make mrproper' on the new source tree, since mrproper removes any .config file that exists in the top level directory!</i><BR><BR>
+
+After this, you can run through and check everything out (ie, make sure you didn't forget something) with the usual 'make menuconfig' before you compile.<br><br>
+
+<b>2. How to reset your old kernel's .config file netfilter options when that kernel had extra options from iptables patch-o-matic</b><BR>
+This is VERY useful when building new kernel versions on firewall boxes.<BR><BR>
+
+Since you will be building/rebuilding iptables from scratch because of the new kernel version, if your old kernel had any netfilter kernel options added by netfilter patch-o-matic (pending, extra, or otherwise), you can &quot;reset&quot; your old .config file netfilter options back to only having what comes with the new kernel.  You want to do this AFTER you have copied the other kernel's .config file into the new source tree, but BEFORE you run 'make oldconfig' (or build iptables, run patch-o-matic, or start configuring kernel options).  Here's what to do:<BR><BR>
+
+Open your .config file with your favorite text editor, and search for the section that reads:<BR><BR>
+
+#<BR>
+#   IP: Netfilter Configuration<BR>
+#<BR><BR>
+
+When you find it, carefully delete ALL lines immediately below it (commented out or not) that start with 'CONFIG_IP_NF_'.  This should take you right down to CONFIG_IPV6 and CONFIG_KHTTPD.  Save the file, and then run 'make oldconfig'.  You will have to answer Y/N/M for each of the netfilter options, but when you're done, you won't have orphaned netfilter options in your .config file for which no patches exist, and then you can add back the options you want when you run patch-o-matic and configure the kernel with 'make menuconfig' (or whatever you prefer to use to configure the kernel options).<BR><BR>
+
+<b>3. EXTRAVERSION setting in the kernel top-level directory Makefile</b><BR>
+Many people know about this trick already, but it's still a good trick.<BR><BR>
+
+By setting something unique in the EXTRAVERSION field of the main Makefile in a kernel source tree (maybe &quot;lvs-test1&quot;) prior to compilation, the newly-compiled kernel will have that string appended to its version number (such as the output you would get from a 'uname -r' command), and 'make modules_install' will install the kernel modules under a separate dir with that string in its name under /lib/modules (example: /lib/modules/2.4.19lvs-test1).  So if you want to build an experimental kernel to test out some option, and not overwrite your existing (and known-working) previous kernel and modules, setting/changing the value of EXTRAVERSION before you build the kernel is an easy way to do it, and will allow you to have multiple kernels built from a single kernel source tree.<BR><BR>
+
+Now to be fully scientific in your experimentation, you may want to make a backup copy of your .config file (maybe to something with the EXTRAVERSION string in its filename) before you run 'make menuconfig' for your next experimental kernel, so that you have a copy of the .config file that produced each kernel.  I usually name the bzImage files I copy to /boot after the EXTRAVERSION too. (example: /boot/vmlinuz-2.4.19lvs-test1)<BR><BR>
+
+<h3>Example of Kernel Configuration Options for a Firewall/Director</h3>
+
+This is what my Linux 2.4.19 kernel config options look like, for Networking Options, Netfilter options, and IPVS options.  Not all items selected are required for LVS/IPVS to function properly, or to accomplish what we are doing with this HOWTO.  But with these options selected on my Director/Firewall boxes, it works for me.<BR><BR>
+
+Also, you will see some extra options in my list of Netfilter options that aren't in your list -- these came from running iptables' patch-o-matic to add them in.  The extra options listed do not conflict with each other, but adding other extras may possibly cause conflicts.<BR><BR>
+
+<i>Usually you will know if a certain patch-o-matic optional patch will &quot;work out&quot; or not by selecting the Test (t) option to see if it can successfully patch against your kernel source.  But be careful!!! There are one or two patches I know of that will TEST OK, and even apply cleanly -- yet produce an <b>uncompilable kernel</b> if you pick them in combination with certain other patches!<br><br>
+
+A good general rule to follow when you are picking extra netfilter options is to only pick the ones you need.  There is documentation out there as to which options don't get along with each other - some can be found with patch-o-matic itself, and more can also be found on the netfilter website and mailing list archives.</i><BR><BR>
+
+Again, not all of the Netfilter options selected are required for LVS/IPVS, or to accomplish what we are doing with this example.  But this is a snapshot of the Networking and Netfilter kernel configuration options from a known-stable, live firewall box.<BR><BR>
+
+<i><b>NOTE:</b> You won't have the IPVS options available until you apply the IPVS kernel patch.</i><BR><BR>
+
+
+<pre>
+<table class="border" cellspacing="0" cellpadding="0" width="750" bgcolor="#dcdcdc">
+<tr><td>
+<BR>
+<b>Networking Options</b><BR><BR>
+
+&lt;*&gt; Packet socket<BR>
+[*]   Packet socket: mmapped IO<BR>
+&lt; &gt; Netlink device emulation<BR>
+[*] Network packet filtering (replaces ipchains)<BR>
+[ ]   Network packet filtering debugging<BR>
+[ ] Socket Filtering<BR>
+&lt;*&gt; Unix domain sockets<BR>
+[*] TCP/IP networking<BR>
+[*]   IP: multicasting<BR>
+[*]   IP: advanced router<BR>
+[*]     IP: policy routing<BR>
+[*]       IP: use netfilter MARK value as routing key<BR>
+[*]       IP: fast network address translation<BR>
+[*]     IP: equal cost multipath<BR>
+[ ]     IP: use TOS value as routing key<BR>
+[*]     IP: verbose route monitoring<BR>
+[ ]     IP: large routing tables<BR>
+[ ]   IP: kernel level autoconfiguration<BR>
+&lt;*&gt;   IP: tunneling<BR>
+&lt;*&gt;   IP: GRE tunnels over IP<BR>
+[ ]     IP: broadcast GRE over IP<BR>
+[*]   IP: multicast routing<BR>
+[*]     IP: PIM-SM version 1 support<BR>
+[*]     IP: PIM-SM version 2 support<BR>
+[ ]   IP: ARP daemon support (EXPERIMENTAL)<BR>
+[ ]   IP: TCP Explicit Congestion Notification support<BR>
+[*]   IP: TCP syncookie support (disabled per default)<BR>
+  IP: Netfilter Configuration  ---&gt;<BR>
+  IP: Virtual Server Configuration  ---&gt;<BR>
+&lt; &gt;   The IPv6 protocol (EXPERIMENTAL)<BR>
+&lt; &gt;   Kernel httpd acceleration (EXPERIMENTAL)<BR>
+[ ] Asynchronous Transfer Mode (ATM) (EXPERIMENTAL)<BR>
+&lt;M&gt; 802.1Q VLAN Support<BR>
+---<BR>
+&lt; &gt; The IPX protocol<BR>
+&lt; &gt; Appletalk protocol support<BR>
+Appletalk devices  ---&gt;<BR>
+&lt; &gt; DECnet Support<BR>
+&lt; &gt; 802.1d Ethernet Bridging<BR>
+&lt; &gt; CCITT X.25 Packet Layer (EXPERIMENTAL)<BR>
+&lt; &gt; LAPB Data Link Driver (EXPERIMENTAL)<BR>
+[ ] 802.2 LLC (EXPERIMENTAL)<BR>
+[ ] Frame Diverter (EXPERIMENTAL)<BR>
+&lt; &gt; Acorn Econet/AUN protocols (EXPERIMENTAL)<BR>
+&lt; &gt; WAN router<BR>
+[ ] Fast switching (read help!)<BR>
+[ ] Forwarding between high speed interfaces<BR>
+QoS and/or fair queueing  ---&gt;<BR>
+Network testing  ---&gt;<BR><BR>
+</tr></td>
+</table>
+</pre>
+
+
+<pre>
+<table class="border" cellspacing="0" cellpadding="0" width="750" bgcolor="#dcdcdc">
+<tr><td>
+<BR>
+<b>IP: Netfilter Configuration</b><BR><BR>
+&lt;*&gt; Connection tracking (required for masq/NAT)<BR>
+&lt;*&gt;   FTP protocol support<BR>
+&lt; &gt;   IRC protocol support<BR>
+&lt; &gt; Userspace queueing via NETLINK (EXPERIMENTAL)<BR>
+&lt;*&gt; IP tables support (required for filtering/masq/NAT)<BR>
+&lt;*&gt;   limit match support<BR>
+&lt;M&gt;   MAC address match support<BR>
+&lt;*&gt;   Packet type match support (EXPERIMENTAL)<BR>
+&lt;*&gt;   netfilter MARK match support<BR>
+&lt;M&gt;   Multiple port match support<BR>
+&lt;M&gt;   TOS match support<BR>
+&lt;*&gt;   psd match support<BR>
+&lt;*&gt;   AH/ESP match support<BR>
+&lt;*&gt;   LENGTH match support<BR>
+&lt;*&gt;   TTL match support<BR>
+&lt;M&gt;   tcpmss match support<BR>
+&lt;*&gt;   Connection state match support<BR>
+&lt;*&gt;   Connections/IP limit match support<BR>
+&lt;M&gt;   Unclean match support (EXPERIMENTAL)<BR>
+&lt;M&gt;   Owner match support (EXPERIMENTAL)<BR>
+&lt;*&gt;   Packet filtering<BR>
+&lt;*&gt;     REJECT target support<BR>
+&lt;*&gt;     MIRROR target support (EXPERIMENTAL)<BR>
+&lt;*&gt;   Full NAT<BR>
+&lt;*&gt;     MASQUERADE target support<BR>
+&lt;*&gt;     REDIRECT target support<BR>
+[ ]     NAT of local connections (READ HELP)<BR>
+&lt; &gt;     Basic SNMP-ALG support (EXPERIMENTAL)<BR>
+&lt;*&gt;   Packet mangling<BR>
+&lt;*&gt;     TOS target support<BR>
+&lt;*&gt;     MARK target support<BR>
+&lt;*&gt;   LOG target support<BR>
+&lt;*&gt;   TTL target support<BR>
+&lt; &gt;   ULOG target support<BR>
+&lt;M&gt;   TCPMSS target support<BR>
+&lt;M&gt; ARP tables support<BR>
+&lt;M&gt;   ARP packet filtering<BR><BR>
+</td></tr>
+</table>
+</pre>
+
+
+<pre>
+<table class="border" cellspacing="0" cellpadding="0" width="750" bgcolor="#dcdcdc">
+<tr><td>
+<BR>
+<b>IP: Virtual Server Configuration</b><BR><BR>
+&lt;*&gt; virtual server support (EXPERIMENTAL)<BR>
+[*]   IP virtual server debugging<BR>
+(14)   IPVS connection hash table size (the Nth power of 2) <b><i>&lt;--- (NOTE: 16,384 connections)</i></b><BR>
+--- IPVS scheduler<BR>
+&lt;M&gt;   round-robin scheduling<BR>
+&lt;M&gt;   weighted round-robin scheduling<BR>
+&lt;M&gt;   least-connection scheduling scheduling<BR>
+&lt;M&gt;   weighted least-connection scheduling<BR>
+&lt;M&gt;   locality-based least-connection scheduling<BR>
+&lt;M&gt;   locality-based least-connection with replication scheduling<BR>
+&lt;M&gt;   destination hashing scheduling<BR>
+&lt;M&gt;   source hashing scheduling<BR>
+--- IPVS application helper<BR>
+&lt;M&gt;   FTP protocol helper<BR><BR>
+</td></tr>
+</table>
+</pre>
+
+<b>NOTE:</b> On our setup, our FTP server is one of the DMZ hosts with its own routable IP address, it is not LVS'd.<BR><BR>
+
+
+<H1>3. An Example Working Configuration</H1>
+
+<H2>Introductory Info</H2>
+Throughout this example, eth0 is the internal network interface, and eth1 is the external interface, as viewed from each host.  &quot;Internal&quot; means &quot;looking towards the inside of our network&quot;, and &quot;external&quot; means &quot;looking out towards the Internet&quot;.<br><br>
+
+On the Director boxes, eth0 is for the DMZ, and eth1 connects to our ADSL CPE.<br><br>
+
+On the Real Servers, eth0 is for talking to our backend servers and internal hosts (on a different subnet), and eth1 is for the DMZ.  (Our Real Servers do not forward any traffic between interfaces).<br><br>
+
+I set up an Untagged VLAN with 3 of the ports on our 3Com managed ethernet switch, one port for the ethernet interface on our ADSL bridge modem, and one port for the eth1 interface on each Director/Firewall.  This keeps traffic which has not cleared our firewall segmented from the rest of the network.  And since it's an <b>Untagged</b> VLAN, I get real VLAN segmentation on the switch without the hassles of exceeding legal packet length, adjusting everybody's max MTU size on the network, 802.1Q tags, and whether the ADSL CPE supports 802.1Q VLAN's or not.  It just works, and it is completely transparent to the hosts.<br><br>
+
+I created an additional Untagged VLAN on the switch for all DMZ hosts' DMZ interfaces.  So if traffic is going to get into or out of the DMZ, it is going to have to get past the iptables ruleset running on the active Master Director/Firewall (and the firewall scripts also running on the other DMZ hosts).<br><br>
+
+VLAN's... I knew there was a reason I paid extra for a managed ethernet switch!<br><br>
+
+This could also be done with a small, separate ethernet switch (or hub) for the Directors' external interfaces and ADSL CPE, and a larger switch (or hub) for the DMZ hosts, and segment the DMZ and internal subnet(s) using separate switches/hubs, 802.1Q VLAN's, or any other ideas that keep the subnets separated.<br><br>
+
+Anyway, let's see what the makeup of our example DMZ looks like.<br><br>
+
+<h2>Layout of Our Example DMZ</h2>
+Our setup has a &quot;mixed DMZ&quot; of LVS-NAT-based RealServers (the routable VIP's are on the active MASTER LVS Director/Firewall), and other DMZ hosts who use some of our routable IP addresses themselves, and only need our Director/firewall box to gateway and filter their traffic via Proxy Arp.<BR><BR>
+
+We have two Real Servers which handle DNS, SMTP, POP3, and Apache public services for the domains we run here, and we will configure keepalived so that these services are &quot;highly available&quot;.  This means one Real Server can fail or be taken down for maintenance, and the virtual services are still available.<br><br>
+
+<H3>Our Routable (Public) IP Address Space</H3>
+In our example, we have a /28 block of 16 routable static IP addresses from our ISP.  For the purposes of this document, I'll call them 10.1.2.80/28 (ie, 10.1.2.80 - 10.1.2.95), and we'll all pretend that 10.0.0.0/8 is routable address space. ;)<br><br>
+
+The subnet mask our ISP uses in this IP range is /26, or 255.255.255.192, for the CIDR-challenged. ;)  So as far as the ISP is concerned, IP's 10.1.2.64 - 10.1.2.127 are all in the same subnet (and the network ID is 10.1.2.64/26).  The ISP's default gateway is 10.1.2.65.<br><br>
+
+<b>A Quick Word about IP Network ID's vs. IP Netmasks (for the less experienced)</b><br>
+It should be fairly obvious that for our Directors and DMZ hosts to be able to &quot;see&quot; our ISP's gateway, that we have to use the same /26 subnet mask our ISP does, when we define our routable IP addresses on our DMZ hosts and Directors.  We do have /28 (16 hosts) of that /26 (64 host subnet), but that's not the same as us having a /28 subnet mask.<br><br>
+
+If you aren't sure you understand the difference (when you would use /28 vs. when you would use /26), you might want to read up on Subnet Masks and Network ID's a little before you proceed.  But basically, in routing statements, iptables address matching arguments, etc., we can use a <b>network ID</b> of 10.1.2.80/28 to refer to the entire block of routable IP addresses we have, but we can't define our public IP's where we use them with a <b>subnet mask</b> of /28, or we lose two of our static IP's (10.1.2.80 and 10.1.2.95) to the subnet bitbucket, and 10.1.2.65, our way out to the internet, is no longer &quot;visible&quot; -- because a /28 subnet mask puts blinders on us that says we can't reach it.<br><br>
+
+<i>(Actually, we need to define at least one of our routable VIP's on the Director with a subnet mask of /26, we can just define the address itself for the rest of the routable VIP's -- see the keepalived.conf example below).</i><BR><BR>
+
+<h3>Routable IP's In Use For This Example</h3>
+Here is a list of our routable IP address space that we are currently using, and whether each is a Virtual IP (VIP), or being used on a DMZ host:<br><br>
+
+<b>IP Address	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Usage</b><br>
+10.1.2.80	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VIP - DNS Server 1, also SMTP/POP (for all hosted domains), and Apache (1st IP-based virtual domain)<br>
+10.1.2.81	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VIP - DNS Server 2<br>
+10.1.2.82	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VIP - Apache (2nd IP-based virtual domain)<br>
+10.1.2.93	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DMZ Host - FTP server<br>
+10.1.2.94	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;DMZ Host - NAT gateway/firewall for internal LAN internet access<br>
+10.1.2.95	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VIP - gateway addr for active master (moves to new master upon failover)<br><br>
+
+<h3>Internal Network Addresses on our LVS Members</h3>
+We will use the RFC1918-compliant Private/Reserved IP subnet of 192.168.0.0/24 for our LVS-NAT cluster members.  Note that ALL of the addresses listed below are permanently-assigned addresses except 192.168.0.254 - this is a VIP which each LVS-NAT Real Server must be configured to use as Default Gateway (DGW), and will be taken over by the new MASTER Director/Firewall in the event of a failover.  Each keepalived Director/Firewall also has a &quot;DMZ Management&quot; address defined on its internal interface.<br><br>
+
+We'll use our system startup scripts (on Redhat systems: /etc/sysconfig/network and /etc/sysconfig/network-scripts/ifcfg-ethN) to set the DMZ Management address, subnet mask, etc. on our LVS cluster members (Directors and Real Servers).  Make sure each Real Server is set to use the LVS-NAT DGW VIP (192.168.0.254 in our example) as default gateway!  Example files for Redhat systems are included below.  We'll use the firewall script we run on our Real Servers to add the additional private IP addresses our public services will handle traffic from internet on.  Snip-it examples are included below.<br><br>
+
+<b>IP Address	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Usage</b><br>
+192.168.0.1	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;DMZ Management&quot; IP address for LVS Director/Firewall #1 - interface eth0<br>
+192.168.0.2	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;DMZ Management&quot; IP address for LVS Director/Firewall #2 - interface eth0<br>
+192.168.0.10	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;DMZ Management&quot; IP address for Real Server #1 - interface eth1<br>
+192.168.0.20	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;DMZ Management&quot; IP address for Real Server #2 - interface eth1<br><br>
+
+192.168.0.111	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Real Server #1 - DNS, SMTP, POP, and Apache IP-Based VirtualHost #1 - interface eth1<br>
+192.168.0.112	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Real Server #1 - Apache IP-Based VirtualHost #2 - interface eth1<br><br>
+
+192.168.0.211	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Real Server #2 - DNS, SMTP, POP, and Apache IP-Based VirtualHost #1 - interface eth1<br>
+192.168.0.212	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Real Server #2 - Apache IP-Based VirtualHost #2 - interface eth1<br><br>
+
+192.168.0.254	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;VIP - LVS-NAT Default Gateway (DGW) Address - active Master Director interface eth0<br><br>
+
+<b>DNS Server Notes</b><br>
+Our 2 DNS servers are set up as master and slave, and are authoritative on the internet for the domains we host here.  Their VIP's are their registered DNS server IP addresses.<br><br>
+
+You may notice, looking at the keepalived.conf file below, that we are going to set up each DNS server's registered IP as a virtual service, with both Real Servers listed for each.  This means that one of our Real Servers can go down, and the remaining Real Server will still be able to serve authoritative name records for our domains, regardless of which registered DNS server address the request was originally sent to.  Pretty neat.<br><br>
+
+While we do have a health check set up for our TCP services, we don't do any connect check on DNS 53/udp right now, since we can't do that just yet with keepalived.<br><br>
+
+<b>Mail Server Notes</b><br>
+As far as mail service goes, we're keeping it relatively simple for now.  The zone files for both domains we host here have <b>mail.myprimarydomain.bogus</b> listed as the MX (SMTP mail exchanger) for their domain, with the same single VIP listed (10.1.2.80).  Qmail listens on each Real Server, and has both domains listed in rcpthosts on both Real Servers.  <b>mail.primarydomain.bogus</b> is also the name of the &quot;mail server&quot; we give our mail users for POP3, SMTP, etc.<br><br>
+
+<b><i>Speaking of SMTP servers...</i></b><br>
+Some ISP's are &quot;getting tough on spam&quot;.  That's what they tell their board members and users, anyway.  So they block their users from connecting outbound on destination port 25.  If you're using their ISP service, you can only connect to <b>THEIR</b> SMTP servers on port 25.  That's really funny to me, because some of these ISP's are still among the biggest ORIGINATORS of spam on the net, and they have been blocking port 25 outbound on their users for 2 years or more.  What about all the spam that <b>THEIR</b> SMTP servers deliver?<br><br>
+
+If you know how to run a secure SMTP server (SMTP-Auth is very helpful, for example), and want your users to be able to use your SMTP server from the internet (even when they are connecting to you from a &quot;spambuster&quot; ISP), check out the optional &quot;SMTP High Port&quot; virtual service shown in the example keepalived.conf file below.  By using an extra &quot;high&quot; port number for access to your SMTP service, your remote users can bypass their ISP's silly &quot;spambuster&quot; security, and use your SMTP server anyway.  You will need to instruct your &quot;spambusted&quot; users to change the SMTP Server Port in their email client's config settings for your SMTP server, to whatever port number you set up the virtual service on.  Notice that the virtual service changes the destination port number back to 25 before it directs it to a Real Server.<br><br>
+
+<b>Apache Notes</b><br>
+For now, we will keep things simple/reliable, and use an IP-based VirtualHost setup for Apache.  I say reliable, because many of the indexing bots used by the big search engines are still not capable of making HTTP/1.1-style requests which include the hostname (ie, which name-based VirtualHost should respond).  So if you want your pages to show up on the web search engines, I'd stick to IP-based VirtualHosts for a while.<br><br>
+
+Hits coming to one domain's website (VIP) will be directed to a Real Server whose Apache VirtualHost directive instructs it to listen for connections to one IP (192.168.0.111 on RS1, 192.168.0.211 on RS2) -- while hits coming to the other domain's website (VIP) will be directed to one of the same RealServers, but to a different VirtualHost IP which listens for the second domain (192.168.0.112 on RS1, 192.168.0.212 on RS2).  <i>Consult your Apache documentation for instructions on how to set up IP-based virtual hosts.</i><br><br>
+
+<h2>The Configuration Files</h2>
+
+<h3>keepalived.conf</h3>
+
+The config files presented here as examples do not take advantage of some of keepalived's other features, such as encrypted authentication between routers, SMTP notifications, and the ability to group virtual services with virtual_server_group, just to name a few.  Also, we are just doing a basic &quot;TCP Check&quot; to verify our TCP virtual services are responding.<br><br>
+
+Our health checking is one of the main improvements we could make to our configuration.  By using  virtual_server_group, we could combine virtual services which are actually served by the same daemons into a group, and do a single plain TCP check to satisfy keepalived that the service is still responding.  Our normal SMTP port virtual service and our High SMTP port virtual service would be good candidates for merging into a virtual_server_group.  So would our Apache virtual services.  And if I am understanding the capabilities correctly, we may also be able to put the 53/tcp and 53/udp virtual services of each registered DNS server's IP together into a virtual_server_group, and get around not being able to do a UDP connection check just yet.<br><br>
+
+I would also recommend setting up the secure authentication, once you get a running setup going and running smoothly.<br><br>
+
+As I have opportunity to set up these additional features and verify proper usage, I will update this documentation to reflect their usage.<br><br>
+
+Here is an example <b>keepalived.conf</b> file for the <b>MASTER</b> keepalived LVS Director/Firewall:<br>
+
+<pre>
+<table class="border" cellspacing="0" cellpadding="0" width="750" bgcolor="#dcdcdc">
+<tr><td>&nbsp;</td></tr>
+<tr><td>global_defs {</td></tr>
+<tr><td class="half">lvs_id lvs1</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td># VRRP Instances</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>vrrp_sync_group VG1 {</td></tr>
+<tr><td class="half">	group {</td></tr>
+<tr><td class="one">		EXT</td></tr>
+<tr><td class="one">		INT</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+
+<tr><td>vrrp_instance EXT {</td></tr>
+<tr><td class="half">	state MASTER</td></tr>
+<tr><td class="half">	interface eth1</td></tr>
+<tr><td class="half">	lvs_sync_daemon_interface eth0</td></tr>
+<tr><td class="half">	mcast_src_ip 192.168.0.1</td></tr>
+<tr><td class="half">	debug 0</td></tr>
+<tr><td class="half">	virtual_router_id 51</td></tr>
+<tr><td class="half">	priority 150</td></tr>
+<tr><td class="half">	advert_int 5</td></tr>
+<tr><td class="half">	authentication {</td></tr>
+<tr><td class="one">		auth_type PASS</td></tr>
+<tr><td class="one">		auth_pass zoiks!</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	virtual_ipaddress {</td></tr>
+<tr><td class="one">		10.1.2.95/26</td></tr>
+<tr><td class="one">		10.1.2.80</td></tr>
+<tr><td class="one">		10.1.2.81</td></tr>
+<tr><td class="one">		10.1.2.82</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	virtual_routes {</td></tr>
+<tr><td class="one">		src 10.1.2.95 to 10.1.2.65 dev eth1</td></tr>
+<tr><td class="one">		src 10.1.2.95 to 0.0.0.0/0 via 10.1.2.65 dev eth1</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	# This script will come behind the master takeover</td></tr>
+<tr><td class="half">	# process and take care of a few extra things for us</td></tr>
+<tr><td class="half">	# (since we are running a Proxy Arp firewall).</td></tr>
+<tr><td class="half">	#</td></tr>
+<tr><td class="half">	notify_master "/etc/keepalived/proxyarpfix"</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>vrrp_instance INT {</td></tr>
+<tr><td class="half">	state MASTER</td></tr>
+<tr><td class="half">	interface eth0</td></tr>
+<tr><td class="half">	lvs_sync_daemon_interface eth0</td></tr>
+<tr><td class="half">	mcast_src_ip 192.168.0.1</td></tr>
+<tr><td class="half">	debug 0</td></tr>
+<tr><td class="half">	virtual_router_id 52</td></tr>
+<tr><td class="half">	priority 150</td></tr>
+<tr><td class="half">	advert_int 5</td></tr>
+<tr><td class="half">	authentication {</td></tr>
+<tr><td class="one">		auth_type PASS</td></tr>
+<tr><td class="one">		auth_pass scooby!</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	virtual_ipaddress {</td></tr>
+<tr><td class="one">		10.1.2.95/26</td></tr>
+<tr><td class="one">		192.168.0.254/24</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	virtual_routes {</td></tr>
+<tr><td class="one">		src 10.1.2.95 to 10.1.2.80/28 dev eth0</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>virtual_server 10.1.2.80 25 {</td></tr>
+<tr><td class="half">	delay_loop 3</td></tr>
+<tr><td class="half">	lb_algo rr</td></tr>
+<tr><td class="half">	lb_kind NAT</td></tr>
+<tr><td class="half">	protocol TCP</td></tr>
+<tr><td class="half">	ha_suspend</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td class="half">	real_server 192.168.0.111 25 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 25</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	real_server 192.168.0.211 25 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 25</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td># Optional SMTP High Port for remote users who have</td></tr>
+<tr><td># ISP's that try to stop spammers from using their</td></tr>
+<tr><td># service by blocking outbound destination port 25.</td></tr>
+<tr><td># We have to give those users another port to use</td></tr>
+<tr><td># to get around this, and they will need to configure</td></tr>
+<tr><td># their email client's SMTP server port number for your</td></tr>
+<tr><td># SMTP server to use the high port number instead.</td></tr>
+<tr><td>#</td></tr>
+<tr><td>virtual_server 10.1.2.80 20025 {</td></tr>
+<tr><td class="half">	delay_loop 3</td></tr>
+<tr><td class="half">	lb_algo rr</td></tr>
+<tr><td class="half">	lb_kind NAT</td></tr>
+<tr><td class="half">	protocol TCP</td></tr>
+<tr><td class="half">	ha_suspend</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td class="half">	real_server 192.168.0.111 25 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 25</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	real_server 192.168.0.211 25 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 25</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>virtual_server 10.1.2.80 53 {</td></tr>
+<tr><td class="half">	delay_loop 3</td></tr>
+<tr><td class="half">	lb_algo rr</td></tr>
+<tr><td class="half">	lb_kind NAT</td></tr>
+<tr><td class="half">	protocol TCP</td></tr>
+<tr><td class="half">	ha_suspend</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td class="half">	real_server 192.168.0.111 53 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 53</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	real_server 192.168.0.211 53 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 53</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>virtual_server 10.1.2.80 53 {</td></tr>
+<tr><td class="half">	delay_loop 3</td></tr>
+<tr><td class="half">	lb_algo rr</td></tr>
+<tr><td class="half">	lb_kind NAT</td></tr>
+<tr><td class="half">	protocol UDP</td></tr>
+<tr><td class="half">	ha_suspend</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td class="half">	real_server 192.168.0.111 53 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	real_server 192.168.0.211 53 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>virtual_server 10.1.2.81 53 {</td></tr>
+<tr><td class="half">	delay_loop 3</td></tr>
+<tr><td class="half">	lb_algo rr</td></tr>
+<tr><td class="half">	lb_kind NAT</td></tr>
+<tr><td class="half">	protocol TCP</td></tr>
+<tr><td class="half">	ha_suspend</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td class="half">	real_server 192.168.0.111 53 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 53</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	real_server 192.168.0.211 53 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 53</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>virtual_server 10.1.2.81 53 {</td></tr>
+<tr><td class="half">	delay_loop 3</td></tr>
+<tr><td class="half">	lb_algo rr</td></tr>
+<tr><td class="half">	lb_kind NAT</td></tr>
+<tr><td class="half">	protocol UDP</td></tr>
+<tr><td class="half">	ha_suspend</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td class="half">	real_server 192.168.0.111 53 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	real_server 192.168.0.211 53 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>virtual_server 10.1.2.80 80 {</td></tr>
+<tr><td class="half">	delay_loop 3</td></tr>
+<tr><td class="half">	lb_algo rr</td></tr>
+<tr><td class="half">	lb_kind NAT</td></tr>
+<tr><td class="half">	protocol TCP</td></tr>
+<tr><td class="half">	ha_suspend</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td class="half">	real_server 192.168.0.111 80 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 80</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	real_server 192.168.0.211 80 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 80</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>virtual_server 10.1.2.80 443 {</td></tr>
+<tr><td class="half">	delay_loop 3</td></tr>
+<tr><td class="half">	lb_algo rr</td></tr>
+<tr><td class="half">	lb_kind NAT</td></tr>
+<tr><td class="half">	persistence_timeout 600</td></tr>
+<tr><td class="half">	protocol TCP</td></tr>
+<tr><td class="half">	ha_suspend</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td class="half">	real_server 192.168.0.111 443 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 443</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	real_server 192.168.0.211 443 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 443</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>virtual_server 10.1.2.80 110 {</td></tr>
+<tr><td class="half">	delay_loop 3</td></tr>
+<tr><td class="half">	lb_algo rr</td></tr>
+<tr><td class="half">	lb_kind NAT</td></tr>
+<tr><td class="half">	protocol TCP</td></tr>
+<tr><td class="half">	ha_suspend</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td class="half">	real_server 192.168.0.111 110 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 110</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	real_server 192.168.0.211 110 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 110</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td># VIP for 2nd hosted domain's website</td></tr>
+<tr><td># We will direct traffic coming in on</td></tr>
+<tr><td># this VIP:80 to different IP's on the</td></tr>
+<tr><td># Real Servers, where Apache is</td></tr>
+<tr><td># listening for this IP-based VirtualHost.</td></tr>
+<tr><td>virtual_server 10.1.2.82 80 {</td></tr>
+<tr><td class="half">	delay_loop 3</td></tr>
+<tr><td class="half">	lb_algo rr</td></tr>
+<tr><td class="half">	lb_kind NAT</td></tr>
+<tr><td class="half">	protocol TCP</td></tr>
+<tr><td class="half">	ha_suspend</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td class="half">	real_server 192.168.0.112 80 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 80</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	real_server 192.168.0.212 80 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 80</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
+</pre>
+
+
+And here is an example <b>keepalived.conf</b> file for the <b>BACKUP</b> keepalived LVS Director/Firewall:<br>
+
+<pre>
+<table class="border" cellspacing="0" cellpadding="0" width="750" bgcolor="#dcdcdc">
+<tr><td>&nbsp;</td></tr>
+<tr><td>global_defs {</td></tr>
+<tr><td class="half">lvs_id lvs2</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td># VRRP Instances</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>vrrp_sync_group VG1 {</td></tr>
+<tr><td class="half">	group {</td></tr>
+<tr><td class="one">		EXT</td></tr>
+<tr><td class="one">		INT</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+
+<tr><td>vrrp_instance EXT {</td></tr>
+<tr><td class="half">	state BACKUP</td></tr>
+<tr><td class="half">	interface eth1</td></tr>
+<tr><td class="half">	lvs_sync_daemon_interface eth0</td></tr>
+<tr><td class="half">	mcast_src_ip 192.168.0.2</td></tr>
+<tr><td class="half">	debug 0</td></tr>
+<tr><td class="half">	virtual_router_id 51</td></tr>
+<tr><td class="half">	priority 100</td></tr>
+<tr><td class="half">	advert_int 5</td></tr>
+<tr><td class="half">	authentication {</td></tr>
+<tr><td class="one">		auth_type PASS</td></tr>
+<tr><td class="one">		auth_pass zoiks!</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	virtual_ipaddress {</td></tr>
+<tr><td class="one">		10.1.2.95/26</td></tr>
+<tr><td class="one">		10.1.2.80</td></tr>
+<tr><td class="one">		10.1.2.81</td></tr>
+<tr><td class="one">		10.1.2.82</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	virtual_routes {</td></tr>
+<tr><td class="one">		src 10.1.2.95 to 10.1.2.65 dev eth1</td></tr>
+<tr><td class="one">		src 10.1.2.95 to 0.0.0.0/0 via 10.1.2.65 dev eth1</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	# This script will come behind the master takeover</td></tr>
+<tr><td class="half">	# process and take care of a few extra things for us</td></tr>
+<tr><td class="half">	# (since we are running a Proxy Arp firewall).</td></tr>
+<tr><td class="half">	#</td></tr>
+<tr><td class="half">	notify_master "/etc/keepalived/proxyarpfix"</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>vrrp_instance INT {</td></tr>
+<tr><td class="half">	state BACKUP</td></tr>
+<tr><td class="half">	interface eth0</td></tr>
+<tr><td class="half">	lvs_sync_daemon_interface eth0</td></tr>
+<tr><td class="half">	mcast_src_ip 192.168.0.2</td></tr>
+<tr><td class="half">	debug 0</td></tr>
+<tr><td class="half">	virtual_router_id 52</td></tr>
+<tr><td class="half">	priority 100</td></tr>
+<tr><td class="half">	advert_int 5</td></tr>
+<tr><td class="half">	authentication {</td></tr>
+<tr><td class="one">		auth_type PASS</td></tr>
+<tr><td class="one">		auth_pass scooby!</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	virtual_ipaddress {</td></tr>
+<tr><td class="one">		10.1.2.95/26</td></tr>
+<tr><td class="one">		192.168.0.254/24</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	virtual_routes {</td></tr>
+<tr><td class="one">		src 10.1.2.95 to 10.1.2.80/28 dev eth0</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>virtual_server 10.1.2.80 25 {</td></tr>
+<tr><td class="half">	delay_loop 3</td></tr>
+<tr><td class="half">	lb_algo rr</td></tr>
+<tr><td class="half">	lb_kind NAT</td></tr>
+<tr><td class="half">	protocol TCP</td></tr>
+<tr><td class="half">	ha_suspend</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td class="half">	real_server 192.168.0.111 25 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 25</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	real_server 192.168.0.211 25 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 25</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td># Optional SMTP High Port for remote users who have</td></tr>
+<tr><td># ISP's that try to stop spammers from using their</td></tr>
+<tr><td># service by blocking outbound destination port 25.</td></tr>
+<tr><td># We have to give those users another port to use</td></tr>
+<tr><td># to get around this, and they will need to configure</td></tr>
+<tr><td># their email client's SMTP server port number for your</td></tr>
+<tr><td># SMTP server to use the high port number instead.</td></tr>
+<tr><td>#</td></tr>
+<tr><td>virtual_server 10.1.2.80 20025 {</td></tr>
+<tr><td class="half">	delay_loop 3</td></tr>
+<tr><td class="half">	lb_algo rr</td></tr>
+<tr><td class="half">	lb_kind NAT</td></tr>
+<tr><td class="half">	protocol TCP</td></tr>
+<tr><td class="half">	ha_suspend</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td class="half">	real_server 192.168.0.111 25 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 25</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	real_server 192.168.0.211 25 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 25</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>virtual_server 10.1.2.80 53 {</td></tr>
+<tr><td class="half">	delay_loop 3</td></tr>
+<tr><td class="half">	lb_algo rr</td></tr>
+<tr><td class="half">	lb_kind NAT</td></tr>
+<tr><td class="half">	protocol TCP</td></tr>
+<tr><td class="half">	ha_suspend</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td class="half">	real_server 192.168.0.111 53 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 53</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	real_server 192.168.0.211 53 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 53</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>virtual_server 10.1.2.80 53 {</td></tr>
+<tr><td class="half">	delay_loop 3</td></tr>
+<tr><td class="half">	lb_algo rr</td></tr>
+<tr><td class="half">	lb_kind NAT</td></tr>
+<tr><td class="half">	protocol UDP</td></tr>
+<tr><td class="half">	ha_suspend</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td class="half">	real_server 192.168.0.111 53 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	real_server 192.168.0.211 53 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>virtual_server 10.1.2.81 53 {</td></tr>
+<tr><td class="half">	delay_loop 3</td></tr>
+<tr><td class="half">	lb_algo rr</td></tr>
+<tr><td class="half">	lb_kind NAT</td></tr>
+<tr><td class="half">	protocol TCP</td></tr>
+<tr><td class="half">	ha_suspend</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td class="half">	real_server 192.168.0.111 53 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 53</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	real_server 192.168.0.211 53 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 53</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>virtual_server 10.1.2.81 53 {</td></tr>
+<tr><td class="half">	delay_loop 3</td></tr>
+<tr><td class="half">	lb_algo rr</td></tr>
+<tr><td class="half">	lb_kind NAT</td></tr>
+<tr><td class="half">	protocol UDP</td></tr>
+<tr><td class="half">	ha_suspend</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td class="half">	real_server 192.168.0.111 53 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	real_server 192.168.0.211 53 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>virtual_server 10.1.2.80 80 {</td></tr>
+<tr><td class="half">	delay_loop 3</td></tr>
+<tr><td class="half">	lb_algo rr</td></tr>
+<tr><td class="half">	lb_kind NAT</td></tr>
+<tr><td class="half">	protocol TCP</td></tr>
+<tr><td class="half">	ha_suspend</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td class="half">	real_server 192.168.0.111 80 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 80</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	real_server 192.168.0.211 80 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 80</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>virtual_server 10.1.2.80 443 {</td></tr>
+<tr><td class="half">	delay_loop 3</td></tr>
+<tr><td class="half">	lb_algo rr</td></tr>
+<tr><td class="half">	lb_kind NAT</td></tr>
+<tr><td class="half">	persistence_timeout 600</td></tr>
+<tr><td class="half">	protocol TCP</td></tr>
+<tr><td class="half">	ha_suspend</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td class="half">	real_server 192.168.0.111 443 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 443</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	real_server 192.168.0.211 443 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 443</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>virtual_server 10.1.2.80 110 {</td></tr>
+<tr><td class="half">	delay_loop 3</td></tr>
+<tr><td class="half">	lb_algo rr</td></tr>
+<tr><td class="half">	lb_kind NAT</td></tr>
+<tr><td class="half">	protocol TCP</td></tr>
+<tr><td class="half">	ha_suspend</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td class="half">	real_server 192.168.0.111 110 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 110</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	real_server 192.168.0.211 110 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 110</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td># VIP for 2nd hosted domain's website</td></tr>
+<tr><td># We will direct traffic coming in on</td></tr>
+<tr><td># this VIP:80 to different IP's on the</td></tr>
+<tr><td># Real Servers, where Apache is</td></tr>
+<tr><td># listening for this IP-based VirtualHost.</td></tr>
+<tr><td>virtual_server 10.1.2.82 80 {</td></tr>
+<tr><td class="half">	delay_loop 3</td></tr>
+<tr><td class="half">	lb_algo rr</td></tr>
+<tr><td class="half">	lb_kind NAT</td></tr>
+<tr><td class="half">	protocol TCP</td></tr>
+<tr><td class="half">	ha_suspend</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td class="half">	real_server 192.168.0.112 80 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 80</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td class="half">	real_server 192.168.0.212 80 {</td></tr>
+<tr><td class="one">		weight 1</td></tr>
+<tr><td class="one">		TCP_CHECK {</td></tr>
+<tr><td class="ones">			connect_port 80</td></tr>
+<tr><td class="ones">			connect_timeout 3</td></tr>
+<tr><td class="one">		}</td></tr>
+<tr><td class="half">	}</td></tr>
+<tr><td>}</td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
+</pre>
+
+As you can see, there is very little difference between the MASTER and the BACKUP config files.<br><br>
+
+Here is my <b>proxyarpfix</b> script file, referred to by keepalived.conf.  This will be run by the MASTER keepalived director at startup, and will also be run by either director when it takes over (or re-assumes) MASTER director duties.  This is a bash script, and needs to be made executable (chmod 750 or 700):
+
+<pre>
+<table class="border" cellspacing="0" cellpadding="0" width="750" bgcolor="#dcdcdc">
+<tr><td>
+<br>
+#!/bin/bash<br>
+#<br>
+# keepalived proxyarpfix notify_master script<br>
+#<br>
+# Drop the larger ISP subnet route on our DMZ interface -<br>
+# The kernel adds this route since we defined an IP on<br>
+# the DMZ interface with a /26 netmask (which is correct),<br>
+# but only /28 of the ISP's subnet can really be reached<br>
+# in our DMZ.  The rest of them can only be reached on the<br>
+# external interface through the ISP gateway.<br>
+#<br>
+/sbin/ip route del 10.1.2.80/26 dev eth0<br><br>
+
+# temporarily turn on the ability to arping an IP we don't have<br>
+# on a local interface<br>
+#<br>
+echo 1 > /proc/sys/net/ipv4/ip_nonlocal_bind<br><br>
+
+# ARPING<br>
+# Note: The '&amp;' symbol at the end of each of the arping<br>
+# command lines in this script is important - we don't want<br>
+# to wait for the first arping to finish executing before<br>
+# we start the next one - this has to be done ASAP!!!<br>
+#<br>
+# Any additional hosts in the DMZ which get set up with<br>
+# one of our routable static IP's will NEED to be added to<br>
+# this script, in BOTH sections (ISP Gateway and DMZ)!!!<br>
+#<br>
+#<br>
+# ISP Gateway Section<br>
+# <br>
+# 10.1.2.93 and 10.1.2.94 are DMZ hosts with routable IP's<br>
+# in our /28 block.  10.1.2.65 is our ISP's gateway.  Since<br>
+# we're doing proxy arp, we have to update our ISP's arp <br>
+# cache with the MAC addr of the new active Director's<br>
+# external interface (posing as each DMZ host).<br>
+#<br>
+/sbin/arping -U -I eth1 -c 3 -s 10.1.2.93 10.1.2.65 &amp;<br>
+/sbin/arping -U -I eth1 -c 3 -s 10.1.2.94 10.1.2.65 &amp;<br><br>
+
+# DMZ Section<br>
+# <br>
+# Now we will update our DMZ hosts' arp cache with the MAC addr<br>
+# of the new Director's internal interface (posing as ISP gateway):<br>
+#<br>
+/sbin/arping -U -I eth0 -c 3 -s 10.1.2.65 10.1.2.93 &amp;<br>
+/sbin/arping -U -I eth0 -c 3 -s 10.1.2.65 10.1.2.94 &amp;<br><br>
+
+# Give all of the arpings time to finish. 5 seconds should<br>
+# be long enough, but if running this script manually on<br>
+# your box yields ANY &quot;bind: cannot assign requested address&quot;<br>
+# messages, you may need to increase this value.<br>
+/bin/sleep 5<br><br>
+
+# OK turn the sysctl back off now<br>
+#<br>
+echo 0 > /proc/sys/net/ipv4/ip_nonlocal_bind<br>
+exit 0<br><br>
+</td></tr>
+</table>
+</pre>
+
+<h1>Writing a Stateful iptables Firewall Script for the LVS-NAT Director</h1>
+
+<h3>Introduction</h3>
+This is where the Antefacto patch really comes into play.  Without the Antefacto patch to IPVS, it would basically not be possible to statefully inspect traffic heading to/from our virtual servers and services with our firewall script.  IPVS unmodified works independently of Netfilter connection state tracking.  So we can't ask Netfilter to keep an eye on IPVS traffic, and make sure we only let good traffic into or out of our LVS.  Netfilter simply doesn't know what's going on with those connections, because it has been kept out of the loop.<br><br>
+
+While it is agreed and logical that IPVS needs to manage the connections to our virtual servers/services by itself to be efficient, keeping Netfilter &quot;out of the loop&quot; effectively mandates that our main firewall has to be a separate box, if we want to run an iptables firewall which statefully inspects ALL traffic passing through it.<br><br>
+
+That may be acceptable or desirable for some network admins.  But if I only have two boxes I can use on this project, and I can choose to either:<br>
+<b>(A)</b> Use one box as the stateful firewall, and the other as the LVS-NAT Director behind the firewall, with no HA of either box; or<br>
+<b>(B)</b> Patch IPVS so it lets Netfilter know what's going on with its connections, so that the LVS-NAT Director CAN be the stateful firewall too, meaning it only takes one box to do both jobs well;<br><br>
+
+Then the OBVIOUS choice is to go with <b>Option B</b>.  I can build two of them, one as MASTER and the other as BACKUP, and guess what?  Now we have a highly-available FIREWALL/DIRECTOR too!<br><br>
+
+And those with only one box to work with can kill both birds (LVS-NAT Director and Main Stateful Firewall) with one stone.<br><br>
+
+<h3>How do we statefully inspect IPVS traffic with iptables rules?</h3>
+Of significant note is the way that new connections destined for IPVS-managed virtual services are handled.  Things are just slightly different.  On a NORMAL firewall box without IPVS, if you wanted to allow new connections to be forwarded to your webserver, you would generally start at or near the top of your forward chain with something like:<br><br>
+
+<pre>
+<table class="border" cellspacing="0" cellpadding="0" width="750" bgcolor="#dcdcdc">
+<tr><td>
+<br>
+/sbin/iptables -A FORWARD -i eth1 -o eth0 -m state --state ESTABLISHED,RELATED -j ACCEPT<br><br>
+</td></tr>
+</table>
+</pre>
+
+
+to let connections already in progress continue without further delay, and then you would allow new connections to port 80 of your webserver ($APACHE1) like so:<br><br>
+
+<pre>
+<table class="border" cellspacing="0" cellpadding="0" width="750" bgcolor="#dcdcdc">
+<tr><td>
+<br>
+/sbin/iptables -A FORWARD -i eth1 -o eth0 -p tcp --syn -d $APACHE1 --dport 80 -m state --state NEW -j ACCEPT<br><br>
+</td></tr>
+</table>
+</pre>
+
+But it's a little different with IPVS-managed connections.  Remember, the firewall IS the Director, so the VIP's are LOCAL addresses on the firewall.<br><br>
+
+This means we have to put the rules that accept NEW connections to the LVS webserver in the INPUT chain (or user-defined chains called from the INPUT chain).  Once our firewall allows the connection, at that point, IPVS sees the connection, changes the state of this NEW connection to ESTABLISHED, and does its tricks to FORWARD it to a Real Server.  What happens from there is goverened by your firewall's FORWARD chain(s).  So to summarize, you let NEW and ESTABLISHED/RELATED traffic into your LVS with appropriate ACCEPT rules in the Director's INPUT chain, then you let IPVS direct that traffic to the Real Servers with ACCEPT rules in the Director's FORWARD chain(s).<br><br>
+
+Note also that if it is IPVS traffic passing through the firewall, even the client's initial connection request (SYN packet) will be called part of an ESTABLISHED connection when it hits the Director's FORWARD chains! Of course it would still be seen as a new connection when it arrives at the Real Server.<br><br>
+
+So here is the equivalent way to allow connections to your webserver in an LVS-NAT environment, with Antefacto as part of the equation:<br><br>
+
+<pre>
+<table class="border" cellspacing="0" cellpadding="0" width="750" bgcolor="#dcdcdc">
+<tr><td>
+<br>
+# Allow ESTABLISHED and RELATED traffic in from the external interface.  This rule<br>
+# covers IPVS traffic (connections in progress with Real Servers), as well as<br>
+# non-IPVS connections that THIS server has in progress with the outside.<br>
+#<br>
+/sbin/iptables -A INPUT -i eth1 -m state --state ESTABLISHED,RELATED -j ACCEPT<br><br>
+
+# Let new SYN packets in on port 80, if the destination IP is the VIP of our<br>
+# webserver, so IPVS can see them. ($APACHEVIP1 is a variable, assumed to be<br> 
+# previously defined in the script).<br>
+#<br>
+/sbin/iptables -A INPUT -i eth1 -p tcp --syn -d $APACHEVIP --dport 80 -m state --state NEW -j ACCEPT<br>
+<br>
+</td></tr>
+</table>
+</pre>
+
+Then in the FORWARD chain, the only rule we need is to allow ESTABLISHED and RELATED traffic to pass through.  Conveniently, this covers traffic headed for LVS Real Servers (even the initial connection request packets) *AND* ESTABLISHED/RELATED traffic for DMZ hosts which are not IPVS virtual servers!  (NOTE: for non-IPVS servers you still have to have a rule to allow NEW connections to be forwarded to the DMZ host):
+
+<pre>
+<table class="border" cellspacing="0" cellpadding="0" width="750" bgcolor="#dcdcdc">
+<tr><td>
+<br>
+/sbin/iptables -A FORWARD -i eth1 -o eth0 -m state --state ESTABLISHED,RELATED -j ACCEPT<br><br>
+
+# (our FTP server is a standalone DMZ host with its own routable IP,<br>
+# it is not an LVS virtual service, so unlike traffic headed for<br>
+# IPVS-managed services, we have to have a rule to allow new<br>
+# connection requests through):<br>
+#<br>
+/sbin/iptables -A FORWARD -i eth1 -o eth0 -p tcp --syn -d $FTPSERVER --dport 21 -m state --state NEW -j ACCEPT<br>
+<br>
+</td></tr>
+</table>
+</pre>
+
+<h3>A Sample iptables Stateful Firewall Script for our LVS-NAT Director</h3>
+
+This is a basic firewall script, which demonstrates the basic layout of the type of rules that can/should be used to statefully inspect ALL traffic moving through the firewall, based upon the layout of our example DMZ.  It is somewhat comprehensive in nature, but you will probably need to add additional rules for additional services, or for other ports and IP's you want to let through.<br><br>
+
+This firewall script demonstrates and employs the following concepts:<br><br>
+
+<b>VARIABLES</b><br>
+We will use variables in as many places as possible, so that if/when changes to IP addresses used by the hosts are necessary, it is usually only necessary to change them where they are defined at the top of the script.<br><br>
+
+<b>BLOCK UNLESS SPECIFICALLY ALLOWED</b><br>
+We will ONLY let things in/through from the outside that we HAVE to let in for things to work properly.  This is "Building Good Firewalls 101".  We will either DROP or REJECT things that fail our rules, depending on whether it is a local host or someone from the internet generating the traffic (from the internet = DROP, from local network = REJECT).  A REJECT politely informs the host with an ICMP errormsg of some type, a DROP just ignores it and sends no response at all.<br><br>
+
+<b>USER-DEFINED CHAINS</b><br>
+We will make EXTENSIVE use of iptables user-defined chains in our script.  The idea is to make our firewall ruleset as efficient as possible, by quickly determining (in the built-in chains) the general TYPE of traffic the packet is, and then immediately sending that packet to a user-defined chain which ONLY contains rules for those kinds of packets.  This greatly reduces the number of rules that any given packet has to be checked against before its fate is decided.  So aside from a few "preliminary" checks (like invalid addresses, etc.), the main thing we will use the built-in INPUT, OUTPUT, and FORWARD chains to do for us is to act as a sort of jump table, to quickly determine which user-defined chain the packet should be sent to.  Our criteria will be three-fold: (1) Protocol (TCP, UDP, or ICMP); (2) Which interface the traffic is moving on (forward chains based on which interface the traffic is coming IN on); and (3) where it is headed (IN, OUT, or FORWARD).  We'll tie up the remaining loose ends (IGMP traffic, etc.) at the end of the built-in chains (although user-defined chains for IGMP, or whatever else, could also be added).<br><br>
+
+<b>GIVING CREDIT WHERE CREDIT IS DUE</b><br>
+I would like to take a moment to credit and thank David Ranch for the documentation and firewall scripts he had published on his <a href="http://www.ecst.csuchico.edu/~dranch/LINUX/TrinityOS/mHTML/TrinityOS-m.html">TrinityOS website</a> back in 1999, when I built my first Linux machine to serve as a firewall for our network.  His scripts were pretty helpful, since I was pretty unfamiliar with Linux at the time, and not even sure how to approach the task of setting up a Linux firewall.<br><br>
+
+A lot has changed since '99.  I have become moderately proficient in a few things with Linux, but that is to be expected with the amount of time I have put into working with it, and how much I enjoy running Linux.  Our network has grown considerably, and we are not just a private network with a couple machines sharing our internet access anymore.  Our internet connection has also steadily improved.  But most importantly, Linux itself has changed radically in the last 4 years.  Ipchains is old news -- if not altogether obsolete.<br><br>
+
+All of these factors, and others, have led to many major changes to that original firewall script I downloaded from David's website back in '99.  Some to (hopefully) make the rules more efficient, but most just to keep up with the changes and improvements -- such as gutting and rewriting it for iptables, which I did by myself, using Rusty Russell's iptables/netfilter documentation as a guide. (Great documentation, by the way).  I haven't followed David's updates to his TrinityOS firewall scripts in quite a long time.<br><br>
+
+As a result, the rc.firewall script you will see here is a different animal - it is NOT just a cheap ripoff with a couple of tiny edits.  And I don't mean this in a bad way, but I am not compelled to ask anybody's permission to publish it here.<br><br>
+
+Still, I do wish to thank and credit David Ranch as my original source for a great firewall script (back in 1999), and for the great Linux documentation on his TrinityOS website, which he does continue to update.<br><br>
+
+The firewall init script basically IS David's script - but updated for iptables.<br><br>
+
+For the record, anybody who likes my firewall script is welcome to use it in any way that they see fit.  Change it around, rewrite it, print it out and line your bird cage with it, whatever makes you happy.  I don't claim that I came up with 100% of this myself.<br><br>
+
+This is an open source community, folks.  Freely you have received, freely give - that's the way I see it.  I do believe that people should get due credit for their work.  But if I cared or had time to worry about how somebody was going to use my work, or that they might "steal it" and call it their own, I wouldn't be publishing it on the internet.  <i>But that's just me. &lt;grin&gt;</i><br><br>
+
+
+<pre>
+<table class="border" cellspacing="0" cellpadding="0" width="750" bgcolor="#dcdcdc">
+<tr><td>
+<br>
+#!/bin/bash<br>
+#<br>
+# This script needs to be made executable to run (chmod 700 or 750).<br>
+#<br>
+# An example iptables stateful firewall script for IPVS LVS-NAT<br>
+# Directors running with the Antefacto netfilter-conntrack patch.<br>
+#<br>
+######################################################################<br>
+# VARIABLES<br>
+# Here we will define some variables we will use throughout the script.<br>
+######################################################################<br>
+#<br>
+# DEFAULT LOG LEVEL<br>
+# By setting the default log level to 6, when we get a firewall hit,<br>
+# it only writes it to the system logs, it doesn't throw it up on<br>
+# every virtual console also (that's really annoying).<br>
+#<br>
+#  If you want a firewall log event, use the variable $LOG in the<br>
+# rule, without a -j in front of it.  And if you want a custom log<br>
+# prefix for that log rule, add a --log-prefix &quot;CustomLogPrefix&quot;<br>
+# to the end.<br>
+#<br>
+# Examples:<br>
+# I want this logged with no custom log (?)<br>
+# /sbin/iptables -A INPUT -i $EXTIF -p tcp -s 1.2.3.4 $LOG<br>
+#<br>
+# I want this logged with a custom log prefix<br>
+# /sbin/iptables -A INPUT -i $EXTIF -p tcp -s 3.4.5.6 $LOG --log-prefix &quot;Some Hacker! :&quot;<br>
+#<br>
+LOG="-j LOG --log-level 6"<br>
+######################################################################<br>
+#<br>
+# ADDRESS VARIABLES<br>
+#<br>
+# Our Routable IP Address Space (Network ID)<br>
+# (IP's we will route traffic for)<br>
+OURIPBLOCK="10.1.2.80/28"<br><br>
+
+# Broadcast Address for the ISP's subnet mask<br>
+# Although we may have use/need for broadcast to<br>
+# DMZ Hosts, we will not allow broadcast traffic<br>
+# out of the external interface.<br>
+DMZBROAD="10.1.2.127"<br>
+echo "ISP Subnet Broadcast Address (DMZ Use Only):" $DMZBROAD<br><br>
+
+# LVS VIP Addresses<br>
+VIP1="10.1.2.80"<br>
+VIP2="10.1.2.81"<br>
+VIP3="10.1.2.82"<br>
+MYIP="10.1.2.95"<br><br>
+
+# DMZ HOSTS with Routable IP Addresses<br>
+#<br>
+# Our FTP Server (not LVS)<br>
+PUBFTP="10.1.2.93"<br><br>
+
+# INTERNAL NAT GATEWAY/FIREWALL<br>
+# The NAT gateway is an internal firewall host in<br>
+# the DMZ, which routes all traffic to/from the<br>
+# internet for our internal network hosts.  We<br>
+# use one of our static IP's as a "source NAT"<br>
+# address for all internal internet traffic.<br>
+# "Source NAT" is the way to do IP Masquerading<br>
+# with iptables when you have a static IP address<br>
+# to NAT with.<br>
+#<br>
+# Note that the actual SNAT work will be done on the<br>
+# internal firewall host with a POSTROUTING rule.  We<br>
+# have this variable here because we will need some<br>
+# specific ACCEPT rules on this firewall to allow<br>
+# certain types of NEW connections to come in from the<br>
+# outside, and make it to the internal NAT gateway<br>
+# where the traffic will actually be forwarded in<br>
+# to the internal network hosts.<br>
+#<br>
+SNATIP="10.1.2.94"<br><br>
+
+# DMZ LAN IP Subnet<br>
+# IP Subnet of LVS Real Servers and other<br>
+# internal hosts with internal "mgmt"<br>
+# IP's.<br>
+DMZLAN="192.168.0.0/24"<br><br>
+
+# IP Address of the DSL Modem CPE device<br>
+DSLMODEMIP="192.168.1.1"<br>
+echo DSL Modem IP Address: $DSLMODEMIP<br><br>
+
+# DSL Modem IP Address w/Netmask<br>
+DSLIPMASK="192.168.1.1/29"<br>
+echo "DSL Modem IP Address w/NetMask:" $DSLIPMASK<br><br>
+
+# Our IP Address on the CPE Mgmt Subnet<br>
+CPELANIP="192.168.1.2"<br>
+echo OUR IP Address on CPE Mgmt Subnet: $CPELANIP<br><br>
+
+# Our IP Address on the CPE Mgmt Subnet w/Netmask<br>
+# (make this different on the backup director)<br>
+CPELANIPMASK="192.168.1.2/29"<br>
+echo "OUR IP Address on CPE Mgmt Subnet w/Netmask:" $CPELANIPMASK<br><br>
+
+######################################################################<br>
+#<br>
+# INTERFACE VARIABLES<br>
+#<br>
+# External Interface (connected to internet)<br>
+EXTIF="eth1"<br><br>
+
+# DMZ Interface<br>
+DMZIF="eth0"<br><br>
+
+######################################################################<br>
+#<br>
+# OTHER VARIABLES<br>
+#<br>
+# XWindow Ports<br>
+XWINPORTS="6000:6063"<br><br>
+
+######################################################################<br>
+#<br>
+# FIREWALL SYSCTLS<br>
+#<br>
+# TURN OFF IP FORWARDING IN THE LINUX KERNEL UNTIL COMPLETE<br>
+# SET OF FIREWALL RULES ARE LOADED<br>
+echo "0" > /proc/sys/net/ipv4/ip_forward<br><br>
+
+# Turn OFF PROXY ARP functionality until all of the firewall rules<br>
+# are loaded.  Note that without an address on a certain interface,<br>
+# we cannot actually toggle the value of proxy_arp, because the<br>
+# sysctl for that interface doesn't exist until it has an address.<br>
+# But by setting the default proxy_arp value, as soon as an address<br>
+# is put on the interface, the proxy_arp sysctl will come up for<br>
+# the interface, with the default value.<br>
+echo "0" > /proc/sys/net/ipv4/conf/$DMZIF/proxy_arp<br>
+echo "0" > /proc/sys/net/ipv4/conf/$EXTIF/proxy_arp<br>
+echo "0" > /proc/sys/net/ipv4/conf/all/proxy_arp<br>
+echo "0" > /proc/sys/net/ipv4/conf/default/proxy_arp<br><br>
+
+# Disable IP spoofing attacks.<br>
+#<br>
+echo "  - Disabling IP Spoofing attacks."<br>
+for file in /proc/sys/net/ipv4/conf/*/rp_filter; do<br>
+  echo "1" > $file<br>
+done<br><br>
+
+# Enable TCP SYN Cookies<br>
+#<br>
+echo "  - Enabling TCP SYN Cookies"<br>
+echo "1" > /proc/sys/net/ipv4/tcp_syncookies<br><br>
+
+# ICMP SYSCTLS<br>
+#<br>
+echo "  - Setting ICMP handling controls"<br><br>
+
+# Enable ICMP broadcast echo protection<br>
+echo "1" > /proc/sys/net/ipv4/icmp_echo_ignore_broadcasts<br><br>
+
+# Enable bad error message protection<br>
+echo "1" > /proc/sys/net/ipv4/icmp_ignore_bogus_error_responses<br><br>
+
+# Disable ICMP Re-directs<br>
+for file in /proc/sys/net/ipv4/conf/*/accept_redirects; do<br>
+  echo "0" > $file<br>
+done<br><br>
+
+# From IPVS How-To - Turn off sending of ICMP redirects<br>
+echo "0" > /proc/sys/net/ipv4/conf/all/send_redirects<br>
+echo "0" > /proc/sys/net/ipv4/conf/default/send_redirects<br>
+echo "0" > /proc/sys/net/ipv4/conf/$DMZIF/send_redirects<br>
+echo "0" > /proc/sys/net/ipv4/conf/$EXTIF/send_redirects<br><br>
+
+# Accepting Source-Routed Traffic<br>
+# If you are running IPROUTE2 and doing some more advanced<br>
+# routing of traffic, this may need to be DISABLED (set to 1).<br>
+#<br>
+echo "  - Dropping source-routed packets "<br>
+for file in /proc/sys/net/ipv4/conf/*/accept_source_route; do<br>
+   echo "0" > $file<br>
+done<br><br>
+
+
+######################################################################<br>
+# ROUTING TABLE STUFF<br>
+######################################################################<br>
+# ADD MULTICAST ROUTE<br>
+# In this example, we are adding a multicast route for the DMZ<br>
+# interface.  Keepalived needs to be able to multicast in order<br>
+# to communicate with the BACKUP Director(s).  If you are using<br>
+# a different interface for Keepalived/VRRP elections, or doing<br>
+# other kinds of multicasting, you may need to modify this.<br><br>
+
+echo "  - Adding multicast route on DMZ interface"<br>
+/sbin/ip route add 224.0.0.0/4 dev $DMZIF<br><br>
+
+######################################################################<br>
+#<br>
+# IPTABLES INITIALIZATION<br>
+#<br>
+######################################################################<br>
+# CLEAR OUT THE RULES AND RELOAD THEM<br>
+#<br>
+# Change default policies to DROP.<br>
+#<br>
+# If there isn't a rule to specifically allow a certain type of<br>
+# traffic, it will be DROPPED.  Note that some of our user-defined<br>
+# chains will change this behavior by having the last rule in the<br>
+# chain be a blanket ACCEPT (after passing specific block tests).<br>
+#<br>
+# IPTables doesn't like using REJECT as a chain policy, we'll have to use<br>
+# DROP instead<br>
+echo "  - Setting Default Policies of Built-In Chains"<br>
+/sbin/iptables -P INPUT DROP<br>
+/sbin/iptables -P OUTPUT DROP<br>
+/sbin/iptables -P FORWARD DROP<br><br>
+
+echo "  - Setting Default NAT Policies to ACCEPT:"<br>
+/sbin/iptables -t nat -P PREROUTING ACCEPT<br>
+/sbin/iptables -t nat -P POSTROUTING ACCEPT<br>
+/sbin/iptables -t nat -P OUTPUT ACCEPT<br><br>
+
+echo "  - Flushing All Built-In Chain Rules"<br>
+# Flush all old rule sets<br>
+#<br>
+/sbin/iptables -F<br><br>
+
+echo " - Flushing NAT Rules"<br>
+# Flush NAT rules<br>
+/sbin/iptables -t nat -F<br><br>
+
+echo " - Flushing MANGLE Rules"<br>
+/sbin/iptables -t mangle -F<br><br>
+
+echo " - Flushing and Deleting All User-Defined Chains"<br>
+# Flush all user-defined chains. Per how-to, not specifying a specific chain<br>
+# flushes all of them.  I like this better than 28 more flush commands... ;)<br>
+/sbin/iptables -F<br><br>
+
+# Now that the user-defined chains are empty, we can delete them.  Again,<br>
+# we'll kill all of them by not specifying a specific chain.<br>
+/sbin/iptables -X<br>
+/sbin/iptables -t nat -X<br>
+/sbin/iptables -t mangle -X<br><br>
+
+#############################################################################<br>
+#<br>
+# BUILD THE CHAINS<br>
+#<br>
+#############################################################################<br>
+# CREATE THE USER-DEFINED CPE MGMT TRAFFIC CHAINS FIRST<br>
+# We have to do this because we are referring (jumping) to some of<br>
+# the CPE MGMT TRAFFIC chains VERY EARLY in the built-in OUTPUT<br>
+# rules.  Since chains that are referred to must already exist<br>
+# when a rule is added that points to them, we have to do this NOW,<br>
+# and we may as well keep this all together.<br>
+#<br>
+# The CPE has an RFC1918 private network address on its ethernet<br>
+# interface (defined by the DSLMODEMIP variable), which would<br>
+# otherwise be considered a bad destination address for traffic<br>
+# going out the external interface.  We want/need to be able to<br>
+# ping, telnet, and ftp the CPE from our firewall boxes, so we<br>
+# will place matching rules ahead of the "bad destinations" list<br>
+# in the main OUTPUT chain.<br>
+#<br>
+# Some explanation may be in order here on my DSLLAN chains...<br>
+#<br>
+# I only allow REPLY (ESTABLISHED,RELATED) traffic from<br>
+# $DSLMODEMIP.  My CPE is configured to ONLY function as an<br>
+# "ADSL ethernet bridge" device, so any incoming NEW traffic<br>
+# from $DSLMODEMIP would be HIGHLY suspect.<br>
+#<br>
+
+/sbin/iptables -N tcp_cpe_in<br>
+/sbin/iptables -N tcp_cpe_out<br><br>
+
+/sbin/iptables -N udp_cpe_in<br>
+/sbin/iptables -N udp_cpe_out<br><br>
+
+/sbin/iptables -N icmp_cpe_in<br>
+/sbin/iptables -N icmp_cpe_out<br><br>
+
+###########################################################################<br>
+# CPE TCP INPUT RULES  tcp_cpe_in<br>
+#<br><br>
+
+# Connections in progress are OK<br>
+/sbin/iptables -A tcp_cpe_in -m state --state ESTABLISHED,RELATED -j ACCEPT<br><br>
+
+# END OF DSLLAN TCP INPUT CHAIN<br>
+# Anything else tries to come through, I want to know about it<br>
+/sbin/iptables -A tcp_cpe_in -m limit $LOG --log-prefix "CPE Chatter Block:"<br>
+/sbin/iptables -A tcp_cpe_in -j REJECT<br>
+###########################################################################<br><br>
+
+
+###########################################################################<br>
+# DSLLAN UDP INPUT RULES udp_cpe_in<br>
+#<br>
+# Connections in progress are OK<br>
+/sbin/iptables -A udp_cpe_in -m state --state ESTABLISHED,RELATED -j ACCEPT<br><br>
+
+# END OF DSLLAN TCP INPUT CHAIN<br>
+# Anything else tries to come through, I want to know about it<br>
+/sbin/iptables -A udp_cpe_in -m limit $LOG --log-prefix "CPE Chatter Block:"<br>
+/sbin/iptables -A udp_cpe_in -j REJECT<br>
+###########################################################################<br><br>
+
+
+###########################################################################<br>
+# DSLLAN ICMP INPUT RULES icmp_cpe_in<br>
+#<br>
+# Connections in progress are OK<br>
+/sbin/iptables -A icmp_cpe_in -m state --state ESTABLISHED,RELATED -j ACCEPT<br><br>
+
+# END OF DSLLAN TCP INPUT CHAIN<br>
+# Anything else tries to come through, I want to know about it<br>
+/sbin/iptables -A icmp_cpe_in -m limit $LOG --log-prefix "CPE Chatter Block:"<br>
+/sbin/iptables -A icmp_cpe_in -j REJECT<br>
+###########################################################################<br><br>
+
+
+###########################################################################<br>
+# DSLLAN TCP OUTPUT RULES tcp_cpe_out<br>
+#<br>
+# Anything goes...<br>
+/sbin/iptables -A tcp_cpe_out -j ACCEPT<br>
+###########################################################################<br><br>
+
+
+###########################################################################<br>
+# DSLLAN UDP OUTPUT RULES udp_cpe_out<br>
+# Anything goes...<br>
+/sbin/iptables -A udp_cpe_out -j ACCEPT<br>
+###########################################################################<br><br>
+
+
+###########################################################################<br>
+# DSLLAN ICMP OUTPUT RULES icmp_cpe_out<br>
+# Anything goes...<br>
+/sbin/iptables -A icmp_cpe_out -j ACCEPT<br>
+###########################################################################<br><br>
+
+###########################################################################<br><br>
+
+echo " Initializing BUILT-IN Chains: "<br>
+echo "----------------------------------------------------"<br><br>
+
+# GENERAL RULES<br>
+###########################################################################<br>
+# FIRST THINGS FIRST - RULES WE WANT TO PUT IN THE BUILT-IN CHAINS<br>
+#<br>
+echo " --- "<br>
+echo " Populating built-in chains with preliminary rules:"<br>
+echo " --------------------------------------------------"<br>
+echo " - Populating built-in OUTPUT chain..."<br><br>
+
+# DSL/CPE MGMT TRAFFIC OUTPUT JUMP TABLES ***MUST*** GO FIRST<br>
+# Since we are using private RFC1918 addresses on the DSL Modem<br>
+# and as an additional address on the external interface,<br>
+# we have to put the jump tables for CPE MGMT traffic ahead of<br>
+# everything else, and mainly before we let it hit the REJECT rules<br>
+# for other non-routable addresses in the same RFC1918 subnet...<br>
+#<br>
+# This ALSO means that the chains we are referring to have to already<br>
+# exist and be preloaded with their rules. So we had to pull these<br>
+# out and stick them above all of this.  If we're going to do that,<br>
+# we might as well put ALL of the CPE MGMT traffic-related chains<br>
+# above this, so we can at least keep them all together.<br>
+/sbin/iptables -A OUTPUT -o $EXTIF -p tcp -d $DSLMODEMIP -j tcp_cpe_out<br>
+/sbin/iptables -A OUTPUT -o $EXTIF -p udp -d $DSLMODEMIP -j udp_cpe_out<br>
+/sbin/iptables -A OUTPUT -o $EXTIF -p icmp -d $DSLMODEMIP -j icmp_cpe_out<br><br>
+
+echo " - Monitoring Outbound LOCAL Traffic for Bad Destination IP's..."<br>
+# OUTBOUND TRAFFIC FROM THIS BOX<br>
+# We will REJECT this traffic, rather than DROP it, so the app generating<br>
+# the traffic will QUICKLY find out (via DESTINATION UNREACHABLE) we can't<br>
+# get there from here.<br>
+/sbin/iptables -A OUTPUT -o $EXTIF -d 0.0.0.0/8 -j REJECT<br>
+/sbin/iptables -A OUTPUT -o $EXTIF -d 1.0.0.0/8 -j REJECT<br>
+/sbin/iptables -A OUTPUT -o $EXTIF -d 10.0.0.0/8 -j REJECT<br>
+/sbin/iptables -A OUTPUT -o $EXTIF -d 127.0.0.0/8 -j REJECT<br>
+/sbin/iptables -A OUTPUT -o $EXTIF -d 128.0.0.0/16 -j REJECT<br>
+/sbin/iptables -A OUTPUT -o $EXTIF -d 128.66.0.0/16 -j REJECT<br>
+/sbin/iptables -A OUTPUT -o $EXTIF -d 172.16.0.0/12 -j REJECT<br>
+/sbin/iptables -A OUTPUT -o $EXTIF -d 191.255.0.0/16 -j REJECT<br>
+/sbin/iptables -A OUTPUT -o $EXTIF -d 192.0.0.0/24 -j REJECT<br>
+/sbin/iptables -A OUTPUT -o $EXTIF -d 192.0.1.0/24 -j REJECT<br>
+/sbin/iptables -A OUTPUT -o $EXTIF -d 192.0.2.0/24 -j REJECT<br>
+/sbin/iptables -A OUTPUT -o $EXTIF -d 192.168.0.0/24 -j REJECT<br>
+/sbin/iptables -A OUTPUT -o $EXTIF -d 192.168.1.0/24 -j REJECT<br>
+/sbin/iptables -A OUTPUT -o $EXTIF -d 240.0.0.0/5 -j REJECT<br>
+/sbin/iptables -A OUTPUT -o $EXTIF -d 248.0.0.0/6 -j REJECT<br><br>
+
+echo " - Monitoring Outbound FWD Traffic for Bad Destination IP's..."<br>
+# OUTBOUND TRAFFIC FROM THE INTERNAL NETWORK<br>
+# We will REJECT this traffic, rather than DROP it, so the app generating<br>
+# the traffic will QUICKLY find out (via DESTINATION UNREACHABLE) we can't<br>
+# get there from here.  The -i !$EXTIF statement will cover all interfaces<br>
+# except the external interface.<br>
+/sbin/iptables -A FORWARD ! -i $EXTIF -o $EXTIF -d 0.0.0.0/8 -j REJECT<br>
+/sbin/iptables -A FORWARD ! -i $EXTIF -o $EXTIF -d 1.0.0.0/8 -j REJECT<br>
+/sbin/iptables -A FORWARD ! -i $EXTIF -o $EXTIF -d 10.0.0.0/8 -j REJECT<br>
+/sbin/iptables -A FORWARD ! -i $EXTIF -o $EXTIF -d 127.0.0.0/8 -j REJECT<br>
+/sbin/iptables -A FORWARD ! -i $EXTIF -o $EXTIF -d 128.0.0.0/16 -j REJECT<br>
+/sbin/iptables -A FORWARD ! -i $EXTIF -o $EXTIF -d 128.66.0.0/16 -j REJECT<br>
+/sbin/iptables -A FORWARD ! -i $EXTIF -o $EXTIF -d 172.16.0.0/12 -j REJECT<br>
+/sbin/iptables -A FORWARD ! -i $EXTIF -o $EXTIF -d 191.255.0.0/16 -j REJECT<br>
+/sbin/iptables -A FORWARD ! -i $EXTIF -o $EXTIF -d 192.0.0.0/24 -j REJECT<br>
+/sbin/iptables -A FORWARD ! -i $EXTIF -o $EXTIF -d 192.0.1.0/24 -j REJECT<br>
+/sbin/iptables -A FORWARD ! -i $EXTIF -o $EXTIF -d 192.0.2.0/24 -j REJECT<br>
+/sbin/iptables -A FORWARD ! -i $EXTIF -o $EXTIF -d 192.168.0.0/24 -j REJECT<br>
+/sbin/iptables -A FORWARD ! -i $EXTIF -o $EXTIF -d 192.168.1.0/24 -j REJECT<br>
+/sbin/iptables -A FORWARD ! -i $EXTIF -o $EXTIF -d 240.0.0.0/5 -j REJECT<br>
+/sbin/iptables -A FORWARD ! -i $EXTIF -o $EXTIF -d 248.0.0.0/6 -j REJECT<br><br>
+
+echo " - Suppressing Broadcast Output on the External Interface..."<br>
+/sbin/iptables -A OUTPUT -o $EXTIF -d $DMZBROAD -j REJECT<br>
+/sbin/iptables -A FORWARD -o $EXTIF -d $DMZBROAD -j REJECT<br><br>
+
+echo " --- "<br><br>
+
+###########################################################################<br>
+# USER-DEFINED CHAINS<br>
+###########################################################################<br>
+#<br>
+# PROTOCOL/INTERFACE/ROUTE IDENTIFICATION<br>
+#<br>
+# By categorizing the packets early in the process by type (ie protocol),<br>
+# which interface(s), and which direction they're going, we can keep the<br>
+# number of rules any packet has to traverse before its fate is determined<br>
+# to a minimum (vs. having single giant input, output, and forward chains).<br>
+# And more significantly, packets will only be checked against rules that<br>
+# apply to that category of traffic.  This should help speed things up,<br>
+# at least for a lot of the traffic.<br>
+#<br>
+# The user-defined chains are named like this --<br>
+#<br>
+# FIRST part of name is which protocol this chain is for.<br>
+#<br>
+# SECOND part is for which interface the packets are moving on.  In the<br>
+# case of the fwd chains, this part is which interface the traffic is<br>
+# coming IN on.<br>
+#<br>
+# THIRD part is for where the traffic is headed (IN or OUT of this box,<br>
+# or forwarding THRU the box).<br><br>
+
+echo " Creating custom traffic chains:"<br>
+echo " -------------------------------"<br><br>
+
+# LOCALHOST CHAINS<br>
+# For some reason, I HAD to make user-defined localhost chains.  Having<br>
+# explicit ACCEPTS at the top of the INPUT and OUTPUT chains for lo *DID<br>
+# NOT WORK* (the rules were not actually getting put into the INPUT and<br>
+# OUTPUT chains!!!).<br>
+#<br>
+/sbin/iptables -N local_in<br>
+/sbin/iptables -N local_out<br><br>
+
+/sbin/iptables -N tcp_ext_in<br>
+/sbin/iptables -N tcp_ext_fwd<br>
+/sbin/iptables -N tcp_ext_out<br>
+/sbin/iptables -N tcp_dmz_in<br>
+/sbin/iptables -N tcp_dmz_fwd<br>
+/sbin/iptables -N tcp_dmz_out<br><br>
+
+/sbin/iptables -N udp_ext_in<br>
+/sbin/iptables -N udp_ext_fwd<br>
+/sbin/iptables -N udp_ext_out<br>
+/sbin/iptables -N udp_dmz_in<br>
+/sbin/iptables -N udp_dmz_fwd<br>
+/sbin/iptables -N udp_dmz_out<br><br>
+
+/sbin/iptables -N icmp_ext_in<br>
+/sbin/iptables -N icmp_ext_fwd<br>
+/sbin/iptables -N icmp_ext_out<br>
+/sbin/iptables -N icmp_dmz_in<br>
+/sbin/iptables -N icmp_dmz_fwd<br>
+/sbin/iptables -N icmp_dmz_out<br><br><br>
+
+
+###########################################################################<br>
+# SPECIAL DROP & REJECT CHAINS<br>
+# This wouldn't be necessary if it were possible to LOG a packet we wanted to<br>
+# kill and DROP/REJECT it at the same time.  (This could be done in IPCHAINS).<br>
+#<br>
+# Anything that gets sent to these chains are going to be either DROPPED<br>
+# or REJECTED.  We just have separate chains so we can get offending<br>
+# traffic out of the calling chains before they hit an ACCEPT rule.<br>
+/sbin/iptables -N bad_tcp_reject<br>
+/sbin/iptables -N bad_udp_reject<br><br>
+
+# PRE- and POSTROUTING DROP and REJECT chains<br>
+/sbin/iptables -t nat -N prenat_bad_dest<br>
+/sbin/iptables -t nat -N prenat_bad_src<br>
+/sbin/iptables -t nat -N prenat_getlost<br>
+/sbin/iptables -t nat -N prenat_impostor<br>
+/sbin/iptables -t nat -N bad_prenat<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# BAD TCP OUTPUT/FORWARD REJECT CHAIN bad_tcp_reject<br>
+#<br>
+# This chain is pretty much like the rules in the bad_prenat chain, except,<br>
+# well you guessed it, we're going to REJECT the packets instead of just<br>
+# dropping 'em.<br>
+#<br>
+# This chain is for Internal / DMZ hosts, so they get a quick ICMP<br>
+# errormsg back.  The folks on the internet just get DROPPED.<br>
+#<br>
+# If your box is a little strained for CPU Idle time, you may want to<br>
+# comment out the custom log entries and uncomment the generic log<br>
+# entry at the bottom of this chain.  You'll lose the custom log<br>
+# entries but it should reduce the CPU load a bit...<br>
+###########################################################################<br>
+echo " - Populating TCP Outbound/FWD LOG and REJECT Chain..."<br>
+###########################################################################<br>
+# RPC<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --sport 111 -m limit $LOG --log-prefix "RPC Block:"<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --dport 111 -m limit $LOG --log-prefix "RPC Block:"<br><br>
+
+# SMB<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --dport 135:139 -m limit $LOG --log-prefix "SMB LEAK:"<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --dport 445 -m limit $LOG --log-prefix "SMB LEAK:"<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --sport 135:139 -m limit $LOG --log-prefix "SMB LEAK:"<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --sport 445 -m limit $LOG --log-prefix "SMB LEAK:"<br><br>
+
+# IPSec<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --sport 500 -m limit $LOG --log-prefix "IPSec Block:"<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --dport 500 -m limit $LOG --log-prefix "IPSec Block:"<br><br>
+
+# PPTP<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --dport 1723 -m limit $LOG --log-prefix "PPTP Block:"<br><br>
+
+# Remote Winsock<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --dport 1745 -m limit $LOG --log-prefix "RmtWinSock Block:"<br><br>
+
+# NFS<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --sport 2049 -m limit $LOG --log-prefix "NFS Block:"<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --dport 2049 -m limit $LOG --log-prefix "NFS Block:"<br><br>
+
+# MySQL<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --sport 3306 -m limit $LOG --log-prefix "MySQL Block:"<br><br>
+
+# EggDrop IRC Bots<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --sport 3456 -m limit $LOG --log-prefix "EggDrop Block:"<br><br>
+
+# PCAnywhere<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --dport 5631 -m limit $LOG --log-prefix "PCAnywhere Block:"<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --dport 5632 -m limit $LOG --log-prefix "PCAnywhere Block:"<br><br>
+
+# XWindows<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --dport $XWINPORTS -m limit $LOG --log-prefix "XWIN Block:"<br><br>
+
+# TCP TRACEROUTE REPLIES<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --dport 33434 -m limit $LOG --log-prefix "TrcRt Reply Block:"<br><br>
+
+# KNOWN TROJANS<br>
+#<br>
+# WinCrash<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --dport 5742 -m limit $LOG --log-prefix "WinCrash? :"<br><br>
+
+# NetBus<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --dport 12345 -m limit $LOG --log-prefix "NetBus? :"<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --dport 12346 -m limit $LOG --log-prefix "NetBus? :"<br><br>
+
+# NetBus Pro<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --dport 20034 -m limit $LOG --log-prefix "NetBus Pro? :"<br><br>
+
+# Shaft<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --sport 20432 -m limit $LOG --log-prefix "Shaft? :"<br><br>
+
+# Trinoo UDP Flooder<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --sport 27665 -m limit $LOG --log-prefix "Trinoo? :"<br><br>
+
+# Socket DeTroye<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --dport 30303 -m limit $LOG --log-prefix "SocketDeTroye? :"<br><br>
+
+# Unknown Trojan (Master's Paradise [CHR])<br>
+/sbin/iptables -A bad_tcp_reject -p tcp --dport 40421 -m limit $LOG --log-prefix "Master's Paradise? :"<br><br>
+
+# GENERIC LOG TARGET<br>
+# If the CPU is low on horsepower, we can reduce the load somewhat by<br>
+# commenting all of the above LOG matching rules, and only using this line:<br>
+#/sbin/iptables -A bad_tcp_reject -m limit $LOG --log-prefix "Bad TCP Reject:"<br><br>
+
+# END OF bad_tcp_reject CHAIN<br>
+#/sbin/iptables -A bad_tcp_reject -j REJECT<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# BAD UDP OUT/FWD REJECT CHAIN bad_udp_reject<br>
+#<br>
+# This is for Internal / DMZ hosts.  We will REJECT this traffic, so an<br>
+# ICMP errmsg will be immediately returned to them.<br>
+#<br>
+# If your box is a little strained for CPU Idle time, you may want to<br>
+# comment out the custom log entries and uncomment the generic<br>
+# log entry at the bottom of this chain.  You'll lose the custom log<br>
+# entries but it should reduce the CPU load a bit...<br>
+#<br>
+###########################################################################<br>
+echo " - Populating UDP Outbound/FWD LOG and REJECT Chain..."
+###########################################################################<br>
+# RPC<br>
+/sbin/iptables -A bad_udp_reject -p udp --dport 111 -m limit $LOG --log-prefix "RPC Block:"<br>
+/sbin/iptables -A bad_udp_reject -p udp --sport 111 -m limit $LOG --log-prefix "RPC Block:"<br><br>
+
+# SMB<br>
+/sbin/iptables -A bad_udp_reject -p udp --dport 135:139 -m limit $LOG --log-prefix "SMB LEAK:"<br>
+/sbin/iptables -A bad_udp_reject -p udp --dport 445 -m limit $LOG --log-prefix "SMB LEAK:"<br>
+/sbin/iptables -A bad_udp_reject -p udp --sport 135:139 -m limit $LOG --log-prefix "SMB LEAK:"<br>
+/sbin/iptables -A bad_udp_reject -p udp --sport 445 -m limit $LOG --log-prefix "SMB LEAK:"<br><br>
+
+# Mountd<br>
+/sbin/iptables -A bad_udp_reject -p udp --dport 635 -m limit $LOG --log-prefix "Mountd Block:"<br>
+/sbin/iptables -A bad_udp_reject -p udp --sport 635 -m limit $LOG --log-prefix "Mountd Block:"<br><br>
+
+# PPTP<br>
+/sbin/iptables -A bad_udp_reject -p udp --dport 1723 -m limit $LOG --log-prefix "PPTP Block:"<br><br>
+
+# Remote Winsock<br>
+/sbin/iptables -A bad_udp_reject -p udp --dport 1745 -m limit $LOG --log-prefix "RmtWinSock Block:"<br><br>
+
+# NFS<br>
+/sbin/iptables -A bad_udp_reject -p udp --dport 2049 -m limit $LOG --log-prefix "NFS Block:"<br>
+/sbin/iptables -A bad_udp_reject -p udp --sport 2049 -m limit $LOG --log-prefix "NFS Block:"<br><br>
+
+# PcAnywhere<br>
+/sbin/iptables -A bad_udp_reject -p udp --dport 5631 -m limit $LOG --log-prefix "PCAnyWhere Block:"<br>
+/sbin/iptables -A bad_udp_reject -p udp --dport 5632 -m limit $LOG --log-prefix "PCAnyWhere Block:"<br><br>
+
+# Xwindows<br>
+/sbin/iptables -A bad_udp_reject -p udp --dport $XWINPORTS -m limit $LOG --log-prefix "XWin Block:"<br><br>
+
+# KNOWN TROJANS<br>
+#<br>
+# Shaft<br>
+/sbin/iptables -A bad_udp_reject -p udp --sport 18753 -m limit $LOG --log-prefix "Shaft? :"<br>
+/sbin/iptables -A bad_udp_reject -p udp --sport 20433 -m limit $LOG --log-prefix "Shaft? :"<br><br>
+
+# Trinoo UDP flooder<br>
+/sbin/iptables -A bad_udp_reject -p udp --sport 27444 -m limit $LOG --log-prefix "Trinoo? :"<br>
+/sbin/iptables -A bad_udp_reject -p udp --sport 31335 -m limit $LOG --log-prefix "Trinoo? :"<br><br>
+
+# BackOrifice<br>
+/sbin/iptables -A bad_udp_reject -p udp --dport 31337 -m limit $LOG --log-prefix "BackOrifice? :"<br>
+/sbin/iptables -A bad_udp_reject -p udp --dport 31338 -m limit $LOG --log-prefix "BackOrifice? :"<br><br>
+
+#<br>
+# GENERIC LOG TARGET<br>
+# If the CPU is low on horsepower, we can reduce the load somewhat<br>
+# by commenting all of the above LOG matching rules, and only using<br>
+# this one:<br>
+#/sbin/iptables -A bad_udp_reject -m limit $LOG --log-prefix "Bad UDP Reject:"<br><br>
+
+# END OF CHAIN - REJECT<br>
+/sbin/iptables -A bad_udp_reject -j REJECT<br>
+###########################################################################<br><br><br>
+
+
+echo " - Populating Inbound DROP & LOG Chains..."<br>
+###########################################################################<br>
+# NAT PRE-ROUTING BAD ADDRESS LOG & DROP CHAINS<br>
+#<br>
+# The logic here is fairly simple and we do not want to waste a lot of<br>
+# CPU ticks.  Anything that ends up in either of these chains got here<br>
+# because of either a bad source or destination IP address.  There is<br>
+# really no need to test any further to figure out what is wrong, since<br>
+# each case has its own log and drop chain.  We only need two rules<br>
+# in each chain, the first to log, and the other to drop the packet.<br>
+###########################################################################<br>
+# DROP ANY INCOMING TRAFFIC NOT SPECIFICALLY ADDRESSED TO US<br>
+# This will hopefully also cover broadcast traffic, etc.   The NAT<br>
+# PREROUTING chain seems to be the logical place to put this if you ask me,<br>
+# so it gets dropped before we spend any more time on the packets.<br>
+/sbin/iptables -t nat -A prenat_bad_dest -m limit $LOG --log-prefix "PreNAT-Bad Dest:"<br>
+/sbin/iptables -t nat -A prenat_bad_dest -j DROP<br>
+###########################################################################<br>
+# DROP INBOUND PKTS WITH INVALID SOURCE ADDRESSES<br>
+# (RESERVED BLOCKS, RFC 1918, BLACKHOLE ADDRESSES, ETC.)<br>
+#<br>
+# We will not even grace these folks with a reply.  They are either up to<br>
+# NO GOOD, or they are polluting the internet with their misconfigured LAN.<br>
+# Either way, I don't have time for them.<br>
+/sbin/iptables -t nat -A prenat_bad_src -m limit $LOG --log-prefix "PreNAT-Bad Src:"<br>
+/sbin/iptables -t nat -A prenat_bad_src -j DROP<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# DROP INBOUND PKTS FROM PEOPLE WHO NEED TO GET A LIFE<br>
+# AND MIND THEIR OWN BUSINESS<br>
+/sbin/iptables -t nat -A prenat_getlost $LOG --log-prefix "PreNAT-GetLost:"<br>
+/sbin/iptables -t nat -A prenat_getlost -j DROP<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# DROP INBOUND PKTS FROM EXTERNAL INTERFACE IMPOSTORS<br>
+#<br>
+# DROP and LOG any traffic coming from the EXTERNAL interface, when<br>
+# it claims to be from a SOURCE address in our IP block (they are<br>
+# trying to bypass the firewall by claiming to be from inside)<br>
+#<br>
+# The truth of the matter is, we shouldn't really see anything hit<br>
+# this chain, because it is what the rp_filter sysctl is supposed<br>
+# to do.  It's here just in case...<br>
+/sbin/iptables -t nat -A prenat_impostor -s $OURIPBLOCK -m limit $LOG --log-prefix "PreNAT-Impostor!:"<br>
+/sbin/iptables -t nat -A prenat_impostor -j DROP<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# NAT PRE-ROUTING LOG AND DROP CHAIN bad_prenat<br>
+# Things hitting this chain are already headed for the bitbucket, we<br>
+# are only doing further testing to pick up custom log entries.<br>
+#<br>
+# If your box is a little strained for CPU Idle time, you may want to<br>
+# comment out the custom log entries and uncomment the generic<br>
+# log entry at the bottom of this chain.  You'll lose the custom log<br>
+# entries but it should reduce the CPU load a bit...<br>
+#<br>
+###########################################################################<br>
+# Port Scanners<br>
+/sbin/iptables -t nat -A bad_prenat -p tcp --tcp-flags SYN,ACK,FIN,RST RST -m limit --limit 1/s --limit-burst 5 $LOG --log-prefix "PORTSCAN! :"<br><br>
+
+# Trinoo UDP flooder - port # will probably change over time<br>
+/sbin/iptables -t nat -A bad_prenat -p tcp --sport 27665 -m limit $LOG --log-prefix "PreNAT-Trinoo Ctl Block:"<br>
+/sbin/iptables -t nat -A bad_prenat -p udp --sport 27444 -m limit --limit 1/s $LOG --log-prefix "PreNAT-Trinoo UDP Flood! :"<br>
+/sbin/iptables -t nat -A bad_prenat -p udp --sport 31335 -m limit --limit 1/s $LOG --log-prefix "PreNAT-Trinoo UDP Flood! :"<br><br>
+
+# Shaft distributed flooder - port # will probably change over time<br>
+/sbin/iptables -t nat -A bad_prenat -p tcp --sport 20432 -m limit $LOG --log-prefix "PreNAT-Shaft Ctl Block:"<br>
+/sbin/iptables -t nat -A bad_prenat -p udp --sport 18753 -m limit --limit 1/s $LOG --log-prefix "PreNAT-Shaft UDP Flood! :"<br>
+/sbin/iptables -t nat -A bad_prenat -p udp --sport 20433 -m limit --limit 1/s $LOG --log-prefix "PreNAT-Shaft UDP Flood! :"<br><br>
+
+# GENERIC LOG TARGET<br>
+# If the CPU is low on horsepower, we can reduce the load somewhat<br>
+# by commenting all of the above LOG matching rules, and only using<br>
+# this line:<br>
+#/sbin/iptables -t nat -A bad_prenat -m limit --limit 1/s $LOG --log-prefix "Bad PreNAT:"<br><br>
+
+# END OF CHAIN - DROP (NO REPLY)<br>
+/sbin/iptables -t nat -A bad_prenat -j DROP<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# USER-DEFINED CHAINS<br>
+###########################################################################<br>
+echo "  "<br>
+echo " --------------------------------------------"<br>
+echo " Populating User-Defined Chains..."<br>
+###########################################################################<br>
+# LOCALHOST CHAINS<br>
+# I don't know why but I had to do this to get localhost-generated traffic<br>
+# to work.  I originally tried just adding ACCEPT rules to the main input<br>
+# and output chains, but it wouldn't actually add the rules!  Go figure...<br>
+###########################################################################<br>
+# LOCALHOST INPUT<br>
+/sbin/iptables -A local_in -j ACCEPT<br>
+###########################################################################<br>
+# LOCALHOST OUTPUT<br>
+/sbin/iptables -A local_out -j ACCEPT<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# INPUT CHAINS<br>
+# Remember -- with IPTables, INPUT means the destination address is defined<br>
+# on the firewall machine, not a host behind the firewall!  (Those are <br>
+# handled by FORWARD rules).<br>
+#<br>
+# HOWEVER, things change a bit with this being an LVS(-NAT) DIRECTOR. <br>
+# VIP's that are publically advertised via external DNS records are <br>
+# actually defined on the Director, and then DNAT'd to internal hosts by<br>
+# IPVS.  So we have to let this traffic come IN on the INPUT chain, then<br>
+# after IPVS mangles the packets, they will hit the FORWARD chains to get<br>
+# to the Real Server IP's (RIP's).<br>
+###########################################################################<br>
+#<br>
+# EXTERNAL TCP INPUT tcp_ext_in<br>
+# We will only define items we specifically want to ALLOW, and DROP<br>
+# everything else at the end of the chain.<br>
+#<br>
+# Allow connections already in progress, and those related to others already<br>
+# in progress.<br>
+#<br>
+/sbin/iptables -A tcp_ext_in -i $EXTIF -p tcp -m state --state ESTABLISHED,RELATED -j ACCEPT<br><br>
+
+# IPVS RULES<br>
+#<br>
+# Telnet to VIP1 - for testing only<br>
+#/sbin/iptables -A tcp_ext_in -i $EXTIF -p tcp --syn -d $VIP1 --dport 23 -m state --state NEW -j ACCEPT<br><br>
+
+# SMTP<br>
+/sbin/iptables -A tcp_ext_in -i $EXTIF -p tcp --syn -d $VIP1 --dport 25 -m state --state NEW -j ACCEPT<br><br>
+
+# SMTP High Port<br>
+/sbin/iptables -A tcp_ext_in -i $EXTIF -p tcp --syn -d $VIP1 --dport 20025 -m state --state NEW -j ACCEPT<br><br>
+
+# PUBLIC DNS<br>
+/sbin/iptables -A tcp_ext_in -i $EXTIF -p tcp --syn -d $VIP1 --dport 53 -m state --state NEW -j ACCEPT<br>
+/sbin/iptables -A tcp_ext_in -i $EXTIF -p tcp --syn -d $VIP2 --dport 53 -m state --state NEW -j ACCEPT<br><br>
+
+# Apache Webservers<br>
+/sbin/iptables -A tcp_ext_in -i $EXTIF -p tcp --syn -d $VIP1 --dport 80 -m state --state NEW -j ACCEPT<br>
+/sbin/iptables -A tcp_ext_in -i $EXTIF -p tcp --syn -d $VIP3 --dport 80 -m state --state NEW -j ACCEPT<br><br>
+
+# POP3<br>
+/sbin/iptables -A tcp_ext_in -i $EXTIF -p tcp --syn -d $VIP1 --dport 110 -m state --state NEW -j ACCEPT<br><br>
+
+# HTTPS (VIP1 Only)<br>
+/sbin/iptables -A tcp_ext_in -i $EXTIF -p tcp --syn -d $VIP1 --dport 443 -m state --state NEW -j ACCEPT<br><br>
+
+#END OF EXTERNAL TCP INPUT CHAIN<br>
+# If you're not so concerned about LOGGING inbound stuff that gets dropped,<br>
+# you can comment out the line below to just DROP it:<br>
+/sbin/iptables -A tcp_ext_in -i $EXTIF -p tcp -m limit $LOG --log-prefix "TCP IN Drop:"<br>
+/sbin/iptables -A tcp_ext_in -i $EXTIF -p tcp -j DROP<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# EXTERNAL UDP INPUT udp_ext_in<br>
+# Again, we will only define the items we WANT, the rest will be dropped.<br>
+/sbin/iptables -A udp_ext_in -i $EXTIF -p udp -m state --state ESTABLISHED,RELATED -j ACCEPT<br><br>
+
+# IPVS rules<br>
+#<br>
+# DNS<br>
+/sbin/iptables -A udp_ext_in -i $EXTIF -p udp -d $VIP1 --dport 53 -m state --state NEW -j ACCEPT<br>
+/sbin/iptables -A udp_ext_in -i $EXTIF -p udp -d $VIP2 --dport 53 -m state --state NEW -j ACCEPT<br><br>
+
+# END OF EXTERNAL UDP INPUT CHAIN<br>
+# If you're not so concerned about LOGGING inbound stuff that gets dropped,<br>
+# you can comment out the line below to just DROP it:<br>
+/sbin/iptables -A udp_ext_in -i $EXTIF -p udp -m limit $LOG --log-prefix "UDP IN Drop:"<br>
+/sbin/iptables -A udp_ext_in -i $EXTIF -p udp -j DROP<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# EXTERNAL ICMP INPUT icmp_ext_in<br>
+# We are going to be VERY picky about what kind of ICMP traffic we allow in<br>
+# from the external interface.<br>
+#<br>
+# It is really nice that IPTables and Kernel 2.4.x can do stateful<br>
+# inspection on ICMP!  Thanks guys!!!!<br>
+#<br>
+# Echo Replies - ONLY accept echo replies from addresses we actually sent an<br>
+# echo request to:<br>
+/sbin/iptables -A icmp_ext_in -i $EXTIF -p icmp --icmp-type echo-reply -m state --state ESTABLISHED,RELATED -j ACCEPT<br><br>
+
+# ICMP Traceroute Replies (TTL-EXPIRED, etc.)<br>
+/sbin/iptables -A icmp_ext_in -i $EXTIF -p icmp --icmp-type 11 -m state --state ESTABLISHED,RELATED -j ACCEPT<br><br>
+
+# ICMP Destination (host, protocol, etc.) Unreachable<br>
+/sbin/iptables -A icmp_ext_in -i $EXTIF -p icmp --icmp-type 3 -m state --state ESTABLISHED,RELATED -j ACCEPT<br><br>
+
+#Fragmentation Needed - we NEED to let this in (and also forward)<br>
+/sbin/iptables -A icmp_ext_in -i $EXTIF -p icmp --icmp-type fragmentation-needed -m state --state ESTABLISHED,RELATED -j ACCEPT<br><br>
+
+# OPTIONAL - ALLOW INBOUND ECHO REQUESTS<br>
+# If you don't mind your firewall being pinged from the outside,<br>
+# you can uncomment the following rule.  The NAT PREROUTING rules<br>
+# will have already cut down on the number of echo requests at a<br>
+# time we let in.  Also note that if you want this box to be able<br>
+# to REPLY, you will also have to uncomment the rule in the<br>
+# icmp_ext_out chain to allow echo-reply traffic.<br>
+#/sbin/iptables -A icmp_ext_in -i $EXTIF -p icmp --icmp-type echo-request -j ACCEPT<br><br>
+
+#END OF EXTERNAL ICMP INPUT CHAIN<br>
+# If you're not so concerned about LOGGING inbound stuff that gets dropped,<br>
+# you can comment out the line below to just DROP it:<br>
+#/sbin/iptables -A icmp_ext_in -i $EXTIF -p icmp -m limit --limit 1/s $LOG --log-prefix "ICMP IN Drop:"<br>
+/sbin/iptables -A icmp_ext_in -i $EXTIF -p icmp -j DROP<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# EXTERNAL TCP OUTPUT tcp_ext_out<br>
+# Remember, the OUTPUT chains *ONLY* control output directly from this box,<br>
+# not traffic forwarded THRU the box!<br>
+#<br>
+# If the connection is not already in progress (ie, a new connection), we<br>
+# are going to MAKE SURE it isn't bad traffic before we let it go out.<br>
+#<br>
+# Also, we need to LOG a lot of the things we are specifically forbidding to<br>
+# go out, because if these things are happening, we probably need to know<br>
+# about them!  So we will send them to the bad_tcp_reject chain.<br>
+###########################################################################<br><br>
+
+# SESSIONS IN PROGRESS ARE OK<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp -m state --state ESTABLISHED,RELATED -j ACCEPT<br><br>
+
+# OUTPUT TYPES WE DON'T ALLOW<br>
+# SMB<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp --dport 135:139 -j bad_tcp_reject<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp --dport 445 -j bad_tcp_reject<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp --sport 135:139 -j bad_tcp_reject<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp --sport 445 -j bad_tcp_reject<br><br>
+
+# RPC<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp --sport 111 -j bad_tcp_reject<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp --dport 111 -j bad_tcp_reject<br><br>
+
+# IPSec VPN<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp --sport 500 -j bad_tcp_reject<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp --dport 500 -j bad_tcp_reject<br><br>
+
+# PPTP<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp  --dport 1723 -j bad_tcp_reject<br><br>
+
+# NFS<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp --sport 2049 -j bad_tcp_reject<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp --dport 2049 -j bad_tcp_reject<br><br>
+
+# MySQL<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp --sport 3306 -j bad_tcp_reject<br><br>
+
+# EggDrop IRC Bot<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp --sport 3456 -j bad_tcp_reject<br><br>
+
+# Xwindows<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp  --dport $XWINPORTS -j bad_tcp_reject<br><br>
+
+# TCP TRACEROUTE REQUESTS<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp --dport 33434 -j bad_tcp_reject<br><br>
+
+# KNOWN TROJANS<br>
+#<br>
+# Win Crash Trojan<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp --dport 5742 -j bad_tcp_reject<br><br>
+
+# NetBus<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp --dport 12345 -j bad_tcp_reject<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp --dport 12346 -j bad_tcp_reject<br><br>
+
+# NetBus Pro<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp --dport 20034 -j bad_tcp_reject<br><br>
+
+# Shaft distributed flooder - port # will probably change over time<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp --sport 20432 -j bad_tcp_reject<br><br>
+
+# Trinoo UDP flooder - port # will probably change over time<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp --sport 27665 -j bad_tcp_reject<br><br>
+
+# Socket De Troye<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp --dport 30303 -j bad_tcp_reject<br><br>
+
+# Unknown Trojan Horse (Master's Paradise [CHR])<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp --dport 40421 -j bad_tcp_reject<br><br>
+
+###########################################################################<br>
+# END OF TCP EXTERNAL OUTPUT CHAIN<br>
+# Now that we have checked to make sure stuff going out isn't one of the<br>
+# above, we will allow new connections to go out of THIS box.  If anything<br>
+# is left after that, we'll REJECT it.<br>
+###########################################################################<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp -m state --state NEW -j ACCEPT<br>
+/sbin/iptables -A tcp_ext_out -o $EXTIF -p tcp -j bad_tcp_reject<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# EXTERNAL UDP OUTPUT RULES udp_ext_out<br>
+#<br>
+# Remember, the OUTPUT chains *ONLY* control output directly from this box,<br>
+# not traffic forwarded THRU the box!<br>
+#<br>
+# If the connection is not already in progress (ie, a new connection), we<br>
+# are going to MAKE SURE it isn't bad traffic before we let it go out.<br>
+#<br>
+# Also, we need to LOG a lot of the things we are specifically forbidding to<br>
+# go out, because if these things are happening, we probably need to know<br>
+# about them!  So we will send them to the bad_udp_reject chain.<br>
+###########################################################################<br><br>
+
+# Sessions in progress are OK<br>
+/sbin/iptables -A udp_ext_out -o $EXTIF -p udp -m state --state ESTABLISHED,RELATED -j ACCEPT<br><br>
+
+# RPC<br>
+/sbin/iptables -A udp_ext_out -o $EXTIF -p udp --dport 111 -j bad_udp_reject<br>
+/sbin/iptables -A udp_ext_out -o $EXTIF -p udp --sport 111 -j bad_udp_reject<br><br>
+
+# SMB<br>
+/sbin/iptables -A udp_ext_out -o $EXTIF -p udp --dport 135:139 -j bad_udp_reject<br>
+/sbin/iptables -A udp_ext_out -o $EXTIF -p udp --dport 445 -j bad_udp_reject<br>
+/sbin/iptables -A udp_ext_out -o $EXTIF -p udp --sport 135:139 -j bad_udp_reject<br>
+/sbin/iptables -A udp_ext_out -o $EXTIF -p udp --sport 445 -j bad_udp_reject<br><br>
+
+# Mountd<br>
+/sbin/iptables -A udp_ext_out -o $EXTIF -p udp --dport 635 -j bad_udp_reject<br>
+/sbin/iptables -A udp_ext_out -o $EXTIF -p udp --sport 635 -j bad_udp_reject<br><br>
+
+# PPTP<br>
+/sbin/iptables -A udp_ext_out -o $EXTIF -p udp --dport 1723 -j bad_udp_reject<br><br>
+
+# Remote Winsock<br>
+/sbin/iptables -A udp_ext_out -o $EXTIF -p udp --dport 1745 -j bad_udp_reject<br><br>
+
+# NFS<br>
+/sbin/iptables -A udp_ext_out -o $EXTIF -p udp --dport 2049 -j bad_udp_reject<br>
+/sbin/iptables -A udp_ext_out -o $EXTIF -p udp --sport 2049 -j bad_udp_reject<br><br>
+
+# Xwindows<br>
+/sbin/iptables -A udp_ext_out -o $EXTIF -p udp --dport $XWINPORTS -j bad_udp_reject<br><br>
+
+# Known Trojan ports<br>
+#<br>
+# Shaft distributed flooder - port # will probably change over time<br>
+/sbin/iptables -A udp_ext_out -o $EXTIF -p udp --sport 18753 -j bad_udp_reject<br>
+/sbin/iptables -A udp_ext_out -o $EXTIF -p udp --sport 20433 -j bad_udp_reject<br><br>
+
+# Trinoo UDP flooder - port # will probably change over time<br>
+/sbin/iptables -A udp_ext_out -o $EXTIF -p udp --sport 27444 -j bad_udp_reject<br>
+/sbin/iptables -A udp_ext_out -o $EXTIF -p udp --sport 31335 -j bad_udp_reject<br><br>
+
+# BackOrifice<br>
+/sbin/iptables -A udp_ext_out -o $EXTIF -p udp --dport 31337 -j bad_udp_reject<br>
+/sbin/iptables -A udp_ext_out -o $EXTIF -p udp --dport 31338 -j bad_udp_reject<br><br>
+
+###########################################################################<br>
+# END OF UDP_EXT_OUTPUT CHAIN<br>
+# Now that we have checked to make sure stuff going out isn't one of the<br>
+# above, we will allow new connections to go out of THIS box.  If anything<br>
+# is left after that, we'll REJECT it.<br>
+/sbin/iptables -A udp_ext_out -o $EXTIF -p udp -m state --state NEW -j ACCEPT<br>
+/sbin/iptables -A udp_ext_out -o $EXTIF -p udp -j bad_udp_reject<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# EXTERNAL ICMP OUTPUT RULES icmp_ext_out<br>
+# Sort of like our ICMP Input, I am being VERY picky about what ICMP<br>
+# traffic I will let out of this box onto the internet.  Basically, all I<br>
+# am letting out are echo requests (this also lets you do a traceroute from<br>
+# this box to hosts on the internet).<br>
+#<br>
+# Needless to say, we need to REJECT other output, rather than DROP it.<br>
+# We want to be polite to our firewall!!! ;)<br>
+#<br>
+# PING and TRACEROUTE hosts on the internet<br>
+/sbin/iptables -A icmp_ext_out -o $EXTIF -p icmp --icmp-type echo-request -j ACCEPT<br><br>
+
+# OPTIONAL - Let echo replies go out<br>
+# If you don't mind allowing your firewall to reply to incoming<br>
+# ping requests, you need to let the replies out.  This is<br>
+# disabled by default.<br>
+#/sbin/iptables -A icmp_ext_out -o $EXTIF -p icmp --icmp-type echo-reply -j ACCEPT<br><br>
+
+# THIS IS JUST ABOUT ALL WE WANT TO LET OUT, SO THE CHAIN STOPS HERE<br>
+/sbin/iptables -A icmp_ext_out -o $EXTIF -p icmp -m limit $LOG --log-prefix "ICMP Out Block:"<br>
+/sbin/iptables -A icmp_ext_out -o $EXTIF -p icmp -j REJECT<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+#                     COMMENTS ON THE FORWARD CHAINS<br>
+#<br>
+# The jump tables in the main FORWARD chains are written based on which<br>
+# interface the traffic to be forwarded (or not) is coming *IN* on.<br>
+# Therefore, in each of these user-defined FORWARD chains, we only have to<br>
+# worry about where the traffic is going, not where it came from.<br>
+#<br>
+# By basing the jump tables (and the chains they lead to) on the interfaces<br>
+# the would-be FWD traffic is coming IN on, we can end each chain with<br>
+# either a DROP or a REJECT:<br>
+#<br>
+# Traffic we want to block coming from INSIDE our network will get a<br>
+# REJECT - this is more polite - as it will send the host an ICMP error<br>
+# message, and the host will quickly recover, rather than sitting there<br>
+# waiting for a reply which will never come, until it times out.<br>
+#<br>
+# On the other hand, traffic coming IN from the INTERNET which fails the<br>
+# _ext_fwd chains will simply be DROPPED.  They will get no type of reply<br>
+# from us (especially since we're blocking all types of outbound ICMP except<br>
+# echo-request).<br>
+#<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# EXTERNAL TCP FORWARDING RULES tcp_ext_fwd<br>
+#<br>
+# CONNECTIONS IN PROGRESS ARE OK<br>
+# Since these are already in progress I won't specify interfaces and will<br>
+# let this stuff thru without any further adieu.... ;)<br>
+#<br>
+# IPVS NOTE:<br>
+# With the way that IPVS with Antefacto mangles the packets destined<br>
+# for the Real Servers, even packets creating NEW CONNECTIONS (the<br>
+# initial SYN packets) will be marked ESTABLISHED as they hit the<br>
+# forward chains.  This seems a little unusual, but it works out<br>
+# great for our firewall rules.  Just don't forget that this ONLY<br>
+# works this way for IPVS services.  If it's not an IPVS virtual<br>
+# service you will still need an explicit rule to allow NEW SYN<br>
+# packets to be forwarded (like our FTP server example rule below).<br><br>
+
+/sbin/iptables -A tcp_ext_fwd -i $EXTIF -o $DMZIF -p tcp -m state --state ESTABLISHED,RELATED -j ACCEPT<br><br>
+
+# ACK PACKETS<br>
+# Per a msg I read in netfilter mailing list, I decided to add the<br>
+# following rule to let packets through that have the ACK flag set.<br>
+# The firewall was logging a lot of dropped ACK packets because it<br>
+# didn't think they were part of an ESTABLISHED or RELATED<br>
+# connection, when they actually were.<br>
+/sbin/iptables -A tcp_ext_fwd -i $EXTIF -o $DMZIF -p tcp --tcp-flags ACK ACK -j ACCEPT<br><br>
+
+###########################################################################<br>
+# FORWARD FROM EXTIF INTO DMZ<br>
+#<br>
+# Public FTP Server<br>
+# Netfilter's conntrack ftp helper will handle the port 20 stuff.<br>
+/sbin/iptables -A tcp_ext_fwd -o $DMZIF -p tcp --syn -d $PUBFTP --dport 21 -m state --state NEW -j ACCEPT<br><br>
+
+###########################################################################<br>
+# FORWARD FROM EXTIF INTO INTERNAL LAN<br>
+#<br>
+# For the most part, we only want to forward REPLY traffic all the way<br>
+# into the INTERNAL LAN. We have already done this with the first rule in<br>
+# this chain.<br>
+#<br>
+# However, we DO need to add specific forwarding rules to allow any<br>
+# incoming new connections we are going to allow to be made to hosts on<br>
+# our internal LAN which are behind the internal SNAT gateway/firewall,<br>
+# such as hosts running WinMX, BitTorrent, etc.  Note that the internal<br>
+# SNAT gateway/firewall is doing all the -j DNAT work to get this traffic<br>
+# to the correct internal hosts in its NAT PREROUTING rules.<br>
+###########################################################################<br>
+#<br>
+# WinMX TCP PORTS (To allow sharing)<br>
+/sbin/iptables -A tcp_ext_fwd -o $DMZIF -p tcp --syn -d $SNATIP --dport 6690:6696 -m state --state NEW -j ACCEPT<br><br>
+
+# BitTorrent<br>
+# Another file sharing application, used to get the latest 24 episodes<br>
+#/sbin/iptables -A tcp_ext_fwd -o $DMZIF -p tcp --syn -d $SNATIP --dport 6881:6889 -m state --state NEW -j ACCEPT<br>
+/sbin/iptables -A tcp_ext_fwd -o $DMZIF -p tcp --syn -d $SNATIP --dport 6881 -m state --state NEW -j ACCEPT<br><br>
+
+# END OF TCP EXTERNAL FORWARD CHAIN<br>
+# We are going to DROP anything we haven't specifically allowed above,<br>
+# so if there is any other traffic you need to let in, you need to add<br>
+# a specific forwarding rule before we get here.<br>
+/sbin/iptables -A tcp_ext_fwd -o $DMZIF -p tcp -m limit $LOG --log-prefix "TCP ExtFwd Drop:"<br>
+/sbin/iptables -A tcp_ext_fwd -o $DMZIF -p tcp -j DROP<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# EXTERNAL UDP FORWARDING RULES udp_ext_fwd<br>
+#<br>
+# CONNECTIONS IN PROGRESS ARE OK<br>
+# Since these are already in progress I won't specify interfaces and will<br>
+# let this stuff thru without any further adieu.... ;)<br>
+#<br>
+# IPVS NOTE:<br>
+# With the way that IPVS with Antefacto mangles the packets destined<br>
+# for the Real Servers, even NEW CONNECTIONS will be marked ESTABLISHED<br>
+# as they hit the forward chains.  This is a little unusual, but it works<br>
+# out great for our firewall rules.  Just don't forget that this ONLY<br>
+# works this way for IPVS services.  If it's not an IPVS virtual service<br>
+# you will still need an explicit rule to allow UDP packets the firewall<br>
+# considers NEW to be forwarded.<br><br>
+
+/sbin/iptables -A udp_ext_fwd -o $DMZIF -p udp -m state --state ESTABLISHED,RELATED -j ACCEPT<br><br>
+
+###########################################################################<br>
+# FORWARD FROM EXTIF INTO DMZ<br>
+###########################################################################<br>
+# ALLOW UNRESTRICTED UDP FROM PUBLIC NTP SERVERS WE SYNC FROM<br>
+# Allow FWD of External "new" UDP NTP traffic to our internal NTP server,<br>
+# but only from specified inet hosts.  It's not really NEW traffic, but<br>
+# without these rules, the firewall isn't going to let our NTP server<br>
+# completely communicate with the NTP servers we sync from on the 'net.<br>
+#<br>
+# NOTE: The IP's listed here aren't real NTP servers, they're just here<br>
+# to demonstrate what needs to be done if you run an NTP time server for<br>
+# your local network, and it syncs itself with public NTP servers.<br><br>
+
+/sbin/iptables -A udp_ext_fwd -o $DMZIF -p udp -s 10.23.24.25 -d $NTPSRV --dport 123 -j ACCEPT<br>
+/sbin/iptables -A udp_ext_fwd -o $DMZIF -p udp -s 10.26.27.28 -d $NTPSRV --dport 123 -j ACCEPT<br>
+/sbin/iptables -A udp_ext_fwd -o $DMZIF -p udp -s 10.29.30.31 -d $NTPSRV --dport 123 -j ACCEPT<br><br>
+
+# Block MySQL (without logging it)<br>
+/sbin/iptables -A udp_ext_fwd -o $DMZIF -p udp --dport 3306 -j DROP<br><br>
+
+###########################################################################<br>
+# FORWARD FROM EXTIF INTO INTERNAL LAN<br>
+#<br>
+# For the most part, we only want to forward REPLY traffic all the way into<br>
+# the INTERNAL LAN. We have already done this with the first rule in this<br>
+# chain.<br>
+#<br>
+# However, we DO need to add specific forwarding rules to allow any<br>
+# incoming new connections we are going to allow to be made to hosts on<br>
+# our internal LAN which are behind the internal SNAT gateway/firewall,<br>
+# such as hosts running WinMX, BitTorrent, etc.  Note that the internal<br>
+# SNAT gateway/firewall is doing all the -j DNAT work to get this traffic<br>
+# to the correct internal hosts in its NAT PREROUTING rules.<br>
+###########################################################################<br>
+#<br>
+# WINMX UDP PORTS (PEER-BASED CONNECTIONS)<br>
+/sbin/iptables -A udp_ext_fwd -o $DMZIF -p udp -d $SNATIP --dport 6257:6263 -j ACCEPT<br><br>
+
+# RealPlayer UDP Transport<br>
+# RealPlayer likes 3 UDP ports per host<br>
+/sbin/iptables -A udp_ext_fwd -o $DMZIF -p udp -d $SNATIP --dport 7073:7075 -j ACCEPT<br><br>
+
+# END OF EXTERNAL UDP FORWARD CHAIN<br>
+#<br>
+/sbin/iptables -A udp_ext_fwd -o $DMZIF -p udp -m limit --limit 1/s $LOG --log-prefix "UDP ExtFwd Drop:"<br>
+/sbin/iptables -A udp_ext_fwd -o $DMZIF -p udp -j DROP<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# EXTERNAL ICMP FORWARDING RULES icmp_ext_fwd<br>
+#<br>
+# We are going to be VERY picky about what kind of ICMP traffic we allow in<br>
+# from the external interface.<br>
+#<br>
+# It is really nice that IPTables and Kernel 2.4.x can do stateful<br>
+# inspection on ICMP!  Thanks guys!!!!<br>
+#<br><br>
+
+# Echo Replies - ONLY accept echo replies from addresses we sent an echo<br>
+# request to:<br>
+/sbin/iptables -A icmp_ext_fwd -o $DMZIF -p icmp --icmp-type echo-reply -m state --state ESTABLISHED,RELATED -j ACCEPT<br><br>
+
+# ICMP Traceroute Replies (TTL-EXPIRED, etc.)<br>
+/sbin/iptables -A icmp_ext_fwd -o $DMZIF -p icmp --icmp-type 11 -m state --state ESTABLISHED,RELATED -j ACCEPT<br><br>
+
+# ICMP Destination (host, protocol, etc.) Unreachable<br>
+/sbin/iptables -A icmp_ext_fwd -o $DMZIF -p icmp --icmp-type 3 -m state --state ESTABLISHED,RELATED -j ACCEPT<br><br>
+
+#Fragmentation Needed - we NEED to let this in (and also forward)<br>
+/sbin/iptables -A icmp_ext_fwd -o $DMZIF -p icmp --icmp-type fragmentation-needed -m state --state ESTABLISHED,RELATED -j ACCEPT<br><br>
+
+#END OF EXTERNAL ICMP INPUT CHAIN<br>
+# Log if you want all the gory details<br>
+#/sbin/iptables -A icmp_ext_fwd -o $DMZIF -p icmp -m limit --limit 1/s $LOG --log-prefix "ICMP ExtFwd Drop:"<br>
+/sbin/iptables -A icmp_ext_fwd -o $DMZIF -j DROP<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# DMZ TCP INPUT RULES tcp_dmz_in<br>
+#<br>
+# For now I'll keep this simple and trust stuff coming from the DMZ<br>
+/sbin/iptables -A tcp_dmz_in -i $DMZIF -p tcp -j ACCEPT<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# DMZ UDP INPUT RULES udp_dmz_in<br>
+# For now I'll keep this simple and trust stuff coming from the DMZ<br>
+/sbin/iptables -A udp_dmz_in -i $DMZIF -p udp -j ACCEPT<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# DMZ ICMP INPUT RULES icmp_dmz_in<br>
+# For now I'll keep this simple and trust stuff coming from the DMZ<br>
+/sbin/iptables -A icmp_dmz_in -i $DMZIF -p icmp -j ACCEPT<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# DMZ TCP OUTPUT RULES tcp_dmz_out<br>
+# For now I'll keep this simple and trust stuff leaving this box headed<br>
+# to DMZ<br>
+/sbin/iptables -A tcp_dmz_out -o $DMZIF -p tcp -j ACCEPT<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# DMZ UDP OUTPUT RULES udp_dmz_out<br>
+# For now I'll keep this simple and trust stuff leaving this box headed<br>
+# to DMZ<br>
+/sbin/iptables -A udp_dmz_out -o $DMZIF -p udp -j ACCEPT<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# DMZ ICMP OUTPUT RULES icmp_dmz_out<br>
+# For now I'll keep this simple and trust stuff leaving this box headed<br>
+# to DMZ<br>
+/sbin/iptables -A icmp_dmz_out -o $DMZIF -p icmp -j ACCEPT<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# DMZ TCP FORWARDING RULES tcp_dmz_fwd<br>
+#<br>
+# NOTE: Keep in mind that we are not only forwarding traffic from hosts in<br>
+#       the DMZ with this chain, we're also forwarding from Internal Hosts<br>
+#       BEHIND the DMZ!!!<br>
+#<br>
+# Connections in Progress - Since these are already in progress I won't<br>
+# specify interfaces and will let this stuff thru without any further<br>
+# adieu.... ;)<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -p tcp -m state --state ESTABLISHED,RELATED -j ACCEPT<br><br>
+
+# SPECIFIC FWD REJECTIONS<br>
+# Things we don't want to let out of our network.<br><br>
+
+# RPC<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --dport 111 -j bad_tcp_reject<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --sport 111 -j bad_tcp_reject<br><br>
+
+# SMB - don't let this be forwarded to the internet, kill it politely<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --dport 135:139 -j bad_tcp_reject<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --dport 445 -j bad_tcp_reject<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --sport 135:139 -j bad_tcp_reject<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --sport 445 -j bad_tcp_reject<br><br>
+
+# IPSec VPN<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --sport 500 -j bad_tcp_reject<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --dport 500 -j bad_tcp_reject<br><br>
+
+# PPTP<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --dport 1723 -j bad_tcp_reject<br><br>
+
+# Remote Winsock<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --dport 1745 -j bad_tcp_reject<br><br>
+
+# NFS<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --sport 2049 -j bad_tcp_reject<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --dport 2049 -j bad_tcp_reject<br><br>
+
+# MySQL<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --sport 3306 -j bad_tcp_reject<br><br>
+
+# EggDrop IRC Bot<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --sport 3456 -j bad_tcp_reject<br><br>
+
+# PcAnywhere<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --dport 5631 -j bad_tcp_reject<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --dport 5632 -j bad_tcp_reject<br><br>
+
+# Xwindows<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --dport $XWINPORTS -j bad_tcp_reject<br><br>
+
+# KNOWN TROJANS<br>
+#<br>
+# Win Crash Trojan<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --dport 5742 -j bad_tcp_reject<br><br>
+
+# NetBus<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --dport 12345 -j bad_tcp_reject<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --dport 12346 -j bad_tcp_reject<br><br>
+
+# NetBus Pro<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --dport 20034 -j bad_tcp_reject<br><br>
+
+# Shaft distributed flooder - port # will probably change over time<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --sport 20432 -j bad_tcp_reject<br><br>
+
+# Trinoo UDP flooder - port # will probably change over time<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --sport 27665 -j bad_tcp_reject<br><br>
+
+# Socket De Troye<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --dport 30303 -j bad_tcp_reject<br><br>
+
+# Unknown Trojan Horse (Master's Paradise [CHR])<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -o $EXTIF -p tcp --dport 40421 -j bad_tcp_reject<br><br>
+
+# END OF TCP DMZ FORWARD CHAIN<br>
+# Now that our would-be FWD traffic has satisfied the above rules, we'll let<br>
+# unspecified new connections go out to the internet.<br>
+/sbin/iptables -A tcp_dmz_fwd -i $DMZIF -p tcp -j ACCEPT<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# DMZ UDP FORWARDING RULES udp_dmz_fwd<br>
+#<br>
+# Connections in progress are OK<br>
+/sbin/iptables -A udp_dmz_fwd -i $DMZIF -p udp -m state --state ESTABLISHED,RELATED -j ACCEPT<br><br>
+
+# SPECIFIC FWD REJECTIONS<br>
+# Things we don't want to let out of our network.<br><br>
+
+# RPC<br>
+/sbin/iptables -A udp_dmz_fwd -i $DMZIF -o $EXTIF -p udp --dport 111 -j bad_udp_reject<br>
+/sbin/iptables -A udp_dmz_fwd -i $DMZIF -o $EXTIF -p udp --sport 111 -j bad_udp_reject<br><br>
+
+# SMB<br>
+/sbin/iptables -A udp_dmz_fwd -i $DMZIF -o $EXTIF -p udp --dport 135:139 -j bad_udp_reject<br>
+/sbin/iptables -A udp_dmz_fwd -i $DMZIF -o $EXTIF -p udp --dport 445 -j bad_udp_reject<br>
+/sbin/iptables -A udp_dmz_fwd -i $DMZIF -o $EXTIF -p udp --sport 135:139 -j bad_udp_reject<br>
+/sbin/iptables -A udp_dmz_fwd -i $DMZIF -o $EXTIF -p udp --sport 445 -j bad_udp_reject<br><br>
+
+# Mountd<br>
+/sbin/iptables -A udp_dmz_fwd -i $DMZIF -o $EXTIF -p udp --dport 635 -j bad_udp_reject<br>
+/sbin/iptables -A udp_dmz_fwd -i $DMZIF -o $EXTIF -p udp --sport 635 -j bad_udp_reject<br><br>
+
+# PPTP<br>
+/sbin/iptables -A udp_dmz_fwd -i $DMZIF -o $EXTIF -p udp --dport 1723 -j bad_udp_reject<br><br>
+
+# Remote Winsock<br>
+/sbin/iptables -A udp_dmz_fwd -i $DMZIF -o $EXTIF -p udp --dport 1745 -j bad_udp_reject<br><br>
+
+# NFS<br>
+/sbin/iptables -A udp_dmz_fwd -i $DMZIF -o $EXTIF -p udp --dport 2049 -j bad_udp_reject<br>
+/sbin/iptables -A udp_dmz_fwd -i $DMZIF -o $EXTIF -p udp --sport 2049 -j bad_udp_reject<br><br>
+
+# PcAnywhere<br>
+/sbin/iptables -A udp_dmz_fwd -i $DMZIF -o $EXTIF -p udp --dport 5631 -j bad_udp_reject<br>
+/sbin/iptables -A udp_dmz_fwd -i $DMZIF -o $EXTIF -p udp --dport 5632 -j bad_udp_reject<br><br>
+
+# Xwindows<br>
+/sbin/iptables -A udp_dmz_fwd -i $DMZIF -o $EXTIF -p udp --dport $XWINPORTS -j bad_udp_reject<br><br>
+
+# KNOWN TROJANS<br>
+#<br>
+# Shaft distributed flooder - port # will probably change over time<br>
+/sbin/iptables -A udp_dmz_fwd -i $DMZIF -o $EXTIF -p udp --sport 18753 -j bad_udp_reject<br>
+/sbin/iptables -A udp_dmz_fwd -i $DMZIF -o $EXTIF -p udp --sport 20433 -j bad_udp_reject<br><br>
+
+# Trinoo UDP flooder - port # will probably change over time<br>
+/sbin/iptables -A udp_dmz_fwd -i $DMZIF -o $EXTIF -p udp --sport 27444 -j bad_udp_reject<br>
+/sbin/iptables -A udp_dmz_fwd -i $DMZIF -o $EXTIF -p udp --sport 31335 -j bad_udp_reject<br><br>
+
+# BackOrifice<br>
+/sbin/iptables -A udp_dmz_fwd -i $DMZIF -o $EXTIF -p udp --dport 31337 -j bad_udp_reject<br>
+/sbin/iptables -A udp_dmz_fwd -i $DMZIF -o $EXTIF -p udp --dport 31338 -j bad_udp_reject<br><br>
+
+# END OF UDP DMZ FORWARDING CHAIN<br>
+# Now that our would-be FWD traffic has satisfied the above rules, we'll let<br>
+# unspecified UDP traffic out to the internet.<br>
+/sbin/iptables -A udp_dmz_fwd -i $DMZIF -p udp -j ACCEPT<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# DMZ ICMP FORWARDING RULES icmp_dmz_fwd<br>
+# Once again, we're being very picky!<br><br>
+
+# DMZ and Internal Hosts can PING or TRACEROUTE anywhere they want to,<br>
+# inside or outside<br>
+/sbin/iptables -A icmp_dmz_fwd -i $DMZIF -o $EXTIF -p icmp --icmp-type echo-request -j ACCEPT<br><br>
+
+# END OF DMZ ICMP FWD CHAIN - REJECT anything else<br>
+/sbin/iptables -A icmp_dmz_fwd -i $DMZIF -o $DMZIF -p icmp -m limit $LOG --log-prefix "ICMP FWD Reject:"<br>
+/sbin/iptables -A icmp_dmz_fwd -i $DMZIF -o $DMZIF -p icmp -j REJECT<br>
+###########################################################################<br><br>
+echo " - Population of User-Defined Chains is Complete."<br>
+echo " --- "<br><br><br>
+
+
+###########################################################################<br>
+# CREATE JUMP TABLES IN BUILT-IN CHAINS<br>
+echo " - Loading Jump Tables into Main INPUT, OUTPUT, and FWD Chains..."<br>
+###########################################################################<br>
+# OK, now that we have the protocol- and interface-specific user-defined<br>
+# chains created, let's create the "jump tables" - these are type-matching<br>
+# rules in the built-in INPUT, OUTPUT, and FORWARD chains -- which will<br>
+# direct packets to the appropriate user-defined chains.  Since a packet<br>
+# will have already matched one of these types to even end up in one of<br>
+# these user-defined chains, and also since we cannot define a default<br>
+# policy for user-defined chains, we will put a DROP, REJECT, or ACCEPT (as<br>
+# appropriate) at the end of EACH user-defined chain.<br>
+#<br>
+# INPUT CHAIN<br>
+/sbin/iptables -A INPUT -i lo -j local_in<br>
+#<br>
+/sbin/iptables -A INPUT -i $EXTIF -p tcp -s $DSLMODEMIP -j tcp_dsl_in<br>
+/sbin/iptables -A INPUT -i $EXTIF -p tcp -j tcp_ext_in<br>
+/sbin/iptables -A INPUT -i $DMZIF -p tcp -j tcp_dmz_in<br>
+#<br>
+/sbin/iptables -A INPUT -i $EXTIF -p udp -s $DSLMODEMIP -j udp_dsl_in<br>
+/sbin/iptables -A INPUT -i $EXTIF -p udp -j udp_ext_in<br>
+/sbin/iptables -A INPUT -i $DMZIF -p udp -j udp_dmz_in<br>
+#<br>
+/sbin/iptables -A INPUT -i $EXTIF -p icmp -s $DSLMODEMIP -j icmp_dsl_in<br>
+/sbin/iptables -A INPUT -i $EXTIF -p icmp -j icmp_ext_in<br>
+/sbin/iptables -A INPUT -i $DMZIF -p icmp -j icmp_dmz_in<br>
+#<br>
+#<br>
+# OUTPUT CHAIN<br>
+/sbin/iptables -A OUTPUT -o lo -j local_out<br>
+#<br>
+/sbin/iptables -A OUTPUT -o $EXTIF -p tcp -j tcp_ext_out<br>
+/sbin/iptables -A OUTPUT -o $DMZIF -p tcp -j tcp_dmz_out<br>
+#<br>
+/sbin/iptables -A OUTPUT -o $EXTIF -p udp -j udp_ext_out<br>
+/sbin/iptables -A OUTPUT -o $DMZIF -p udp -j udp_dmz_out<br>
+#<br>
+/sbin/iptables -A OUTPUT -o $EXTIF -p icmp -j icmp_ext_out<br>
+/sbin/iptables -A OUTPUT -o $DMZIF -p icmp -j icmp_dmz_out<br>
+#<br>
+#<br>
+# FORWARD CHAIN<br>
+/sbin/iptables -A FORWARD -i $EXTIF -p tcp -j tcp_ext_fwd<br>
+/sbin/iptables -A FORWARD -i $DMZIF -p tcp -j tcp_dmz_fwd<br>
+#<br>
+/sbin/iptables -A FORWARD -i $EXTIF -p udp -j udp_ext_fwd<br>
+/sbin/iptables -A FORWARD -i $DMZIF -p udp -j udp_dmz_fwd<br>
+#<br>
+/sbin/iptables -A FORWARD -i $EXTIF -p icmp -j icmp_ext_fwd<br>
+/sbin/iptables -A FORWARD -i $DMZIF -p icmp -j icmp_dmz_fwd<br>
+#<br>
+#<br>
+echo " - Jump Tables Loaded for TCP, UDP, and ICMP Protocols."<br>
+echo " --- "<br><br><br>
+
+
+###########################################################################<br>
+# ALLOW IGMP AND VRRP PROTOCOLS FOR KEEPALIVED<br>
+# We need specific allow rules for these protocols so that keepalived<br>
+# can communicate between the MASTER and BACKUP Director(s).  Note that if<br>
+# you are doing your Keepalived communications on a different interface,<br>
+# or doing other multicast traffic/routing, you may need to modify these<br>
+# rules a bit.<br>
+###########################################################################<br>
+echo " Permitting IGMP &amp; VRRP Protocol (112) on DMZ Interface for Keepalived."<br>
+###########################################################################<br><br>
+#<br>
+# Allow IGMP input on DMZ Interface<br>
+/sbin/iptables -A INPUT -i $DMZIF -p igmp -j ACCEPT<br><br>
+#<br>
+# Allow VRRP input on DMZ Interface<br>
+/sbin/iptables -A INPUT -i $DMZIF -p 112 -j ACCEPT<br><br>
+#<br>
+# Allow IGMP Output on DMZ Interface<br>
+/sbin/iptables -A OUTPUT -o $DMZIF -p igmp -j ACCEPT<br><br>
+#<br>
+# Allow VRRP Output on DMZ Interface<br>
+/sbin/iptables -A OUTPUT -o $DMZIF -p 112 -j ACCEPT<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# END OF JUMP TABLES - DROP OR REJECT ALL OTHER INPUT/OUTPUT/FWD TRAFFIC<br>
+echo " - Discarding ALL OTHER TRAFFIC."<br>
+###########################################################################<br><br>
+
+/sbin/iptables -A INPUT -i $EXTIF -j DROP<br>
+/sbin/iptables -A INPUT ! -i $EXTIF $LOG --log-prefix "EndofInput-Reject:"<br>
+/sbin/iptables -A INPUT ! -i $EXTIF -j REJECT<br><br>
+
+# Reject output of multicast traffic on EXTIF without logging it<br>
+/sbin/iptables -A OUTPUT -o $EXTIF -d 224.0.0.0/4 -j REJECT<br>
+/sbin/iptables -A OUTPUT $LOG --log-prefix "EndofOutput-Reject:"<br>
+/sbin/iptables -A OUTPUT -j REJECT<br><br>
+
+/sbin/iptables -A FORWARD -i $EXTIF -j DROP<br>
+/sbin/iptables -A FORWARD ! -i $EXTIF -j REJECT<br>
+###########################################################################<br><br>
+
+echo " ---------------------"<br><br>
+
+###########################################################################<br>
+# MANGLE TABLE RULES<br>
+# Packet mangling stuff.  I'm not really doing much of this, other than<br>
+# occasional bumping of TTL so I can MIRROR annoying traffic back at the<br>
+# senders.<br>
+###########################################################################<br>
+echo " Populating MANGLE table"<br>
+echo " "<br>
+###########################################################################<br>
+echo " - Changing TTL of REALLY annoying internet traffic "<br>
+echo "   so we can MIRROR it back at them and hopefully "<br>
+echo "   achieve successful delivery..."<br><br>
+#<br>
+# UDP Ports 1433-1434 (MS SQL Server?)<br>
+/sbin/iptables -t mangle -A PREROUTING -i $EXTIF -p udp -d $OURIPBLOCK --dport 1433:1434 -j TTL --ttl-set 255<br>
+#<br>
+#<br>
+###########################################################################<br>
+echo " MANGLE table completed."<br>
+###########################################################################<br><br>
+
+echo " ---------------------"<br><br>
+
+###########################################################################<br>
+# NAT TABLES<br>
+echo " Loading NAT Tables..."<br>
+###########################################################################<br>
+# IPTables uses 2 main chains, PREROUTING for input, and POSTROUTING for<br>
+# output. We'll do the PREROUTING first, since we are being much more<br>
+# picky on incoming stuff.<br>
+#<br>
+# There is also an OUTPUT NAT chain for locally-generated stuff.  It is<br>
+# probably not required to tell NAT to NAT stuff heading out from the local<br>
+# box though.  I think it's just there in case you want to redirect the<br>
+# packets elsewhere.<br>
+#<br>
+###########################################################################<br>
+# NAT PREROUTING CHAIN<br>
+# Incoming packets are processed by NAT before they are actually passed to<br>
+# the packet filter.  And since we don't NEED to try to figure out where<br>
+# SOME kinds of traffic are really going before we kill them, we can save<br>
+# some CPU ticks (and eliminate some redundancy in the INPUT and FORWARD<br>
+# chains) by doing some checking here first.  But AGAIN, since we don't want<br>
+# to let packets we deem BAD hit any ACCEPT rules in this chain (because<br>
+# they could match them too!), we have to send them to a different DROP<br>
+# chain to LOG *AND* KILL them.<br>
+#<br>
+###########################################################################<br>
+echo " - Loading NAT PRE-ROUTING Rules..."<br>
+###########################################################################<br>
+# DROP FAKE MULTICAST TRAFFIC<br>
+# Per the RFC's, real multicast traffic will not have a source IP address<br>
+# in the 224.0.0.0/4 IP range, it will have a routable source IP.  So<br>
+# anything claiming to be from 224.0.0.0/4 is bogus.<br>
+echo " - Blocking Incoming FAKE Multicast Traffic from External Interface."<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -s 224.0.0.0/4 -j DROP<br>
+###########################################################################<br>
+# DROP ANY INCOMING TRAFFIC NOT SPECIFICALLY ADDRESSED TO US<br>
+# This shouldn't really ever be a problem unless your ISP has poorly-<br>
+# programmed routers or something.  But this should also cover broadcast<br>
+# traffic, something that could be a problem anyway.<br>
+echo " - LOG and DROP packets not having $OURIPBLOCK as Destination Address."<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -d ! $OURIPBLOCK -j prenat_bad_dest<br>
+###########################################################################<br>
+# DROP INBOUND PKTS WITH INVALID SOURCE ADDRESSES (RESERVED BLOCKS,<br>
+# RFC 1918, ETC.)<br>
+# We will not even grace these folks with a reply.  They are either up to NO<br>
+# GOOD, or they are polluting the internet with their misconfigured LAN.<br>
+# Either way, I don't have time for them.<br>
+echo " - DROP and LOG inbound packets with RESERVED or INVALID Source Addresses..."<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -s 0.0.0.0/8 -j prenat_bad_src<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -s 1.0.0.0/8 -j prenat_bad_src<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -s 10.0.0.0/8 -j prenat_bad_src<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -s 127.0.0.0/8 -j prenat_bad_src<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -s 128.0.0.0/16 -j prenat_bad_src<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -s 128.66.0.0/16 -j prenat_bad_src<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -s 172.16.0.0/12 -j prenat_bad_src<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -s 191.255.0.0/16 -j prenat_bad_src<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -s 192.0.0.0/24 -j prenat_bad_src<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -s 192.0.1.0/24 -j prenat_bad_src<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -s 192.0.2.0/24 -j prenat_bad_src<br>
+#ALLOW MGMT TRAFFIC IN FROM DSL MODEM<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -s $DSLMODEMIP -j ACCEPT<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -s 192.168.0.0/24 -j prenat_bad_src<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -s 192.168.1.0/24 -j prenat_bad_src<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -s 240.0.0.0/5 -j prenat_bad_src<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -s 248.0.0.0/6 -j prenat_bad_src<br>
+###########################################################################<br>
+# IP Spoofing<br>
+# This shouldn't really be necessary since we have the rp_filter sysctl<br>
+# running, but just in case...<br>
+echo " - DROP and LOG External inbound with SOURCE ADDR claiming to be $OURIPBLOCK..."<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -s $OURIPBLOCK -j prenat_impostor<br>
+###########################################################################<br>
+echo " - Reserved / Invalid Address Tables Loaded."<br><br>
+
+###########################################################################<br>
+# BLACKLISTED IP ADDRESSES, SUBNETS, AND TRAFFIC TYPES<br>
+# IP's, IP subnets, and traffic listed here are of particular annoyance<br>
+# to me, and worthy of being listed to demonstrate example usage of these<br>
+# rules and user-defined chains.  Each of these represents something that<br>
+# has generated enough log activity that I am tired of looking at it.<br>
+###########################################################################<br>
+echo " - Populating NAT PREROUTING BLACKLISTED Source IP and Traffic List."<br>
+###########################################################################<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -s 216.52.126.0/24 -j DROP<br><br>
+
+# getting a bunch of pings from these folks<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -s 64.94.1.64/28 -j DROP<br><br>
+
+# these people keep scanning our IP block and indexing our webservers<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -s 217.21.114.0/24 -j prenat_getlost<br><br>
+
+# M$-SQL TRAFFIC<br>
+# MIRROR M$-SQL Server UDP traffic back at the admins who don't know how<br>
+# to maintain their servers.  Maybe we'll get their attention (but I'm<br>
+# not going to hold my breath - you can always tell an MCSE, but you<br>
+# can't tell him much... ;)<br>
+#/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p udp --dport 1433:1434 -m limit $LOG --log-prefix "MS-SQL Mirror: "<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p udp --dport 1433:1434 -j MIRROR<br><br>
+#<br>
+# SILENTLY DROP M$-SQL SERVER Connection Attempts<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p tcp --dport 1433 -j DROP<br><br>
+
+# SILENTLY DROP NETBIOS/SMB TRAFFIC<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p tcp --dport 135:139 -j DROP<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p tcp --dport 445 -j DROP<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p tcp --sport 135:139 -j DROP<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p tcp --sport 445 -j DROP<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p udp --dport 135:139 -j DROP<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p udp --dport 445 -j DROP<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p udp --sport 135:139 -j DROP<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p udp --sport 445 -j DROP<br><br>
+
+# Block MySQL<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p tcp --dport 3306 -j DROP<br><br>
+
+# SILENTLY DROP Port 27374 (what is this?)<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p tcp --dport 27374 -j DROP<br><br>
+
+echo " - BLACKLISTED Source IP and Traffic Table Completed."<br>
+###########################################################################<br><br>
+
+#######################################################################<br>
+# AVOIDANCE (or should we say "reduced impact") OF SOME DoS ATTACKS<br>
+#######################################################################<br>
+echo " - Enabling Protection from DoS Attacks.."<br>
+#<br>
+# SYN-FLOOD<br>
+# If I'm understanding this correctly it should not hurt legitimate<br>
+# inbound connections.<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p tcp --syn -m limit --limit 5/s -j ACCEPT<br><br>
+
+# PING ATTACKS<br>
+# This rule doesn't mean "I want to accept pings" - it just limits<br>
+# how many will be allowed past the NAT PREROUTING chain into the INPUT<br>
+# and FORWARD chains.<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p icmp --icmp-type echo-request -m limit --limit 1/s -j ACCEPT<br><br>
+
+# Trinoo UDP flooder - port # will probably change over time<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p tcp --sport 27665 -j bad_prenat<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p udp --sport 27444 -j bad_prenat<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p udp --sport 31335 -j bad_prenat<br><br>
+
+# Shaft distributed flooder - port # will probably change over time<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p tcp --sport 20432 -j bad_prenat<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p udp --sport 18753 -j bad_prenat<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p udp --sport 20433 -j bad_prenat<br><br>
+#######################################################################<br>
+echo " - DoS Protection Ruleset Loading Complete."<br>
+#######################################################################<br><br>
+
+#######################################################################<br><br>
+# NAT PREROUTING DNAT RULES<br>
+# These rules will cause incoming traffic the firewall sees as NEW to<br>
+# have the destination address changed (DNAT'd) to the address we want<br>
+# it to be delivered to.  This is really useful, especially when the<br>
+# destination address is a reserved/private address (like our LVS-NAT<br>
+# Real Servers).<br><br>
+
+# NTP TRAFFIC<br>
+# External "new" NTP traffic - DNAT to NTPSRV (This is our NTP Server)<br>
+# This had to be done because some traffic coming in from our selected<br>
+# internet servers wasn't being seen as established/related.<br>
+#<br>
+# NOTE: The 3 source IP's listed aren't real NTP servers, they're just<br>
+# shown here as an example to demonstrate what you'll probably need to<br>
+# do so your local NTP server can sync with public NTP servers on the<br>
+# internet.<br><br>
+
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p udp -s 10.23.24.25 -d $VIP1 --dport 123 -m state --state NEW -j DNAT --to $NTPSRV<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p udp -s 10.26.27.28 -d $VIP1 --dport 123 -m state --state NEW -j DNAT --to $NTPSRV<br>
+/sbin/iptables -t nat -A PREROUTING -i $EXTIF -p udp -s 10.29.30.31 -d $VIP1 --dport 123 -m state --state NEW -j DNAT --to $NTPSRV<br>
+###########################################################################<br>
+# END OF NAT PREROUTING CHAIN<br>
+# echo " - NAT PREROUTING Chain and Port Forwarding Table Loaded."<br>
+###########################################################################<br><br><br>
+
+
+###########################################################################<br>
+# NAT *POSTROUTING* CHAIN<br>
+# We shouldn't need much here, except for SNAT rules to change the source<br>
+# IP addresses of new outgoing connections from our LVS-NAT Real Servers<br>
+# into one of our routable public IP's.<br>
+#<br>
+# One possible optimization we could make to the firewall script would be<br>
+# to move the specific rejects in the *_ext_out and *_dmz_fwd chains<br>
+# (which currently have many redundant rules) to a set of rules here,<br>
+# like we did with the NAT PREROUTING chain.<br>
+###########################################################################<br><br>
+# SOURCE-NAT ALL OUTBOUND NEW CONNECTIONS FROM DMZHOSTS<br>
+# We need to change the source IP address of NEW outbound connections from<br>
+# DMZ Hosts with internal private addresses (ie, our LVS Real Servers),<br>
+# before we let their traffic out onto the internet.  This will allow these<br>
+# hosts to make the outbound connections they need to make - examples<br>
+# include SMTP delivery, DNS digs, pings, just to name a few.  Many of<br> 
+# the new outbound connections we need to let out will be expected<br>
+# to be coming from "official" (DNS-listed) IP addresses, like SMTP<br> 
+# delivery.<br>
+#<br>
+# NOTE: If your DNS-listed servers (MX's, etc.) are registered to more<br>
+# than one IP, you MAY have to add more rules here, and be more specific<br>
+# with the -s address you want each rule to do SNAT work on (ie, which<br>
+# routable IP address you want to SNAT those hosts to)<br>
+/sbin/iptables -t nat -A POSTROUTING -o $EXTIF -s $DMZLAN -j SNAT --to $VIP1<br>
+###########################################################################<br><br>
+
+# OK Everything is loaded - LET'S ROCK!!!<br><br>
+
+# TURN ON IP FORWARDING IN THE LINUX KERNEL<br>
+echo "1" > /proc/sys/net/ipv4/ip_forward<br><br>
+
+# Turn on PROXY ARP functionality<br>
+echo "1" > /proc/sys/net/ipv4/conf/$DMZIF/proxy_arp<br>
+echo "1" > /proc/sys/net/ipv4/conf/$EXTIF/proxy_arp<br>
+echo "1" > /proc/sys/net/ipv4/conf/all/proxy_arp<br>
+echo "1" > /proc/sys/net/ipv4/conf/default/proxy_arp<br><br>
+
+###########################################################################<br><br>
+
+echo "Firewall Rule Set Loading is COMPLETE."<br>
+echo "IPVS Virtual Services, Proxy-ARP, and IP Forwarding is now ENABLED."<br>
+
+
+
+
+<br>
+</td></tr>
+</table>
+</pre>
+
+</body>
+</html>

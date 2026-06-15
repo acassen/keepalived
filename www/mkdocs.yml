@@ -1,0 +1,122 @@
+site_name: Keepalived
+site_url: https://www.keepalived.org
+site_description: >-
+  Keepalived provides robust high-availability and load-balancing facilities
+  for Linux infrastructures, built on VRRP, LVS/IPVS and BFD.
+site_author: Alexandre Cassen
+copyright: Copyright &copy; 2000 - 2026 Alexandre Cassen
+repo_url: https://github.com/acassen/keepalived
+repo_name: Keepalived
+
+theme:
+  name: material
+  custom_dir: overrides
+  logo: assets/keepalived-logo.png
+  favicon: images/favicon.png
+  features:
+    - navigation.tabs
+    - navigation.top
+    - navigation.indexes
+    - navigation.footer
+    - header.autohide
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: orange
+      accent: deep orange
+  icon:
+    repo: fontawesome/brands/github
+
+extra:
+  homepage: https://www.keepalived.org
+  generator: false
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/acassen/keepalived
+      name: Keepalived on GitHub
+    - icon: fontawesome/brands/x-twitter
+      link: https://twitter.com/keepalived
+      name: Keepalived on X
+    - icon: fontawesome/solid/envelope
+      link: mailto:acassen@gmail.com
+      name: Email Alexandre Cassen
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - def_list
+  - tables
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - News: news.md
+  - Download: download.md
+  - Documentation:
+    - documentation.md
+    - keepalived.conf(5): documentation/keepalived-conf.md
+    - User Guide:
+      - documentation/user-guide/index.md
+      - Introduction: documentation/user-guide/introduction.md
+      - Quick Start: documentation/user-guide/quick-start.md
+      - Software Design: documentation/user-guide/software-design.md
+      - Load Balancing Techniques: documentation/user-guide/load-balancing-techniques.md
+      - Installing Keepalived: documentation/user-guide/installing.md
+      - Configuration Synopsis: documentation/user-guide/configuration-synopsis.md
+      - Programs Synopsis: documentation/user-guide/programs-synopsis.md
+      - IPVS Scheduling Algorithms: documentation/user-guide/scheduling-algorithms.md
+      - IPVS Protocol Support: documentation/user-guide/protocol-support.md
+      - SNMP Support: documentation/user-guide/snmp-support.md
+      - 'Case Study: Healthcheck': documentation/user-guide/case-study-healthcheck.md
+      - 'Case Study: Failover': documentation/user-guide/case-study-failover.md
+      - 'Case Study: Mixing': documentation/user-guide/case-study-mixing.md
+      - Terminology: documentation/user-guide/terminology.md
+      - License: documentation/user-guide/license.md
+    - ChangeLog: documentation/changelog.md
+  - Release Notes:
+    - release-notes/index.md
+    - Release 2.3.4: release-notes/Release-2.3.4.md
+    - Release 2.3.3: release-notes/Release-2.3.3.md
+    - Release 2.3.2: release-notes/Release-2.3.2.md
+    - Release 2.3.1: release-notes/Release-2.3.1.md
+    - Release 2.3.0: release-notes/Release-2.3.0.md
+    - Release 2.2.8: release-notes/Release-2.2.8.md
+    - Release 2.2.7: release-notes/Release-2.2.7.md
+    - Release 2.2.4: release-notes/Release-2.2.4.md
+    - Release 2.2.3: release-notes/Release-2.2.3.md
+    - Release 2.2.2: release-notes/Release-2.2.2.md
+    - Release 2.2.1: release-notes/Release-2.2.1.md
+    - Release 2.2.0: release-notes/Release-2.2.0.md
+    - Release 2.1.5: release-notes/Release-2.1.5.md
+    - Release 2.1.4: release-notes/Release-2.1.4.md
+    - Release 2.1.3: release-notes/Release-2.1.3.md
+    - Release 2.1.2: release-notes/Release-2.1.2.md
+    - Release 2.1.0: release-notes/Release-2.1.0.md
+  - Community: community.md
+  - Sponsors: sponsors.md

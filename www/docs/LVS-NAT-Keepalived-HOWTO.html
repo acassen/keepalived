@@ -1,0 +1,1278 @@
+<html>
+<head>
+<title>LVS NAT + Keepalived HOWTO</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</head>
+
+<body bgcolor="#FFFFFF" text="#000000">
+
+<H1>LVS NAT + Keepalived HOWTO</H1>
+
+<H2>By Adam Fletcher (C) 2002, released under GPL</H2>
+
+<P><HR>
+<EM>Install, testing and running of a Keepalived HA based LVS/NAT</EM>
+<HR>
+<P>
+
+<H1>1. keepalived - what is it?</H1>
+From Alexandre Cassen, author of keepalived:<BR>
+<BR>
+&quot;The main goal of the keepalived project is to add a strong &amp; robust 
+keepalive facility to the <A HREF="http://www.linuxvirtualserver.org/"><U><FONT COLOR="0000ff">Linux 
+Virtual Server</FONT></U></A> project. This project is written in C with multilayer 
+TCP/IP stack checks. Keepalived implements a framework based on three family checks 
+: Layer3, Layer4 &amp; Layer5. This framework gives the daemon the ability of 
+checking a <I>LVS</I> server pool states. When one of the server of the LVS server 
+pool is down, keepalived informs the linux kernel via a setsockopt call to remove 
+this server entrie from the LVS topology. In addition keepalived implements a 
+VRRPv2 stack to handle director failover. So in short keepalived is a userspace 
+daemon for LVS cluster nodes healthchecks and LVS directors failover.<BR>
+<BR>
+&quot;keepalived is a project started to create a full-featured virtual router 
+for Linux, which includes load balancing through Linux Virtual Server, failover 
+via VRRP and health checks to monitor real servers. Essentially, it is a single 
+package for doing what is typically done in Linux via lvs+mon+fake+hearbeat. With 
+keepalived an administrator can quickly build a redundant load balancing solution 
+without the hassle of using numerous packages and custom scripts. <BR>
+<BR>
+keepalived will: <BR>
+<UL>
+  <LI>setup the IP addresses (i.e., no need to create the IP's with ifconfig, 
+    etc) 
+  <LI>handle failover between load balancers (i.e., no need to run heartbeat to 
+    watch for failures, or write scripts to handle the failure) 
+  <LI>do health checks on services, bringing them in and out of pools (no need 
+    to run mon+custom scripts) 
+  <LI>send smtp notifications on transition from master to backup send smtp notifications 
+    on health check failures 
+  <LI>do LVS NAT (no need to run lvs-configure, or do it by hand with ipvsadm) 
+</UL>
+keepalived is available from <A HREF="http://www.keepalived.org"><U><FONT COLOR="0000ff">www.keepalived.org</FONT></U></A><BR>
+<BR>
+Software used in this example: <BR>
+<UL>
+  <LI>Linux kernel 2.4.19 (from <A HREF="http://www.kernel.org"><U><FONT COLOR="0000ff">kernel.org</FONT></U></A>) 
+  <LI>LVS kernel patch, 1.0.6 for Linux kernel 2.4.19 (From <A HREF="http://www.linuxvirtualserver.org"><U><FONT COLOR="0000ff">www.linuxvirtualserver.org</FONT></U></A>) 
+  <LI>keepalived 0.7.1 (from <A HREF="http://www.keepalived.org"><U><FONT COLOR="0000ff">www.keepalived.org</FONT></U></A>) 
+</UL>
+Optional software: <BR>
+<UL>
+  <LI>ipvsadm 1.21 (from <A HREF="http://www.linuxvirtualserver.org"><U><FONT COLOR="0000ff">www.linuxvirtualserver.org</FONT></U></A>) 
+  <LI>OpenSSL (latest from <A HREF="http://openssl.org"><U><FONT COLOR="0000ff">openssl.org</FONT></U></A>, 
+    I would recommend at least 0.9.6e or above due to security problems in any 
+    earlier version 
+</UL>
+<H1>2. Plan your network!</H1>
+Draw out a logical diagram of your network, either by hand or with a tool like xfig or Visio. Planning your  network saves hassle and time later! Make a list of the IP addresses you are going to use, any external router IPs you may need, the IP addresses of the machine you are going to load balancer and other related information.
+<H1>3. Configuring your kernel </H1>
+Configuring your kernel for LVS should be done according to the directions on 
+<A HREF="http://www.linuxvirtualserver.org"><U><FONT COLOR="0000ff">www.linuxvirtualserver.org</FONT></U></A>. 
+Be sure you enable full NAT, and IP Forwarding. <BR>
+After patching your kernel for the latest LVS and installing the new kernel and 
+rebooting, you should turn on IP forwarding. Many Linux distributions allow you 
+to do this through the system configuration editor (YaST2 on SuSE, linuxconf on 
+Red Hat, for example), or you can do this in your keepalived startup scripts (we'll 
+give some examples of this later).  For now, just <BR>
+<BR>
+<TT>echo &quot;1&quot; &gt; /proc/sys/net/ipv4/ip_forwarding </TT><BR>
+<BR>
+as root.
+<H1>4. Building ipvsadm (optional)</H1>
+<TT>ipvsadm</TT> is a tool available from <A HREF="http://www.linuxvirtualserver.org"><U><FONT COLOR="0000ff">www.linuxvirtualserver.org</FONT></U></A> 
+that allows you to setup virtual servers by hand. It is also a useful debugging/status 
+tool, so I recommend building this small tool.
+<H1>5. Building keepalived</H1>
+The quick version:<br>
+<BR>
+<TT>example-01:~ # tar xzvf keepalived-0.7.1.tar.gz; cd keepalived-0.7.1; ./configure; 
+make; make install </TT><BR>
+<BR>
+Keepalived is very simple to build - grab the latest package from <A HREF="http://www.keepalived.org"><U><FONT COLOR="0000ff">www.keepalived.org</FONT></U></A>, 
+untar, the run <TT>./configure</TT>, then <TT>make</TT>, and <TT>make install</TT>. 
+<BR>
+For more information, read the INSTALL file shipped with keepalived. <BR>
+<BR>
+If you have any trouble, or keepalived says it is not installing support for something 
+you expected (such as SSL health checks), be sure to verify that you have the 
+missing library or header file in the location keepalived expects it to be - for 
+instance, the location of LVS's header file has changed in recent releases, so 
+keepalived may not find the header in older versions of LVS.
+<H1>6. Setting up keepalived: a simple network: 1 load balancer/virtual router, 1 real server on port 22 (ssh). </H1>
+Now that we have keepalived built and installed, let's set up this network: <BR>
+<BR>
+Client (on the internet somewhere) --&gt; load balancer --&gt; realserver <BR>
+<BR>
+Load balancer IPs: <BR>
+<UL>
+  <LI>    IP of load balancer's external interface(eth0): 192.168.1.9 
+  <LI>    external VIP of our realserver: 192.168.1.11 
+  <LI>    IP of load balancer's interface(eth1): 10.20.40.2 
+  <LI>    internal VIP our realserver will use as a default gateway: 10.20.40.1 
+</UL>
+Realserver: 
+<UL>
+  <LI>    IP: 10.20.40.10 
+  <LI>    be sure to set the default gateway to 10.20.40.1 
+</UL>
+Our first step is to configure keepalived. The typical location for <BR>
+this file is <TT>/etc/keepalived/keepalived.conf </TT><BR>
+<BR>
+Note that keepalived, as of this writing, does not report errors in the <BR>
+configuration file! This means if something is not right in the config file it 
+may be difficult to notice. Try starting keepalived with the -d option, which 
+will dump a config to syslog. <BR>
+<BR>
+<TT>-- cut here -- </TT><BR>
+<TT>! This is a comment </TT><BR>
+<TT>! Configuration File for keepalived </TT><BR>
+<BR>
+<TT>global_defs { </TT><BR>
+<TT>   ! this is who emails will go to on alerts </TT><BR>
+<TT>   notification_email { </TT><BR>
+<TT>        admins@example.com </TT><BR>
+<TT>    fakepager@example.com </TT><BR>
+<TT>    ! add a few more email addresses here if you would like </TT><BR>
+<TT>   } </TT><BR>
+<TT>   notification_email_from admins@example.com </TT><BR>
+<BR>
+<TT>   ! I use the local machine to relay mail </TT><BR>
+<TT>   smtp_server 127.0.0.1 </TT><BR>
+<TT>   smtp_connect_timeout 30 </TT><BR>
+<BR>
+<TT>   ! each load balancer should have a different ID </TT><BR>
+<TT>   ! this will be used in SMTP alerts, so you should make </TT><BR>
+<TT>   ! each router easily identifiable </TT><BR>
+<TT>   lvs_id LVS_EXAMPLE_01 </TT><BR>
+<TT>} </TT><BR>
+<BR>
+<TT>! vrrp_sync_groups make sure that several router instances </TT><BR>
+<TT>! stay together on a failure - a good example of this is </TT><BR>
+<TT>! that the external interface on one router fails and the backup server </TT><BR>
+<TT>! takes over, you want the internal interface on the failed server </TT><BR>
+<TT>! to failover as well, otherwise nothing will work. </TT><BR>
+<TT>! you can have as many vrrp_sync_group blocks as you want. </TT><BR>
+<TT>vrrp_sync_group VG1 { </TT><BR>
+<TT>   group { </TT><BR>
+<TT>      VI_1 </TT><BR>
+<TT>      VI_GATEWAY </TT><BR>
+<TT>   } </TT><BR>
+<TT>} </TT><BR>
+<BR>
+<TT>! each interface needs at least one vrrp_instance </TT><BR>
+<TT>! each vrrp_instance is a group of VIPs that are logically grouped </TT><BR>
+<TT>! together </TT><BR>
+<TT>! you can have as many vrrp_instaces as you want </TT><BR>
+<BR>
+<TT>vrrp_instance VI_1 { </TT><BR>
+<TT>        state MASTER </TT><BR>
+<TT>        interface eth0 </TT><BR>
+<TT>     </TT><BR>
+<TT>        lvs_sync_daemon_inteface eth0 </TT><BR>
+<BR>
+<TT>    ! each virtual router id must be unique per instance name! </TT><BR>
+<TT>        virtual_router_id 51 </TT><BR>
+<BR>
+<TT>    ! MASTER and BACKUP state are determined by the priority </TT><BR>
+<TT>    ! even if you specify MASTER as the state, the state will </TT><BR>
+<TT>    ! be voted on by priority (so if your state is MASTER but your </TT><BR>
+<TT>    ! priority is lower than the router with BACKUP, you will lose </TT><BR>
+<TT>    ! the MASTER state) </TT><BR>
+<TT>    ! I make it a habit to set priorities at least 50 points apart </TT><BR>
+<TT>    ! note that a lower number is lesser priority - lower gets less vote </TT><BR>
+<TT>        priority 150 </TT><BR>
+<BR>
+<TT>    ! how often should we vote, in seconds? </TT><BR>
+<TT>        advert_int 1 </TT><BR>
+<BR>
+<TT>    ! send an alert when this instance changes state from MASTER to BACKUP 
+</TT><BR>
+<TT>        smtp_alert </TT><BR>
+<BR>
+<TT>    ! this authentication is for syncing between failover servers </TT><BR>
+<TT>    ! keepalived supports PASS, which is simple password </TT><BR>
+<TT>    ! authentication </TT><BR>
+<TT>    ! or AH, which is the IPSec authentication header. </TT><BR>
+<TT>    ! I don't use AH </TT><BR>
+<TT>    ! yet as many people have reported problems with it </TT><BR>
+<TT>        authentication { </TT><BR>
+<TT>                auth_type PASS </TT><BR>
+<TT>                auth_pass example </TT><BR>
+<TT>        } </TT><BR>
+<BR>
+<TT>    ! these are the IP addresses that keepalived will setup on this </TT><BR>
+<TT>    ! machine. Later in the config we will specify which real </TT><BR>
+<TT>        ! servers  are behind these IPs </TT><BR>
+<TT>    ! without this block, keepalived will not setup and takedown the </TT><BR>
+<TT>    ! any IP addresses </TT><BR>
+<TT>     </TT><BR>
+<TT>        virtual_ipaddress { </TT><BR>
+<TT>                192.168.1.11 </TT><BR>
+<TT>        ! and more if you want them </TT><BR>
+<TT>        } </TT><BR>
+<TT>} </TT><BR>
+<BR>
+<TT>! now I setup the instance that the real servers will use as a default </TT><BR>
+<TT>! gateway </TT><BR>
+<TT>! most of the config is the same as above, but on a different interface </TT><BR>
+<BR>
+<TT>vrrp_instance VI_GATEWAY { </TT><BR>
+<TT>        state MASTER </TT><BR>
+<TT>        interface eth1 </TT><BR>
+<TT>        lvs_sync_daemon_inteface eth1 </TT><BR>
+<TT>        virtual_router_id 52 </TT><BR>
+<TT>        priority 150 </TT><BR>
+<TT>        advert_int 1 </TT><BR>
+<TT>        smtp_alert </TT><BR>
+<TT>        authentication { </TT><BR>
+<TT>                auth_type PASS </TT><BR>
+<TT>                auth_pass example </TT><BR>
+<TT>        } </TT><BR>
+<TT>        virtual_ipaddress { </TT><BR>
+<TT>                10.20.40.1 </TT><BR>
+<TT>        } </TT><BR>
+<TT>} </TT><BR>
+<BR>
+<TT>! now we setup more information about are virtual server </TT><BR>
+<TT>! we are just setting up one for now, listening on port 22 for ssh </TT><BR>
+<TT>! requests. </TT><BR>
+<BR>
+<TT>! notice we do not setup a virtual_server block for the 10.20.40.1 </TT><BR>
+<TT>! address in the VI_GATEWAY instance. That's because we are doing NAT </TT><BR>
+<TT>! on that IP, and nothing else. </TT><BR>
+<BR>
+<TT>virtual_server 192.168.1.11 22 { </TT><BR>
+<TT>    delay_loop 6 </TT><BR>
+<BR>
+<TT>    ! use round-robin as a load balancing algorithm </TT><BR>
+<TT>    lb_algo rr </TT><BR>
+<BR>
+<TT>    ! we are doing NAT </TT><BR>
+<TT>    lb_kind NAT </TT><BR>
+<TT>    nat_mask 255.255.255.0 </TT><BR>
+<BR>
+<TT>    protocol TCP </TT><BR>
+<BR>
+<TT>    ! there can be as many real_server blocks as you need </TT><BR>
+<BR>
+<TT>    real_server 10.20.40.10 22 { </TT><BR>
+<BR>
+<TT>    ! if we used weighted round-robin or a similar lb algo, </TT><BR>
+<TT>    ! we include the weight of this server </TT><BR>
+<BR>
+<TT>        weight 1 </TT><BR>
+<BR>
+<TT>    ! here is a health checker for this server. </TT><BR>
+<TT>    ! we could use a custom script here (see the keepalived docs) </TT><BR>
+<TT>    ! but we will just make sure we can do a vanilla tcp connect() </TT><BR>
+<TT>    ! on port 22 </TT><BR>
+<TT>    ! if it fails, we will pull this realserver out of the pool </TT><BR>
+<TT>    ! and send email about the removal </TT><BR>
+<TT>        TCP_CHECK { </TT><BR>
+<TT>                connect_timeout 3 </TT><BR>
+<TT>        connect_port 22 </TT><BR>
+<TT>        } </TT><BR>
+<TT>    } </TT><BR>
+<TT>} </TT><BR>
+<BR>
+<TT>! that's all </TT><BR>
+<BR>
+<TT>-- cut here -- </TT><BR>
+<BR>
+When you start keepalived with the -d flag, you should see this in <TT>/var/log/message</TT> 
+(or equivalent): <BR>
+<BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived: ------&lt; Global definitions &gt;------ 
+</TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:  LVS ID = LVS_EXAMPLE_01 </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:  Smtp server = 127.0.0.1 </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:  Smtp server connection timeout = 100 
+</TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:  Email notification from = admins@example.com, 
+fakepager@example.com </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:  Email notification = admins@example.com 
+</TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived: ------&lt; SSL definitions &gt;------ 
+</TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:  Using autogen SSL context </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived: ------&lt; VRRP Topology &gt;------ 
+</TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:  VRRP Instance = VI_1 </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    Want State = MASTER </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    Runing on device = eth0 </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    Virtual Router ID = 51 </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    Priority = 150 </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    Advert interval = 1sec </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    Preempt Active </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    Authentication type = SIMPLE_PASSWORD 
+</TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    Password = example </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    VIP count = 1 </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:      VIP1 = 192.168.1.11/32 </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:  VRRP Instance = VI_GATEWAY </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    Want State = MASTER </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    Runing on device = eth1 </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    Virtual Router ID = 52 </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    Priority = 150 </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    Advert interval = 1sec </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    Preempt Active </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    Authentication type = SIMPLE_PASSWORD 
+</TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    Password = example </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    VIP count = 1 </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:      VIP1 = 10.20.40.1/32 </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived: ------&lt; VRRP Sync groups &gt;------ 
+</TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:  VRRP Sync Group = VG1, MASTER </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    monitor = VI_1 </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    monitor = VI_GATEWAY </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived: ------&lt; LVS Topology &gt;------ 
+</TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:  System is compiled with LVS v1.0.4 
+</TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:  VIP = 192.168.1.11, VPORT = 22 </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    delay_loop = 10, lb_algo = rr </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    protocol = TCP </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    lb_kind = NAT </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    RIP = 10.20.40.11, RPORT = 22, WEIGHT 
+= 1 </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived: ------&lt; Health checkers &gt;------ 
+</TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:  10.20.40.11:22 </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    Keepalive method = TCP_CHECK </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    Connection timeout = 10 </TT><BR>
+<TT>Sep 12 14:13:11 example-01 Keepalived:    Connection port = 22 </TT><BR>
+<BR>
+Let's see what ipvsadm has to say about this, after keepalived starts up: <BR>
+<BR>
+<TT>example-01:~ # ipvsadm </TT><BR>
+<TT>IP Virtual Server version 1.0.4 (size=65536) </TT><BR>
+<TT>Prot LocalAddress:Port Scheduler Flags </TT><BR>
+<TT>  -&gt; RemoteAddress:Port           Forward Weight ActiveConn InActConn </TT><BR>
+<TT>TCP  192.168.1.11:ssh rr </TT><BR>
+<TT>  -&gt; 10.20.40.10:ssh            Masq    1      0          0 </TT><BR>
+<TT>example-01:~ # </TT><BR>
+<BR>
+And finally, we should see the new IP addresses in our IP address list: <BR>
+<BR>
+<TT>example-01:~ # ip addr list </TT><BR>
+<TT>1: lo: &lt;LOOPBACK,UP&gt; mtu 16436 qdisc noqueue </TT><BR>
+<TT>    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00 </TT><BR>
+<TT>    inet 127.0.0.1/8 brd 127.255.255.255 scope host lo </TT><BR>
+<TT>2: eth0: &lt;BROADCAST,MULTICAST,UP&gt; mtu 1500 qdisc pfifo_fast qlen 100 
+</TT><BR>
+<TT>    link/ether 00:e0:81:21:bb:1c brd ff:ff:ff:ff:ff:ff </TT><BR>
+<TT>    inet 192.168.1.9/24 brd 192.168.1.254 scope global eth0 </TT><BR>
+<TT>    inet 192.168.1.11/32 scope global eth0 </TT><BR>
+<TT>3: eth1: &lt;BROADCAST,MULTICAST,UP&gt; mtu 1500 qdisc pfifo_fast qlen 100 
+</TT><BR>
+<TT>    link/ether 00:e0:81:21:bb:1d brd ff:ff:ff:ff:ff:ff </TT><BR>
+<TT>    inet 10.20.40.2/24 brd 10.20.40.255 scope global eth1 </TT><BR>
+<TT>    inet 10.20.40.1/32 scope global eth1 </TT><BR>
+<TT>example-01:~ # </TT><BR>
+<BR>
+ipvsadm, ip addr list,  and starting keepalived with the -d option are good ways 
+to verify your config is working.
+<H1>7. Failover </H1>
+With our basic config from above, we can easily move to a failover situation. 
+All you have to do is setup keepalived on another box, copy over the keepalived.conf, 
+change the lvs_id, change any priorities down 50 points, states to BACKUP, and 
+run keepalived. You'll see in the logs on the backup server that the server accepts 
+it's BACKUP state, and if you unplug the network cable(s) from the MASTER server, 
+the BACKUP server takes over the MASTER state. <BR>
+<BR>
+For the example, use the config file from the simple example above on the MASTER 
+machine. On the BACKUP machine, use this config file: <BR>
+<BR>
+<TT>-- cut here -- </TT><BR>
+<TT>! This is a comment </TT><BR>
+<TT>! Configuration File for keepalived </TT><BR>
+<BR>
+<BR>
+<TT>global_defs { </TT><BR>
+<TT>   ! this is who emails will go to on alerts </TT><BR>
+<TT>   notification_email { </TT><BR>
+<TT>        admins@example.com </TT><BR>
+<TT>    fakepager@example.com </TT><BR>
+<TT>    ! add a few more email addresses here if you would like </TT><BR>
+<TT>   } </TT><BR>
+<TT>   notification_email_from admins@example.com </TT><BR>
+<BR>
+<TT>   ! I use the local machine to relay mail </TT><BR>
+<TT>   smtp_server 127.0.0.1 </TT><BR>
+<TT>   smtp_connect_timeout 30 </TT><BR>
+<BR>
+<TT>   ! each load balancer should have a different ID </TT><BR>
+<TT>   ! this will be used in SMTP alerts, so you should make </TT><BR>
+<TT>   ! each router easily identifiable </TT><BR>
+<BR>
+<TT>   ! this is router 2 </TT><BR>
+<TT>   lvs_id LVS_EXAMPLE_02 </TT><BR>
+<TT>} </TT><BR>
+<BR>
+<TT>! vrrp_sync_groups make sure that several router instances </TT><BR>
+<TT>! stay together on a failure - a good example of this is </TT><BR>
+<TT>! that the external interface on one router fails and the backup server </TT><BR>
+<TT>! takes over, you want the internal interface on the failed server </TT><BR>
+<TT>! to failover as well, otherwise nothing will work. </TT><BR>
+<TT>! you can have as many vrrp_sync_group blocks as you want. </TT><BR>
+<TT>vrrp_sync_group VG1 { </TT><BR>
+<TT>   group { </TT><BR>
+<TT>      VI_1 </TT><BR>
+<TT>      VI_GATEWAY </TT><BR>
+<TT>   } </TT><BR>
+<TT>} </TT><BR>
+<BR>
+<TT>! each interface needs at least one vrrp_instance </TT><BR>
+<TT>! each vrrp_instance is a group of VIPs that are logically grouped </TT><BR>
+<TT>! together </TT><BR>
+<TT>! you can have as many vrrp_instaces as you want </TT><BR>
+<BR>
+<TT>vrrp_instance VI_1 { </TT><BR>
+<TT>        ! we are the failover </TT><BR>
+<TT>        state BACKUP </TT><BR>
+<TT>        interface eth0 </TT><BR>
+<TT>     </TT><BR>
+<TT>        lvs_sync_daemon_inteface eth0 </TT><BR>
+<BR>
+<TT>    ! each virtual router id must be unique per instance name! </TT><BR>
+<TT>        ! instance names are the same on MASTER and BACKUP, so the </TT><BR>
+<TT>        ! virtual router_id is the same as VI_1 on the MASTER </TT><BR>
+<TT>        virtual_router_id 51 </TT><BR>
+<BR>
+<TT>    ! MASTER and BACKUP state are determined by the priority </TT><BR>
+<TT>    ! even if you specify MASTER as the state, the state will </TT><BR>
+<TT>    ! be voted on by priority (so if your state is MASTER but your </TT><BR>
+<TT>    ! priority is lower than the router with BACKUP, you will lose </TT><BR>
+<TT>    ! the MASTER state) </TT><BR>
+<TT>    ! I make it a habit to set priorities at least 50 points apart </TT><BR>
+<TT>    ! note that a lower number is lesser priority - </TT><BR>
+<TT>    ! lower gets less vote </TT><BR>
+<TT>        priority 100 </TT><BR>
+<BR>
+<TT>    ! how often should we vote, in seconds? </TT><BR>
+<TT>        advert_int 1 </TT><BR>
+<BR>
+<TT>    ! send an alert when this instance changes state from </TT><BR>
+<TT>    ! MASTER to BACKUP </TT><BR>
+<TT>        smtp_alert </TT><BR>
+<BR>
+<TT>    ! this authentication is for syncing between failover servers </TT><BR>
+<TT>    ! keepalived supports PASS, which is simple </TT><BR>
+<TT>    ! password authentication </TT><BR>
+<TT>    ! or AH, which is the ipsec authentication header. </TT><BR>
+<TT>    ! I don't use AH </TT><BR>
+<TT>    ! yet as many people have reported problems with it </TT><BR>
+<TT>        authentication { </TT><BR>
+<TT>                auth_type PASS </TT><BR>
+<TT>                auth_pass example </TT><BR>
+<TT>        } </TT><BR>
+<BR>
+<BR>
+<TT>        </TT><BR>
+<TT>        virtual_ipaddress { </TT><BR>
+<TT>                192.168.1.11 </TT><BR>
+<TT>        ! and more if you want them </TT><BR>
+<TT>        } </TT><BR>
+<TT>} </TT><BR>
+<BR>
+<TT>! now I setup the instance that the real servers will use as a default </TT><BR>
+<TT>! gateway </TT><BR>
+<TT>! most of the config is the same as above, but on a different interface </TT><BR>
+<BR>
+<TT>vrrp_instance VI_GATEWAY { </TT><BR>
+<TT>        state BACKUP </TT><BR>
+<TT>        interface eth1 </TT><BR>
+<TT>        lvs_sync_daemon_inteface eth1 </TT><BR>
+<TT>        virtual_router_id 52 </TT><BR>
+<TT>        priority 100 </TT><BR>
+<TT>        advert_int 1 </TT><BR>
+<TT>        smtp_alert </TT><BR>
+<TT>        authentication { </TT><BR>
+<TT>                auth_type PASS </TT><BR>
+<TT>                auth_pass example </TT><BR>
+<TT>        } </TT><BR>
+<TT>        virtual_ipaddress { </TT><BR>
+<TT>                10.20.40.1 </TT><BR>
+<TT>        } </TT><BR>
+<TT>} </TT><BR>
+<BR>
+<BR>
+<TT>! now we setup more information about are virtual server </TT><BR>
+<TT>! we are just setting up one for now, listening on port 22 for ssh </TT><BR>
+<TT>! requests. </TT><BR>
+<BR>
+<TT>! notice we do not setup a virtual_server block for the 10.20.40.1 </TT><BR>
+<TT>! address in the VI_GATEWAY instance. That's because we are doing NAT </TT><BR>
+<TT>! on that IP, and nothing else. </TT><BR>
+<BR>
+<TT>virtual_server 192.168.1.11 22 { </TT><BR>
+<TT>    delay_loop 6 </TT><BR>
+<BR>
+<TT>    ! use round-robin as a load balancing alogorithm </TT><BR>
+<TT>    lb_algo rr </TT><BR>
+<BR>
+<TT>    ! we are doing NAT </TT><BR>
+<TT>    lb_kind NAT </TT><BR>
+<TT>    nat_mask 255.255.255.0 </TT><BR>
+<BR>
+<BR>
+<TT>    protocol TCP </TT><BR>
+<BR>
+<TT>    ! there can be as many real_server blocks as you need </TT><BR>
+<BR>
+<TT>    real_server 10.20.40.10 22 { </TT><BR>
+<BR>
+<TT>    ! if we used weighted round-robin or a similar lb algo, </TT><BR>
+<TT>    ! we include the weight of this server </TT><BR>
+<BR>
+<TT>        weight 1 </TT><BR>
+<BR>
+<TT>    ! here is a health checker for this server. </TT><BR>
+<TT>    ! we could use a custom script here (see the keepalived docs) </TT><BR>
+<TT>    ! but we will just make sure we can do a vanilla tcp connect() </TT><BR>
+<TT>    ! on port 22 </TT><BR>
+<TT>    ! if it fails, we will pull this realserver out of the pool </TT><BR>
+<TT>    ! and send email about the removal </TT><BR>
+<TT>        TCP_CHECK { </TT><BR>
+<TT>                connect_timeout 3 </TT><BR>
+<TT>        connect_port 22 </TT><BR>
+<TT>        } </TT><BR>
+<TT>    } </TT><BR>
+<TT>} </TT><BR>
+<BR>
+<TT>! that's all </TT><BR>
+<BR>
+<TT>-- cut here -- </TT><BR>
+<BR>
+Notice how little is different between the MASTER and BACKUP config file - just 
+the lvs_id directive, the priorities, and the state directive. That's it, that's 
+all. Make sure these are different but everything else is the same. <BR>
+<BR>
+Once you startup keepalived on the MASTER and the BACKUP, you should be able  
+to kill keepalived on the MASTER server and watch the BACKUP take over in  the 
+logs on the BACKUP server. <BR>
+<BR>
+If you did an ip addr list on the backup server, you won't see the VIPs until 
+the backup server takes over the MASTER state.
+<H1>8. Setting up keepalived: a more complicated network: 2 VIPs (1 http/https, 
+  1 ssh) with 2 real servers in each. </H1>
+Load balancer IPs: <BR>
+<UL>
+  <LI>IP of load balancers's external interface(eth0): 192.168.1.9 
+  <LI>external VIP of our http/https realservers: 192.168.1.11 
+  <LI>external VIP of our ssh realservers: 192.168.1.12 
+  <LI>IP of load balancer's interface(eth1): 10.20.40.2 
+  <LI>internal VIP our realserver will use as a default gateway: 10.20.40.1 
+</UL>
+Realserver 1 (http, https): <BR>
+<UL>
+  <LI>IP: 10.20.40.10 
+  <LI>be sure to set the default gateway to 10.20.40.1 
+</UL>
+Realserver 2 (http, https): <BR>
+<UL>
+  <LI>IP: 10.20.40.11 
+  <LI>be sure to set the default gateway to 10.20.40.1 
+</UL>
+Realserver 3 (ssh): <BR>
+<UL>
+  <LI>IP: 10.20.40.20 
+  <LI>be sure to set the default gateway to 10.20.40.1 
+</UL>
+Realserver 4 (ssh): <BR>
+<UL>
+  <LI>IP: 10.20.40.21 
+  <LI>be sure to set the default gateway to 10.20.40.1 
+</UL>
+<p>A few oddities occur with this setup. In particular, you'll want to learn to 
+  use the &quot;genhash&quot; command that comes with keepalived to generate MD5 
+  sums for the HTTP_GET and the SSL_GET service checks. Also, you'll want to setup 
+  persistence on the https - persistence will allow your clients to always connect 
+  to the same realserver, in case you have something like a shopping cart that's 
+  state is maintained on the realserver. <BR>
+  <BR>
+  <BR>
+  genhash is simple to use. Let's say we have a test.html on our web servers, 
+  and use that for service checks. <BR>
+  <BR>
+  <TT>example-01:~ # genhash -s 192.168.1.11 -p 80 -u /test.html </TT><BR>
+  <TT>-----------------------[    HTTP Header Buffer    ]----------------------- 
+  </TT><BR>
+  <TT>0000  48 54 54 50 2f 31 2e 31 - 20 32 30 30 20 4f 4b 0d   HTTP/1.1 200 OK. 
+  </TT><BR>
+  <TT>0010  0a 44 61 74 65 3a 20 54 - 68 75 2c 20 31 32 20 53   .Date: Thu, 12 
+  S </TT><BR>
+  <TT>0020  65 70 20 32 30 30 32 20 - 31 39 3a 34 31 3a 35 39   ep 2002 19:41:59 
+  </TT><BR>
+  <TT>0030  20 47 4d 54 0d 0a 53 65 - 72 76 65 72 3a 20 41 70    GMT..Server: 
+  Ap </TT><BR>
+  <TT>0040  61 63 68 65 2f 32 2e 30 - 2e 33 39 20 28 55 6e 69   ache/2.0.39 (Uni 
+  </TT><BR>
+  <TT>0050  78 29 20 6d 6f 64 5f 73 - 73 6c 2f 32 2e 30 2e 33   x) mod_ssl/2.0.3 
+  </TT><BR>
+  <TT>0060  39 20 4f 70 65 6e 53 53 - 4c 2f 30 2e 39 2e 36 20   9 OpenSSL/0.9.6 
+  </TT><BR>
+  <TT>0070  50 48 50 2f 34 2e 32 2e - 31 0d 0a 4c 61 73 74 2d   PHP/4.2.1..Last- 
+  </TT><BR>
+  <TT>0080  4d 6f 64 69 66 69 65 64 - 3a 20 54 75 65 2c 20 30   Modified: Tue, 
+  0 </TT><BR>
+  <TT>0090  33 20 53 65 70 20 32 30 - 30 32 20 31 37 3a 34 31   3 Sep 2002 17:41 
+  </TT><BR>
+  <TT>00a0  3a 31 31 20 47 4d 54 0d - 0a 45 54 61 67 3a 20 22   :11 GMT..ETag: 
+  &quot; </TT><BR>
+  <TT>00b0  31 65 35 35 66 2d 34 32 - 2d 64 33 36 63 33 62 63   1e55f-42-d36c3bc 
+  </TT><BR>
+  <TT>00c0  30 22 0d 0a 41 63 63 65 - 70 74 2d 52 61 6e 67 65   0&quot;..Accept-Range 
+  </TT><BR>
+  <TT>00d0  73 3a 20 62 79 74 65 73 - 0d 0a 43 6f 6e 74 65 6e   s: bytes..Conten 
+  </TT><BR>
+  <TT>00e0  74 2d 4c 65 6e 67 74 68 - 3a 20 36 36 0d 0a 43 6f   t-Length: 66..Co 
+  </TT><BR>
+  <TT>00f0  6e 6e 65 63 74 69 6f 6e - 3a 20 63 6c 6f 73 65 0d   nnection: close. 
+  </TT><BR>
+  <TT>0100  0a 43 6f 6e 74 65 6e 74 - 2d 54 79 70 65 3a 20 74   .Content-Type: 
+  t </TT><BR>
+  <TT>0110  65 78 74 2f 68 74 6d 6c - 3b 20 63 68 61 72 73 65   ext/html; charse 
+  </TT><BR>
+  <TT>0120  74 3d 49 53 4f 2d 38 38 - 35 39 2d 31 0d 0a 0d 0a   t=ISO-8859-1.... 
+  </TT><BR>
+  <TT>-----------------------[ HTTP Header Ascii Buffer ]----------------------- 
+  </TT><BR>
+  <TT>HTTP/1.1 200 OK </TT><BR>
+  <TT>Date: Thu, 12 Sep 2002 19:41:59 GMT </TT><BR>
+  <TT>Server: Apache/2.0.39 (Unix) mod_ssl/2.0.39 OpenSSL/0.9.6 PHP/4.2.1 </TT><BR>
+  <TT>Last-Modified: Tue, 03 Sep 2002 17:41:11 GMT </TT><BR>
+  <TT>ETag: &quot;1e55f-42-d36c3bc0&quot; </TT><BR>
+  <TT>Accept-Ranges: bytes </TT><BR>
+  <TT>Content-Length: 66 </TT><BR>
+  <TT>Connection: close </TT><BR>
+  <TT>Content-Type: text/html; charset=ISO-8859-1 </TT><BR>
+  <BR>
+  <BR>
+  <TT>-----------------------[       HTML Buffer        ]----------------------- 
+  </TT><BR>
+  <TT>0000  3c 48 54 4d 4c 3e 0a 3c - 42 4f 44 59 3e 0a 54 68   &lt;HTML&gt;.&lt;BODY&gt;.Th 
+  </TT><BR>
+  <TT>0010  69 73 20 69 73 20 61 20 - 74 65 73 74 20 70 61 67   is is a test pag 
+  </TT><BR>
+  <TT>0020  65 20 66 6f 72 20 6d 6f - 6e 69 74 6f 72 69 6e 67   e for monitoring 
+  </TT><BR>
+  <TT>0030  2e 0a 3c 2f 42 4f 44 59 - 3e 0a 3c 2f 48 54 4d 4c   ..&lt;/BODY&gt;.&lt;/HTML 
+  </TT><BR>
+  <TT>0040  3e 0a                   -                           &gt;. </TT><BR>
+  <TT>-----------------------[    HTML MD5 resulting    ]----------------------- 
+  </TT><BR>
+  <TT>0000  42 28 34 d1 d2 b9 72 ee - e9 e5 b8 75 e4 bd 8c 33   B(4...r....u...3 
+  </TT><BR>
+  <TT>-----------------------[ HTML MD5 final resulting ]----------------------- 
+  </TT><BR>
+  <TT>422834d1d2b972eee9e5b875e4bd8c33 </TT><BR>
+  <BR>
+  <TT>example-01:~# </TT><BR>
+  <BR>
+  That very last string is what you need to keep track, as you will use this in 
+  your service check setup below. <BR>
+  <BR>
+  Now for the config file: <BR>
+  <BR>
+  <TT>-- cut here -- </TT><BR>
+  <TT>! This is a comment </TT><BR>
+  <TT>! Configuration File for keepalived </TT><BR>
+  <BR>
+  <BR>
+  <TT>global_defs { </TT><BR>
+  <TT>   ! this is who emails will go to on alerts </TT><BR>
+  <TT>   notification_email { </TT><BR>
+  <TT>        admins@example.com </TT><BR>
+  <TT>    fakepager@example.com </TT><BR>
+  <TT>    ! add a few more email addresses here if you would like </TT><BR>
+  <TT>   } </TT><BR>
+  <TT>   notification_email_from admins@example.com </TT><BR>
+  <BR>
+  <TT>   ! I use the local machine to relay mail </TT><BR>
+  <TT>   smtp_server 127.0.0.1 </TT><BR>
+  <TT>   smtp_connect_timeout 30 </TT><BR>
+  <BR>
+  <TT>   ! each load balancer should have a different ID </TT><BR>
+  <TT>   ! this will be used in SMTP alerts, so you should make </TT><BR>
+  <TT>   ! each router easily identifiable </TT><BR>
+  <TT>   lvs_id LVS_EXAMPLE_01 </TT><BR>
+  <TT>} </TT><BR>
+  <BR>
+  <TT>! takes over, you want the internal interface on the failed server </TT><BR>
+  <TT>! to failover as well, otherwise nothing will work. </TT><BR>
+  <TT>! you can have as many vrrp_sync_group blocks as you want. </TT><BR>
+  <TT>vrrp_sync_group VG1 { </TT><BR>
+  <TT>   group { </TT><BR>
+  <TT>      VI_1 </TT><BR>
+  <TT>      VI_GATEWAY </TT><BR>
+  <TT>   } </TT><BR>
+  <TT>} </TT><BR>
+  <BR>
+  <TT>! now we setup more information about are virtual server </TT><BR>
+  <TT>! we are just setting up one for now, listening on port 22 for ssh </TT><BR>
+  <TT>! requests. </TT><BR>
+  <TT>! each interface needs at least one vrrp_instance </TT><BR>
+  <TT>! each vrrp_instance is a group of VIPs that are logically grouped </TT><BR>
+  <TT>! together </TT><BR>
+  <TT>! you can have as many vrrp_instaces as you want </TT><BR>
+  <BR>
+  <TT>vrrp_instance VI_1 { </TT><BR>
+  <TT>        state MASTER </TT><BR>
+  <TT>        interface eth0 </TT><TT>   </TT><BR>
+  <TT>        lvs_sync_daemon_inteface eth0 </TT><BR>
+  <TT>    ! each virtual router id must be unique per instance name! </TT><BR>
+  <TT>        virtual_router_id 51 </TT><BR>
+  <TT>        priority 150 </TT><BR>
+  <TT>    ! how often should we vote, in seconds? </TT><BR>
+  <TT>        advert_int 1</TT><BR>
+  <TT>        smtp_alert </TT><TT>     </TT><BR>
+  <TT>        authentication { </TT><BR>
+  <TT>                auth_type PASS </TT><BR>
+  <TT>                auth_pass example </TT><BR>
+  <TT>        } </TT><BR>
+  <TT>        virtual_ipaddress { </TT><BR>
+  <TT>                192.168.1.11 </TT><BR>
+  <TT>        192.168.1.12 </TT><BR>
+  <TT>        ! and more if you want them </TT><BR>
+  <TT>        } </TT><BR>
+  <TT>} </TT><BR>
+  <BR>
+  <TT>! now I setup the instance that the real servers will use as a default </TT><BR>
+  <TT>! gateway </TT><BR>
+  <TT>! most of the config is the same as above, but on a different interface 
+  </TT><BR>
+  <BR>
+  <TT>vrrp_instance VI_GATEWAY { </TT><BR>
+  <TT>        state MASTER </TT><BR>
+  <TT>        interface eth1 </TT><BR>
+  <TT>        lvs_sync_daemon_inteface eth1 </TT><BR>
+  <TT>        virtual_router_id 52 </TT><BR>
+  <TT>        priority 150 </TT><BR>
+  <TT>        advert_int 1 </TT><BR>
+  <TT>        smtp_alert </TT><BR>
+  <TT>        authentication { </TT><BR>
+  <TT>                auth_type PASS </TT><BR>
+  <TT>                auth_pass example </TT><BR>
+  <TT>        } </TT><BR>
+  <TT>        virtual_ipaddress { </TT><BR>
+  <TT>                10.20.40.1 </TT><BR>
+  <TT>        } </TT><BR>
+  <TT>} </TT><BR>
+  <BR>
+  <TT>! vrrp_sync_groups make sure that several router instances </TT><BR>
+  <TT>! stay together on a failure - a good example of this is </TT><BR>
+  <TT>! that the external interface on one router fails and the backup server 
+  </TT><BR>
+  <BR>
+  <TT>! notice we do not setup a virtual_server block for the 10.20.40.1 </TT><BR>
+  <TT>! address in the VI_GATEWAY instance. That's because we are doing NAT </TT><BR>
+  <TT>! on that IP, and nothing else. </TT><BR>
+  <BR>
+  <BR>
+  <TT>virtual_server 192.168.1.12 22 { </TT><BR>
+  <TT>    delay_loop 6 </TT><BR>
+  <BR>
+  <TT>    ! use round-robin as a load balancing algorithm </TT><BR>
+  <TT>    lb_algo rr </TT><BR>
+  <BR>
+  <TT>    ! we are doing NAT </TT><BR>
+  <TT>    lb_kind NAT </TT><BR>
+  <TT>    nat_mask 255.255.255.0 </TT><BR>
+  <BR>
+  <TT>    protocol TCP </TT><BR>
+  <BR>
+  <TT>    ! there can be as many real_server blocks as you need </TT><BR>
+  <BR>
+  <TT>    real_server 10.20.40.20 22 { </TT><BR>
+  <BR>
+  <TT>    ! if we used weighted round-robin or a similar lb algo, </TT><BR>
+  <TT>    ! we include the weight of this server </TT><BR>
+  <BR>
+  <TT>        weight 1 </TT><BR>
+  <BR>
+  <TT>    ! here is a health checker for this server. </TT><BR>
+  <TT>    ! we could use a custom script here (see the keepalived docs) </TT><BR>
+  <TT>    ! but we will just make sure we can do a vanilla tcp connect() </TT><BR>
+  <TT>    ! on port 22 </TT><BR>
+  <TT>    ! if it fails, we will pull this realserver out of the pool </TT><BR>
+  <TT>    ! and send email about the removal </TT><BR>
+  <TT>        TCP_CHECK { </TT><BR>
+  <TT>                connect_timeout 3 </TT><BR>
+  <TT>        connect_port 22 </TT><BR>
+  <TT>        } </TT><BR>
+  <TT>    } </TT><BR>
+  <TT>    real_server 10.20.40.21 22 { </TT><BR>
+  <BR>
+  <TT>    ! if we used weighted round-robin or a similar lb algo, </TT><BR>
+  <TT>    ! we include the weight of this server </TT><BR>
+  <BR>
+  <TT>        weight 1 </TT><BR>
+  <TT>        TCP_CHECK { </TT><BR>
+  <TT>                connect_timeout 3 </TT><BR>
+  <TT>        connect_port 22 </TT><BR>
+  <TT>        } </TT><BR>
+  <TT>    } </TT><BR>
+  <TT>} </TT><BR>
+  <BR>
+  <TT>virtual_server 192.168.1.11 80 { </TT><BR>
+  <TT>    delay_loop 10 </TT><BR>
+  <TT>    lb_algo rr </TT><BR>
+  <TT>    lb_kind NAT </TT><BR>
+  <TT>    nat_mask 255.255.255.0 </TT><BR>
+  <TT>    protocol TCP </TT><BR>
+  <BR>
+  <TT>! use this to specify which host keepalived asks for during an HTTP GET 
+  </TT><BR>
+  <TT>    virtualhost www.example.com </TT><BR>
+  <BR>
+  <TT>    real_server 10.20.40.10 80 { </TT><BR>
+  <TT>        weight 1 </TT><BR>
+  <TT>        HTTP_GET { </TT><BR>
+  <BR>
+  <TT>        ! for the path, don't include the host if you use </TT><BR>
+  <TT>        ! a virtualhost </TT><BR>
+  <TT>                url { </TT><BR>
+  <TT>                        path /test.html </TT><BR>
+  <TT>            </TT><BR>
+  <TT>            ! the results from genhash go here </TT><BR>
+  <TT>                        digest 422834d1d2b972eee9e5b875e4bd8c33 </TT><BR>
+  <TT>                } </TT><BR>
+  <TT>                connect_timeout 10 </TT><BR>
+  <TT>                connect_port 80 </TT><BR>
+  <TT>                ! keepalived will retry this many times before a failure 
+  </TT><BR>
+  <TT>                ! is marked </TT><BR>
+  <TT>                nb_get_retry 3 </TT><BR>
+  <TT>                ! each retry will occur after this delay </TT><BR>
+  <TT>                delay_before_retry 10 </TT><BR>
+  <TT>        } </TT><BR>
+  <TT>    } </TT><BR>
+  <TT>    real_server 10.20.40.11 80 { </TT><BR>
+  <TT>        weight 1 </TT><BR>
+  <TT>        HTTP_GET { </TT><BR>
+  <TT>                url { </TT><BR>
+  <TT>                        path /test.html </TT><BR>
+  <TT>                        digest 422834d1d2b972eee9e5b875e4bd8c33 </TT><BR>
+  <TT>                } </TT><BR>
+  <TT>                connect_timeout 10 </TT><BR>
+  <TT>                nb_get_retry 3 </TT><BR>
+  <TT>                delay_before_retry 10 </TT><BR>
+  <TT>                connect_port 80 </TT><BR>
+  <TT>        } </TT><BR>
+  <TT>    } </TT><BR>
+  <TT>} </TT><BR>
+  <BR>
+  <TT>virtual_server 192.168.1.11 443 { </TT><BR>
+  <TT>    delay_loop 10 </TT><BR>
+  <TT>    lb_algo rr </TT><BR>
+  <TT>    lb_kind NAT </TT><BR>
+  <TT>    nat_mask 255.255.255.0 </TT><BR>
+  <TT>    protocol TCP </TT><BR>
+  <TT>    virtualhost www.example.com </TT><BR>
+  <TT>    real_server 10.20.40.10 443 { </TT><BR>
+  <TT>        weight 1 </TT><BR>
+  <TT>        SSL_GET { </TT><BR>
+  <TT>                url { </TT><BR>
+  <TT>                        path /test.html </TT><BR>
+  <TT>                        digest 422834d1d2b972eee9e5b875e4bd8c33 </TT><BR>
+  <TT>                } </TT><BR>
+  <TT>                connect_timeout 10 </TT><BR>
+  <TT>                connect_port 80 </TT><BR>
+  <TT>                nb_get_retry 3 </TT><BR>
+  <TT>                delay_before_retry 10 </TT><BR>
+  <TT>        } </TT><BR>
+  <TT>    } </TT><BR>
+  <TT>    real_server 10.20.40.11 443 { </TT><BR>
+  <TT>        weight 1 </TT><BR>
+  <TT>        SSL_GET { </TT><BR>
+  <TT>                url { </TT><BR>
+  <TT>                        path /test.html </TT><BR>
+  <TT>                        digest 422834d1d2b972eee9e5b875e4bd8c33 </TT><BR>
+  <TT>                } </TT><BR>
+  <TT>                connect_timeout 10 </TT><BR>
+  <TT>                nb_get_retry 3 </TT><BR>
+  <TT>                delay_before_retry 10 </TT><BR>
+  <TT>                connect_port 80 </TT><BR>
+  <TT>        } </TT><BR>
+  <TT>    } </TT><BR>
+  <TT>} </TT><BR>
+  <TT>! that's all </TT><BR>
+  <BR>
+  <TT>-- cut here -- </TT><BR>
+  <BR>
+  Okay let's see what keepalived -d shows us: <BR>
+  <BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived: ------&lt; Global definitions &gt;------ 
+  </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:  LVS ID = LVS_EXAMPLE_01 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:  Smtp server = 127.0.0.1 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:  Smtp server connection timeout = 
+  100 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:  Email notification from = admins@example.com, 
+  fakepager@example.com </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:  Email notification = admins@example.com 
+  </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived: ------&lt; SSL definitions &gt;------ 
+  </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:  Using autogen SSL context </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived: ------&lt; VRRP Topology &gt;------ 
+  </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:  VRRP Instance = VI_1 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Want State = MASTER </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Runing on device = eth0 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Virtual Router ID = 51 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Priority = 150 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Advert interval = 1sec </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Preempt Active </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Authentication type = SIMPLE_PASSWORD 
+  </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Password = example </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    VIP count = 2 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:      VIP1 = 192.168.1.11/32 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:      VIP1 = 192.168.1.12/32 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:  VRRP Instance = VI_GATEWAY </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Want State = MASTER </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Runing on device = eth1 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Virtual Router ID = 52 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Priority = 150 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Advert interval = 1sec </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Preempt Active </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Authentication type = SIMPLE_PASSWORD 
+  </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Password = example </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    VIP count = 1 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:      VIP1 = 10.20.40.1/32 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived: ------&lt; VRRP Sync groups &gt;------ 
+  </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:  VRRP Sync Group = VG1, MASTER </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    monitor = VI_1 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    monitor = VI_GATEWAY </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived: ------&lt; LVS Topology &gt;------ 
+  </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:  System is compiled with LVS v1.0.4 
+  </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:  VIP = 192.168.1.11, VPORT = 22 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    delay_loop = 10, lb_algo = rr 
+  </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    protocol = TCP </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    lb_kind = NAT </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    RIP = 10.20.40.20, RPORT = 22, 
+  WEIGHT = 1 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    RIP = 10.20.40.21, RPORT = 22, 
+  WEIGHT = 1 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:  VIP = 192.168.1.12, VPORT = 80 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    VirtualHost = www.example.com </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    delay_loop = 10, lb_algo = rr 
+  </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    protocol = TCP </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    lb_kind = NAT </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    RIP = 10.20.40.10, RPORT = 80, 
+  WEIGHT = 1 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    RIP = 10.20.40.11, RPORT = 80, 
+  WEIGHT = 1 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:  VIP = 192.168.1.12, VPORT = 443 
+  </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    VirtualHost = www.example.com </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    delay_loop = 10, lb_algo = rr 
+  </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    persistence timeout = 360 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    protocol = TCP </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    lb_kind = NAT </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    RIP = 10.20.40.10, RPORT = 443, 
+  WEIGHT = 1 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    RIP = 10.20.40.11, RPORT = 443, 
+  WEIGHT = 1 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived: ------&lt; Health checkers &gt;------ 
+  </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:  10.20.40.20:22 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Keepalive method = TCP_CHECK </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Connection timeout = 10 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Connection port = 22 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:  10.20.40.21:22 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Keepalive method = TCP_CHECK </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Connection timeout = 10 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Connection port = 22 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:  10.20.40.10:80 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Keepalive method = HTTP_GET </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Connection port = 80 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Connection timeout = 10 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Nb get retry = 3 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Delay before retry = 10 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Checked url = /test.html, digest 
+  = 422834d1d2b972eee9e5b875e4bd8c33 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:  10.20.40.11:80 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Keepalive method = HTTP_GET </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Connection port = 80 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Connection timeout = 10 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Nb get retry = 3 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Delay before retry = 10 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Checked url = /test.html, digest 
+  = 422834d1d2b972eee9e5b875e4bd8c33 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:  10.20.40.10:443 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Keepalive method = SSL_GET </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Connection port = 443 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Connection timeout = 10 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Nb get retry = 3 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Delay before retry = 10 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Checked url = /test.html, digest 
+  = 422834d1d2b972eee9e5b875e4bd8c33 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:  10.20.40.11:443 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Keepalive method = SSL_GET </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Connection port = 443 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Connection timeout = 10 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Nb get retry = 3 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Delay before retry = 10 </TT><BR>
+  <TT>Sep 12 14:13:11 example-01 Keepalived:    Checked url = /test.html, digest 
+  = 422834d1d2b972eee9e5b875e4bd8c33 </TT><BR>
+  <BR>
+  And ipvasdm: <BR>
+  <BR>
+  <TT>example-01:~# ipvsadm </TT><BR>
+  <TT>IP Virtual Server version 1.0.4 (size=65536) </TT><BR>
+  <TT>Prot LocalAddress:Port Scheduler Flags </TT><BR>
+  <TT>  -&gt; RemoteAddress:Port           Forward Weight ActiveConn InActConn 
+  </TT><BR>
+  <TT>TCP  192.168.1.12:ssh rr </TT><BR>
+  <TT>  -&gt; 10.20.40.20:ssh        Masq    1      0          0 </TT><BR>
+  <TT>  -&gt; 10.20.40.21:ssh               Masq    1      0          1 </TT><BR>
+  <TT>TCP  192.168.1.11:http rr </TT><BR>
+  <TT>  -&gt; 10.20.40.10:http         Masq    1      0          0 </TT><BR>
+  <TT>  -&gt; 10.20.40.11:http         Masq    1      0          0 </TT><BR>
+  <TT>TCP  192.168.1.11:http rr persistent 360 </TT><BR>
+  <TT>  -&gt; 10.20.40.10:https            Masq    1      0          0 </TT><BR>
+  <TT>  -&gt; 10.20.40.11:https            Masq    1      1          0 </TT><BR>
+  <BR>
+  <TT>example-01:~ # ip addr list </TT><BR>
+  <TT>1: lo: &lt;LOOPBACK,UP&gt; mtu 16436 qdisc noqueue </TT><BR>
+  <TT>    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00 </TT><BR>
+  <TT>    inet 127.0.0.1/8 brd 127.255.255.255 scope host lo </TT><BR>
+  <TT>2: eth0: &lt;BROADCAST,MULTICAST,UP&gt; mtu 1500 qdisc pfifo_fast qlen 100 
+  </TT><BR>
+  <TT>    link/ether 00:e0:81:21:bb:1c brd ff:ff:ff:ff:ff:ff </TT><BR>
+  <TT>    inet 192.168.1.9/24 brd 192.168.1.254 scope global eth0 </TT><BR>
+  <TT>    inet 192.168.1.11/32 scope global eth0 </TT><BR>
+  <TT>    inet 192.168.1.12/32 scope global eth0 </TT><BR>
+  <TT>3: eth1: &lt;BROADCAST,MULTICAST,UP&gt; mtu 1500 qdisc pfifo_fast qlen 100 
+  </TT><BR>
+  <TT>    link/ether 00:e0:81:21:bb:1d brd ff:ff:ff:ff:ff:ff </TT><BR>
+  <TT>    inet 10.20.40.2/24 brd 10.20.40.255 scope global eth1 </TT><BR>
+  <TT>    inet 10.20.40.1/32 scope global eth1 </TT><BR>
+  <BR>
+  Remeber, if we wanted to put this in a failover config, we could just add another 
+  box with the same config file (modified with a different lvs_id, state and priority) 
+  and start up keepalived on the backup box.
+  
+<H1>9. Example startup script for SuSE 8.0</H1>
+  
+<TT>#! /bin/sh</TT><BR>
+<TT># Copyright (c) 1995-2002 SuSE Linux AG, Nuernberg, Germany.</TT><BR>
+<TT># All rights reserved.</TT><BR>
+<TT>#</TT><BR>
+<TT># Author of template: Kurt Garloff &lt;feedback@suse.de&gt;</TT><BR>
+<TT># Modified for keepalived by Adam Fletcher &lt;adamf+keepalived@csh.rit.edu&gt;</TT><BR>
+<TT>#</TT><BR>
+<TT># /etc/init.d/keepalived</TT><BR>
+<TT>#</TT><BR>
+<TT>#</TT><BR>
+<TT># LSB compliant service control script; see <a href="http://www.linuxbase.org/spec/">http://www.linuxbase.org/spec/</a></TT><BR>
+<TT>#</TT><BR>
+<TT># System startup script for some example service or daemon keepalived (template)</TT><BR>
+<TT>#</TT><BR>
+<TT>### BEGIN INIT INFO</TT><BR>
+<TT># Provides: keepalived</TT><BR>
+<TT># Required-Start: $remote_fs $syslog</TT><BR>
+<TT># Required-Stop:  $remote_fs $syslog</TT><BR>
+<TT># Default-Start:  3 5</TT><BR>
+<TT># Default-Stop:   0 1 2 6</TT><BR>
+<TT># Description:    Start keepalived to allow XY and provide YZ</TT><BR>
+<TT>#       continued on second line by '#&lt;TAB&gt;'</TT><BR>
+<TT>### END INIT INFO</TT><BR>
+<TT>#</TT><BR>
+<TT># Note on Required-Start: It does specify the init script ordering,</TT><BR>
+<TT># not real dependencies. Depencies have to be handled by admin</TT><BR>
+<TT># resp. the configuration tools (s)he uses.</TT><BR>
+<BR>
+<TT># Source SuSE config (if still necessary, most info has been moved)</TT><BR>
+<TT>test -r /etc/rc.config &amp;&amp; . /etc/rc.config</TT><BR>
+<BR>
+<TT># Check for missing binaries (stale symlinks should not happen)</TT><BR>
+<TT>KEEPALIVED_BIN=/usr/local/sbin/keepalived</TT><BR>
+<TT>test -x $KEEPALIVED_BIN || exit 5</TT><BR>
+<TT># Shell functions sourced from /etc/rc.status:</TT><BR>
+<TT>#      rc_check         check and set local and overall rc status</TT><BR>
+<TT>#      rc_status        check and set local and overall rc status</TT><BR>
+<TT>#      rc_status -v     ditto but be verbose in local rc status</TT><BR>
+<TT>#      rc_status -v -r  ditto and clear the local rc status</TT><BR>
+<TT>#      rc_failed        set local and overall rc status to failed</TT><BR>
+<TT>#      rc_failed &lt;num&gt;  set local and overall rc status to &lt;num&gt;&lt;num&gt;</TT><BR>
+<TT>#      rc_reset         clear local rc status (overall remains)</TT><BR>
+<TT>#      rc_exit          exit appropriate to overall rc status</TT><BR>
+<TT>#      rc_active        checks whether a service is activated by symlinks</TT><BR>
+<TT>. /etc/rc.status</TT><BR>
+<BR>
+<TT># First reset status of this service</TT><BR>
+<TT>rc_reset</TT><BR>
+<BR>
+<TT># Return values acc. to LSB for all commands but status:</TT><BR>
+<TT># 0 - success</TT><BR>
+<TT># 1 - generic or unspecified error</TT><BR>
+<TT># 2 - invalid or excess argument(s)</TT><BR>
+<TT># 3 - unimplemented feature (e.g. &quot;reload&quot;)</TT><BR>
+<TT># 4 - insufficient privilege</TT><BR>
+<TT># 5 - program is not installed</TT><BR>
+<TT># 6 - program is not configured</TT><BR>
+<TT># 7 - program is not running</TT><BR>
+<TT>#</TT><BR>
+<TT># Note that starting an already running service, stopping</TT><BR>
+<TT># or restarting a not-running service as well as the restart</TT><BR>
+<TT># with force-reload (in case signalling is not supported) are</TT><BR>
+<TT># considered a success.</TT><BR>
+<BR>
+<TT>case &quot;$1&quot; in</TT><BR>
+<TT>    start)</TT><BR>
+<TT>        echo -n &quot;Starting keepalived&quot;</TT><BR>
+<TT>        ## Start daemon with startproc(8). If this fails</TT><BR>
+<TT>        ## the echo return value is set appropriate.</TT><BR>
+<BR>
+<TT>        # NOTE: startproc returns 0, even if service is</TT><BR>
+<TT>        # already running to match LSB spec.</TT><BR>
+<TT>        startproc $KEEPALIVED_BIN -d</TT><BR>
+<BR>
+<BR>
+<TT>        # Remember status and be verbose</TT><BR>
+<TT>        rc_status -v</TT><BR>
+<TT>        ;;</TT><BR>
+<TT>    stop)</TT><BR>
+<TT>        echo -n &quot;Shutting down keepalived&quot;</TT><BR>
+<TT>        ## Stop daemon with killproc(8) and if this fails</TT><BR>
+<TT>        ## set echo the echo return value.</TT><BR>
+<BR>
+<TT>        killproc -TERM $KEEPALIVED_BIN</TT><BR>
+<TT>        # masquerade the rest of the 10.20.40.0/24 network</TT><BR>
+<TT>        # through the external IP</TT><BR>
+<BR>
+<TT>        # Remember status and be verbose</TT><BR>
+<TT>        rc_status -v</TT><BR>
+<TT>        ;;</TT><BR>
+<TT>    try-restart)</TT><BR>
+<TT>        ## Stop the service and if this succeeds (i.e. the</TT><BR>
+<TT>        ## service was running before), start it again.</TT><BR>
+<TT>        ## Note: try-restart is not (yet) part of LSB (as of 0.7.5)</TT><BR>
+<TT>        $0 status &gt;/dev/null &amp;&amp;  $0 restart</TT><BR>
+<BR>
+<TT>        # Remember status and be quiet</TT><BR>
+<TT>        rc_status</TT><BR>
+<TT>        ;;</TT><BR>
+<TT>    restart)</TT><BR>
+<TT>        ## Stop the service and regardless of whether it was</TT><BR>
+<TT>        ## running or not, start it again.</TT><BR>
+<TT>        $0 stop</TT><BR>
+<TT>        $0 start</TT><BR>
+<BR>
+<TT>        # Remember status and be quiet</TT><BR>
+<TT>        rc_status</TT><BR>
+<TT>        ;;</TT><BR>
+<TT>    force-reload)</TT><BR>
+<TT>        ## Signal the daemon to reload its config. Most daemons</TT><BR>
+<TT>        ## do this on signal 1 (SIGHUP).</TT><BR>
+<TT>        ## If it does not support it, restart.</TT><BR>
+<BR>
+<TT>        echo -n &quot;Reload service keepalived&quot;</TT><BR>
+<TT>        ## if it supports it:</TT><BR>
+<TT>        killproc -HUP $KEEPALIVED_BIN</TT><BR>
+<TT>        touch /var/run/keepalived.pid</TT><BR>
+<TT>        rc_status -v</TT><BR>
+<BR>
+<TT>        ## Otherwise:</TT><BR>
+<TT>        #$0 stop  &amp;&amp;  $0 start</TT><BR>
+<TT>        #rc_status</TT><BR>
+<TT>        ;;</TT><BR>
+<TT>    reload)</TT><BR>
+<TT>        ## Like force-reload, but if daemon does not support</TT><BR>
+<TT>        ## signalling, do nothing (!)</TT><BR>
+<BR>
+<TT>        # If it supports signalling:</TT><BR>
+<TT>        echo -n &quot;Reload service keepalived&quot;</TT><BR>
+<TT>        killproc -HUP $KEEPALIVED_BIN</TT><BR>
+<TT>        touch /var/run/keepalived.pid</TT><BR>
+<TT>        rc_status -v</TT><BR>
+<BR>
+<TT>        ## Otherwise if it does not support reload:</TT><BR>
+<TT>        #rc_failed 3</TT><BR>
+<TT>        #rc_status -v</TT><BR>
+<TT>        ;;</TT><BR>
+<TT>    status)</TT><BR>
+<TT>        echo -n &quot;Checking for service keepalived: &quot;</TT><BR>
+<TT>        ## Check status with checkproc(8), if process is running</TT><BR>
+<TT>        ## checkproc will return with exit status 0.</TT><BR>
+<BR>
+<TT>        # Return value is slightly different for the status command:</TT><BR>
+<TT>        # 0 - service running</TT><BR>
+<TT>        # 1 - service dead, but /var/run/  pid  file exists</TT><BR>
+<TT>        # 2 - service dead, but /var/lock/ lock file exists</TT><BR>
+<TT>        # 3 - service not running</TT><BR>
+<BR>
+<TT>        # NOTE: checkproc returns LSB compliant status values.</TT><BR>
+<TT>        checkproc $KEEPALIVED_BIN</TT><BR>
+<TT>        rc_status -v</TT><BR>
+<TT>        ;;</TT><BR>
+<TT>    probe)</TT><BR>
+<TT>        ## Optional: Probe for the necessity of a reload,</TT><BR>
+<TT>        ## print out the argument which is required for a reload.</TT><BR>
+<BR>
+<TT>        test /etc/keepalived/keepalived.conf -nt /var/run/keepalived.pid &amp;&amp; 
+echo reload</TT><BR>
+<TT>        ;;</TT><BR>
+<TT>    *)</TT><BR>
+<TT>        echo &quot;Usage: $0 {start|stop|status|try-restart|restart|force-reload|reload|probe}&quot;</TT><BR>
+<TT>        exit 1</TT><BR>
+<TT>        ;;</TT><BR>
+<TT>esac</TT><BR>
+<TT>rc_exit</TT>
+<H1>10. Troubleshooting </H1>
+<UL>
+  <LI>Run keepalived with the -d option and watch your <TT>/var/log/messages</TT>
+  <LI>Look at the output of <TT>ipvsadm</TT>
+  <LI>Look at the output of <TT>ip addr list</TT>
+</UL>
+Important caveats: <BR>
+<UL>
+  <LI>Turn on IP forwarding (echo &quot;1&quot; &gt; /proc/sys/net/ipv4/ip_forward) 
+  <LI>Get the latest LVS - don't go to a mirror of linuxvirtualserver.org unless 
+    you are sure it has the latest version (i got burned by this for a day!) 
+  <LI>The realserver must use the load balancer as it's default gateway. 
+  <LI>The realserver must not be on both the internal and external network, they 
+    must be on separate segements/LANs/VLANs. 
+  <LI>You *must* have a vrrp_instance section defined for keepalived to setup 
+    the VIPs. 
+  <LI>In VRRP, a lower number for the priority means that VRRP instance has less 
+    say - in other words, a lower priority is a lower number. 
+  <LI>VRRP instances can not have the same router_id - keepalived won't give any 
+    errors, but you won't see that VRRP instance's IP addresses. 
+  <LI>While keepalived won't complain if you leave out some options in the config 
+    file, it's not recommended. Just because you put a TCP_CHECK on a realserver 
+    that listens on port 80, don't leave out the connect_port 80 directive! 
+</UL>
+These may seem obvious, but they are all things that happened to me during my 
+setup of keepalived. <BR>
+<BR>
+If you have further questions, and have read this and all other keepalive documentation, 
+please subscribe to the the keepalived-devel mailing list, available at <A HREF="http://www.keepalived.org/mailinglist.html"><U><FONT COLOR="0000ff">http://www.keepalived.org/mailinglist.html</FONT></U></A> 
+<H1>11. Credits</H1>
+Keepalived is written and maintained by Alexandre Cassen. It is primarily through 
+his effort that it exists at all, and I thank him for that efffort.<BR>
+<BR>
+This HOWTO is written by Adam Fletcher, <A HREF="mailto:adamf+keepalived@csh.rit.edu"><U><FONT COLOR="0000ff">adamf+keepalived@csh.rit.edu</FONT></U></A>. 
+<BR>
+<BR>
+This document is Copyright 2002 by Adam Fletcher Permission is granted to copy, 
+distribute and/or modify this document under the terms of the GNU Free Documentation 
+License, Version 1.1 or any later version published by the Free Software Foundation; 
+with no Invariant Sections, with no Front-Cover Texts, and with no Back-Cover 
+Texts. A copy of the license is available at<U><FONT COLOR="0000ff">http://www.gnu.org/copyleft/fdl.html</FONT></U><BR>
+
+
+</body>
+</html>
