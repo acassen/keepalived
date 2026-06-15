@@ -3420,7 +3420,7 @@ snmp_rfcv2_header_list_table(struct variable *vp, oid *name, size_t *length,
 		if (!suitable_for_rfc2787(vrrp))
 			continue;
 
-		if (target_len && (vrrp->ifp ? IF_BASE_INDEX(vrrp->ifp) : 0 < target[0]))
+		if (target_len && ((vrrp->ifp ? IF_BASE_INDEX(vrrp->ifp) : 0) < target[0]))
 			continue; /* Optimization: cannot be part of our set */
 
 		current[0] = vrrp->ifp ? IF_BASE_INDEX(vrrp->ifp) : 0;
