@@ -435,6 +435,14 @@ data_cmd(__attribute__((unused)) thread_ref_t thread)
  * Do we need to use multi-thread for multi-part body
  * handling? Don't really think so :)
  */
+/* snprintf returns the untruncated length, so cap the running offset to keep
+ * the remaining size from underflowing on the next write. */
+static size_t
+clamp_offset(size_t offs)
+{
+	return offs < sizeof(smtp_send_buffer) ? offs : sizeof(smtp_send_buffer) - 1;
+}
+
 static void
 body_cmd(thread_ref_t thread)
 {
@@ -442,7 +450,7 @@ body_cmd(thread_ref_t thread)
 	char rfc822[80];	/* Mon, 01 Mar 2021 09:44:08 +0000 */
 	time_t now;
 	struct tm t;
-	size_t offs = 0;
+	size_t offs;
 	email_t *email;
 
 	time(&now);
@@ -450,20 +458,20 @@ body_cmd(thread_ref_t thread)
 	strftime(rfc822, sizeof(rfc822), "%a, %d %b %Y %H:%M:%S %z", &t);
 
 	/* send the DATA fields */
-	offs = snprintf(smtp_send_buffer, sizeof(smtp_send_buffer),
+	offs = clamp_offset(snprintf(smtp_send_buffer, sizeof(smtp_send_buffer),
 		"Date: %s\r\n"
 		"From: %s\r\n"
 		"Subject: %s\r\n"
                 "X-Mailer: Keepalived\r\n"
 		"To:",
-		 rfc822, global_data->email_from, smtp->subject);
+		 rfc822, global_data->email_from, smtp->subject));
 
 	/* Add the recipients */
 	list_for_each_entry(email, &global_data->email, e_list) {
-		offs += snprintf(smtp_send_buffer + offs, sizeof(smtp_send_buffer) - offs,
+		offs = clamp_offset(offs + snprintf(smtp_send_buffer + offs, sizeof(smtp_send_buffer) - offs,
 				"%s %s",
 				list_is_first(&email->e_list, &global_data->email) ? "" : ",\r\n",
-				email->addr);
+				email->addr));
 	}
 
 	/* Now the message body */
