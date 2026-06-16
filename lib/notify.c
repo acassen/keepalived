@@ -315,6 +315,7 @@ fifo_open(notify_fifo_t* fifo, thread_func_t script_exit, const char *type)
 {
 	int ret;
 	int sav_errno;
+	struct stat st;
 
 	if (fifo->name) {
 		sav_errno = 0;
@@ -344,6 +345,13 @@ fifo_open(notify_fifo_t* fifo, thread_func_t script_exit, const char *type)
 					unlink(fifo->name);
 					fifo->created_fifo = false;
 				}
+			} else if (fstat(fifo->fd, &st) || !S_ISFIFO(st.st_mode) ||
+				   (st.st_uid != our_uid && st.st_uid != fifo->uid)) {
+				/* On EEXIST we may have opened a file an attacker planted,
+				 * so refuse anything that is not a fifo we own. */
+				log_message(LOG_INFO, "%snotify fifo %s is not a fifo we own - not using", type, fifo->name);
+				close(fifo->fd);
+				fifo->fd = -1;
 			}
 		}
 
@@ -960,16 +968,21 @@ check_script_secure(notify_script_t *script,
 	}
 #endif
 
-	if (real_path)
-		FREE_CONST(real_path);
-
 	if (need_script_protection) {
 		/* Make sure that all parts of the path(s) are not non-root writable */
 		flags |= check_security(script->args[0], script_security);
 
 		if (script->path)
 			flags |= check_security(script->path, script_security);
+		else if (real_path && strcmp(real_path, script->args[0]))
+			/* use_symlinks keeps args[0] as the exec path, so the
+			 * resolved symlink target is what actually runs and must
+			 * be walked too. */
+			flags |= check_security(real_path, script_security);
 	}
+
+	if (real_path)
+		FREE_CONST(real_path);
 
 	return flags;
 }
