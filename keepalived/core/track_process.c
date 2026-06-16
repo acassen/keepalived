@@ -319,13 +319,13 @@ read_procs(list_head_t *processes)
 				stat_buf[len - 1] = '\0';
 
 			/* Find the comm field, terminate it and check not a zombie process */
-			p = strchr(stat_buf + 2, '(');
+			p = strchr(stat_buf, '(');
 			if (!p)
 				continue;
 
 			comm = p + 1;
-			p = strchr(p, ')');
-			if (!p)
+			p = strchr(comm, ')');
+			if (!p || (size_t)(p - stat_buf) + 2 > (size_t)len)
 				continue;
 			*p = '\0';
 			if (p[2] == 'Z')
