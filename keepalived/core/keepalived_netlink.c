@@ -1338,6 +1338,13 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 			break;
 		}
 
+		/* Ensure the message comes from the kernel and not a local
+		 * process spoofing rtnetlink events */
+		if (snl.nl_pid != 0) {
+			log_message(LOG_INFO, "Netlink: ignoring message from pid %u", snl.nl_pid);
+			continue;
+		}
+
 		/* See -Wcast-align comment above, also applies to NLMSG_NEXT */
 		for (h = PTR_CAST(struct nlmsghdr, nlmsg_buf); NLMSG_OK(h, (size_t)len); h = NLMSG_NEXT(h, len)) {
 			/* Finish off reading. */
@@ -1350,6 +1357,14 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 			if (h->nlmsg_type == NLMSG_ERROR) {
 				struct nlmsgerr *err = PTR_CAST(struct nlmsgerr, NLMSG_DATA(h));
 
+				/* Validate the length before reading err->error */
+				if (h->nlmsg_len < NLMSG_LENGTH(sizeof (struct nlmsgerr))) {
+					log_message(LOG_INFO,
+					       "Netlink: error: message truncated");
+					FREE(nlmsg_buf);
+					return -1;
+				}
+
 				/*
 				 * If error == 0 then this is a netlink ACK.
 				 * return if not related to multipart message.
@@ -1360,13 +1375,6 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 						return 0;
 					}
 					continue;
-				}
-
-				if (h->nlmsg_len < NLMSG_LENGTH(sizeof (struct nlmsgerr))) {
-					log_message(LOG_INFO,
-					       "Netlink: error: message truncated");
-					FREE(nlmsg_buf);
-					return -1;
 				}
 
 				if (n && (err->error == -EEXIST) &&
