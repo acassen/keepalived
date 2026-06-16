@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <sys/socket.h>
 #include <string.h>
 #include <stdint.h>
@@ -37,6 +38,7 @@
 #ifndef _LIBNL_DYNAMIC_
 #define nl_socket_alloc	nl_handle_alloc
 #define nl_socket_free	nl_handle_destroy
+#define nl_socket_get_fd	nl_handle_get_fd
 #endif
 #endif
 
@@ -300,6 +302,18 @@ open_nl_sock(void)
 
 		return -1;
 	}
+
+	/* Recent libnl sets SOCK_CLOEXEC itself, but make sure the socket cannot
+	 * leak into forked scripts on builds where it does not. The dynamic
+	 * loader does not wrap the accessor, and those builds are modern enough
+	 * to ship SOCK_CLOEXEC and close_range anyway. */
+#ifndef _LIBNL_DYNAMIC_
+	{
+		int fd = nl_socket_get_fd(sock);
+		if (fd >= 0 && fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC) == -1)
+			log_message(LOG_INFO, "Unable to set CLOEXEC on IPVS netlink socket - %m");
+	}
+#endif
 
 	/* We finish receiving if we get an error, an ACK, or a DONE for a multipart message */
 #ifndef _HAVE_LIBNL1_
