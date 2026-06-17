@@ -2017,8 +2017,9 @@ The syntax for vrrp_instance is :
         # A signing key, id 1 to 255, 16 to 64 bytes. A hex: prefix
         #   carries raw bytes, otherwise the value is an ASCII string.
         #   A file: prefix reads the value from a file instead, keeping
-        #   the secret out of the configuration. Combine it with systemd
-        #   LoadCredentialEncrypted via file:$CREDENTIALS_DIRECTORY/<name>.
+        #   the secret out of the configuration, for example a systemd
+        #   credential at file:${_ENV CREDENTIALS_DIRECTORY}/<name>
+        #   (see the keepalived.service.d sample drop-in).
         #   Define several keys to allow zero downtime rotation.
         \fBkey \fR1 hex:000102030405060708090a0b0c0d0e0f10111213
         \fBkey \fR2 file:/etc/keepalived/keys/vrrp10
