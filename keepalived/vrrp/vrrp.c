@@ -3248,6 +3248,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	ip_address_t *ip_addr, *ip_addr_tmp;
 	size_t hdr_len;
 	size_t max_addr;
+	size_t addr_len;
 	size_t i;
 	bool interface_already_existed = false;
 	tracked_sc_t *sc, *sc_tmp;
@@ -3488,6 +3489,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	/* Check we can fit the VIPs into a packet */
 	if (vrrp->family == AF_INET) {
 		hdr_len = sizeof(struct ether_header) + sizeof(struct iphdr) + sizeof(vrrphdr_t);
+		addr_len = sizeof(struct in_addr);
 
 		if (vrrp->version == VRRP_VERSION_2) {
 			hdr_len += VRRP_AUTH_LEN;
@@ -3497,12 +3499,17 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				hdr_len += sizeof(ipsec_ah_t);
 #endif
 		}
-
-		max_addr = ((vrrp->ifp ? vrrp->ifp->mtu : DEFAULT_MTU) - hdr_len) / sizeof(struct in_addr);
 	} else {
 		hdr_len = sizeof(struct ether_header) + sizeof(struct ip6_hdr) + sizeof(vrrphdr_t);
-		max_addr = ((vrrp->ifp ? vrrp->ifp->mtu : DEFAULT_MTU) - hdr_len) / sizeof(struct in6_addr);
+		addr_len = sizeof(struct in6_addr);
 	}
+
+#ifdef _WITH_VRRP_AUTH_
+	/* The authenticated trailer follows the VIPs so it must fit within the MTU too */
+	hdr_len += vrrp_auth_hmac_trailer_len(vrrp);
+#endif
+
+	max_addr = ((vrrp->ifp ? vrrp->ifp->mtu : DEFAULT_MTU) - hdr_len) / addr_len;
 
 	/* Count IP addrs field is 8 bits wide, giving a maximum address count of 255 */
 	if (max_addr > VRRP_MAX_ADDR)
