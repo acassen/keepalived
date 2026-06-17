@@ -2016,9 +2016,12 @@ The syntax for vrrp_instance is :
     \fBauth_hmac \fR{
         # A signing key, id 1 to 255, 16 to 64 bytes. A hex: prefix
         #   carries raw bytes, otherwise the value is an ASCII string.
+        #   A file: prefix reads the value from a file instead, keeping
+        #   the secret out of the configuration. Combine it with systemd
+        #   LoadCredentialEncrypted via file:$CREDENTIALS_DIRECTORY/<name>.
         #   Define several keys to allow zero downtime rotation.
         \fBkey \fR1 hex:000102030405060708090a0b0c0d0e0f10111213
-        \fBkey \fR2 hex:ffeeddccbbaa99887766554433221100aabbccdd
+        \fBkey \fR2 file:/etc/keepalived/keys/vrrp10
 
         # Key id used when sending. Move it across nodes to rotate.
         \fBactive_key \fR2

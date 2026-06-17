@@ -1522,6 +1522,62 @@ vrrp_auth_hmac_handler(__attribute__((unused)) const vector_t *strvec)
 	ah->anti_replay_time = true;
 	current_vrrp->auth_hmac = ah;
 }
+/* Decode a key value, a hex: prefix carries raw bytes, otherwise ASCII */
+static uint8_t *
+vrrp_auth_hmac_decode_key(const char *str, uint16_t *len)
+{
+	uint8_t *data = NULL;
+
+	if (!strncmp(str, "hex:", 4))
+		*len = read_hex_str(str + 4, &data, NULL);
+	else {
+		*len = (uint16_t)strlen(str);
+		data = MALLOC(*len ? *len : 1);
+		memcpy(data, str, *len);
+	}
+
+	return data;
+}
+/*
+ * Load a key from a file so the secret stays out of the configuration. The
+ * file holds what the inline value would, a hex: prefix or an ASCII string.
+ * Pair it with systemd LoadCredentialEncrypted via file:$CREDENTIALS_DIRECTORY.
+ */
+static uint8_t *
+vrrp_auth_hmac_read_key_file(const char *iname, const char *path, uint16_t *len)
+{
+	char buf[4 + VRRP_AUTH_HMAC_KEY_MAX * 2 + 8];	/* hex: prefix, digits, slack */
+	struct stat st;
+	size_t n;
+	FILE *fp;
+
+	*len = 0;
+
+	fp = fopen_safe(path, "re");
+	if (!fp) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) auth_hmac key file '%s' cannot be opened", iname, path);
+		return NULL;
+	}
+
+	/* The file carries a secret so flag group or world access */
+	if (!fstat(fileno(fp), &st) && (st.st_mode & (S_IRWXG | S_IRWXO)))
+		report_config_error(CONFIG_SECURITY_ERROR, "(%s) auth_hmac key file '%s' is readable by group or others", iname, path);
+
+	n = fread(buf, 1, sizeof(buf) - 1, fp);
+	if (!feof(fp)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) auth_hmac key file '%s' is too large", iname, path);
+		fclose(fp);
+		return NULL;
+	}
+	fclose(fp);
+
+	/* Drop a trailing line terminator, common when the file is hand edited */
+	while (n && (buf[n - 1] == '\n' || buf[n - 1] == '\r'))
+		n--;
+	buf[n] = '\0';
+
+	return vrrp_auth_hmac_decode_key(buf, len);
+}
 static void
 vrrp_auth_hmac_key_handler(const vector_t *strvec)
 {
@@ -1543,15 +1599,12 @@ vrrp_auth_hmac_key_handler(const vector_t *strvec)
 		return;
 	}
 
-	/* A hex: prefix carries raw key bytes, otherwise the value is ASCII */
+	/* The value is inline or a file so the secret can stay out of config */
 	str = strvec_slot(strvec, 2);
-	if (!strncmp(str, "hex:", 4))
-		len = read_hex_str(str + 4, &data, NULL);
-	else {
-		len = strlen(str);
-		data = MALLOC(len ? len : 1);
-		memcpy(data, str, len);
-	}
+	if (!strncmp(str, "file:", 5))
+		data = vrrp_auth_hmac_read_key_file(current_vrrp->iname, str + 5, &len);
+	else
+		data = vrrp_auth_hmac_decode_key(str, &len);
 
 	if (!data || len < VRRP_AUTH_HMAC_KEY_MIN || len > VRRP_AUTH_HMAC_KEY_MAX)
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) auth_hmac key %u length %u not in range [%d, %d]",
