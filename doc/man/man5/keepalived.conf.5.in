@@ -2014,14 +2014,16 @@ The syntax for vrrp_instance is :
     #   authentication block above. All nodes must share the keys, and
     #   keep their clocks in sync (NTP) when anti_replay is time.
     \fBauth_hmac \fR{
-        # A signing key, id 1 to 255, 16 to 64 bytes. A hex: prefix
+        # A signing key, id 1 to 255, 32 to 64 bytes. A hex: prefix
         #   carries raw bytes, otherwise the value is an ASCII string.
+        #   Use 32 bytes for a post quantum margin, a quantum search
+        #   halves the effective key strength.
         #   A file: prefix reads the value from a file instead, keeping
         #   the secret out of the configuration, for example a systemd
         #   credential at file:${_ENV CREDENTIALS_DIRECTORY}/<name>
         #   (see the keepalived.service.d sample drop-in).
         #   Define several keys to allow zero downtime rotation.
-        \fBkey \fR1 hex:000102030405060708090a0b0c0d0e0f10111213
+        \fBkey \fR1 hex:000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
         \fBkey \fR2 file:/etc/keepalived/keys/vrrp10
 
         # Key id used when sending. Move it across nodes to rotate.

@@ -38,8 +38,8 @@
 #define VRRP_AUTH_HMAC_TYPE_SHA256	1	/* HMAC SHA256 truncated to 128 bits */
 #define VRRP_AUTH_HMAC_MAC_LEN		16	/* truncated digest length */
 
-/* Key material bounds */
-#define VRRP_AUTH_HMAC_KEY_MIN		16
+/* Key material bounds, the 32 byte floor keeps a 128 bit margin under quantum search */
+#define VRRP_AUTH_HMAC_KEY_MIN		32
 #define VRRP_AUTH_HMAC_KEY_MAX		64
 
 /* Freshness window bounds, seconds */
