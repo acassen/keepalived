@@ -320,20 +320,15 @@ vrrp_auth_hmac_check(vrrp_t *vrrp, const void *pdu, size_t pdu_len,
 	if (tr->ext_type != ah->ext_type || tr->reserved != 0)
 		return VRRP_AUTH_HMAC_MALFORMED;
 
-	key = vrrp_auth_hmac_find_key(ah, tr->key_id);
-	if (!key)
-		return VRRP_AUTH_HMAC_UNKNOWN_KEY;
-
-	build_pseudo(pseudo, vrrp->family, vrrp->version, vrrp->vrid, &vrrp->pkt_saddr);
-	compute_hmac(key->data, key->len, pseudo, sizeof(pseudo),
-		     pdu, pdu_len + offsetof(vrrp_auth_ext_t, mac),
-		     zero_mac, sizeof(zero_mac), digest);
-	if (memcmp_constant_time(tr->mac, digest, VRRP_AUTH_HMAC_MAC_LEN))
-		return VRRP_AUTH_HMAC_BAD_MAC;
-
 	sec = ntohl(tr->sec);
 	ctr = ntohl(tr->ctr);
 
+	/*
+	 * Drop a stale sequence before the costly HMAC so a flood of replayed
+	 * captures cannot force a digest per packet. The timestamp is not yet
+	 * authenticated so this only rejects, it never grants trust. The replay
+	 * high water mark stays after the MAC, it must never move on forged data.
+	 */
 	if (ah->anti_replay_time) {
 		struct timespec ts;
 		int delta;
@@ -344,6 +339,17 @@ vrrp_auth_hmac_check(vrrp_t *vrrp, const void *pdu, size_t pdu_len,
 		if (delta > (int)ah->time_window || delta < -(int)ah->time_window)
 			return VRRP_AUTH_HMAC_STALE;
 	}
+
+	key = vrrp_auth_hmac_find_key(ah, tr->key_id);
+	if (!key)
+		return VRRP_AUTH_HMAC_UNKNOWN_KEY;
+
+	build_pseudo(pseudo, vrrp->family, vrrp->version, vrrp->vrid, &vrrp->pkt_saddr);
+	compute_hmac(key->data, key->len, pseudo, sizeof(pseudo),
+		     pdu, pdu_len + offsetof(vrrp_auth_ext_t, mac),
+		     zero_mac, sizeof(zero_mac), digest);
+	if (memcmp_constant_time(tr->mac, digest, VRRP_AUTH_HMAC_MAC_LEN))
+		return VRRP_AUTH_HMAC_BAD_MAC;
 
 	state = uni_state ? uni_state : mcast_state(ah, &vrrp->pkt_saddr);
 	if (!replay_ok(state, sec, ctr))
