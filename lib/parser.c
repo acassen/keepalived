@@ -2084,10 +2084,8 @@ replace_param(char *buf, size_t max_len, char const **multiline_ptr_ptr)
 					/* We are shortening the buf text */
 					s = cur_pos + (replaced_len + 1 + extra_braces) - replacing_len;
 					d = cur_pos;
-					if (def->params)
-						e = def->params_end + (extra_braces ? 2 : 1);
-					else
-						e = cur_pos + strlen(cur_pos);
+					/* copy to the end of the line so the trailing text and its terminator move too */
+					e = cur_pos + strlen(cur_pos);
 					i = 1;
 				}
 				do {
