@@ -174,3 +174,12 @@
 .md-typeset img.sponsor-logo.sponsor-logo--lg {
   height: 64px;
 }
+
+/* Title and author form the article header, closed by a thin rule */
+.md-typeset .article-byline {
+  margin-top: -1.2rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 0.05rem solid var(--md-default-fg-color--lighter);
+  color: var(--md-default-fg-color--light);
+  font-style: italic;
+}

@@ -1831,6 +1831,44 @@ vrrp_instance <STRING> {
         auth_pass 1234
     }
 
+    # Authentication extension (keepalived specific). Protects adverts
+    #   against injection and replay with an HMAC-SHA256 trailer and a
+    #   time based sequence number. Works for VRRPv2 and v3, IPv4 and
+    #   IPv6, unicast and multicast. Especially useful for unicast, where
+    #   the TTL=255 check does not apply. Mutually exclusive with the
+    #   authentication block above. All nodes must share the keys, and
+    #   keep their clocks in sync (NTP) when anti_replay is time.
+    auth_hmac {
+        # A signing key, id 1 to 255, 32 to 64 bytes. A hex: prefix
+        #   carries raw bytes, otherwise the value is an ASCII string.
+        #   Use 32 bytes for a post quantum margin, a quantum search
+        #   halves the effective key strength.
+        #   A file: prefix reads the value from a file instead, keeping
+        #   the secret out of the configuration, for example a systemd
+        #   credential at file:${_ENV CREDENTIALS_DIRECTORY}/<name>
+        #   (see the keepalived.service.d sample drop-in).
+        #   Define several keys to allow zero downtime rotation.
+        key 1 hex:000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+        key 2 file:/etc/keepalived/keys/vrrp10
+
+        # Key id used when sending. Move it across nodes to rotate.
+        active_key 2
+
+        # Anti replay mode: time|monotonic (default time).
+        #   time enforces a freshness window and needs synced clocks,
+        #   monotonic only requires strictly growing sequences.
+        anti_replay time
+
+        # Freshness window in seconds, 1 to 300 (time mode only).
+        #   Defaults to max(3 x advert_int, 5).
+        time_window 5
+
+        # enforce|permissive (default enforce). permissive also accepts
+        #   adverts with no trailer, for migration only. Flip every node
+        #   to enforce once authenticated adverts flow both ways.
+        mode enforce
+    }
+
     # addresses add|del on change to MASTER, to BACKUP.
     # With the same entries on other machines,
     # the opposite transition will be occurring.

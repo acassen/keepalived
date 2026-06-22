@@ -13,11 +13,14 @@ treated as an example block, whereas a section whose body is wholly indented kee
 that text as ordinary prose.
 """
 
+import os
 import re
 import sys
 
-SRC = "keepalived/doc/man/man5/keepalived.conf.5"
-OUT = "keepalived/doc/docs/documentation/keepalived-conf.md"
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
+SRC = os.path.join(ROOT, "doc", "man", "man5", "keepalived.conf.5")
+OUT = os.path.join(ROOT, "www", "docs", "documentation", "keepalived-conf.md")
 
 # Content free macros that may sit inside a preformatted block.
 NOISE = {".nf", ".RS", ".br", ".sp"}

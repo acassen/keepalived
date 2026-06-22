@@ -4,6 +4,11 @@ The most recent project announcements and release updates. For the full
 history of changes, read the [Release Notes](release-notes/index.md) and the
 [ChangeLog](documentation/changelog.md).
 
+## 2026
+
+- **June 22 · Release 2.4.0**. A major release adding the `auth_hmac` VRRP authentication extension, a broad security hardening pass, and a rebuilt website. [Release Notes](release-notes/Release-2.4.0.md)
+- **June 20 · VRRP HMAC authentication**. A new `auth_hmac` extension adds origin authentication, integrity and replay protection to VRRP adverts. It closes the off-segment injection hole that unicast deployments inherit once the TTL=255 guard no longer applies, and an upcoming IETF Internet-Draft specifies the wire format. [Read the article](articles/vrrp-hmac-authentication.md)
+
 ## 2025
 
 - **June 10 · Release 2.3.4**. Fixes minor issues and improves the build process. [Release Notes](release-notes/Release-2.3.4.md)

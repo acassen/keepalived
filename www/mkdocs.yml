@@ -74,9 +74,15 @@ markdown_extensions:
 plugins:
   - search
 
+hooks:
+  - hooks/readtime.py
+
 nav:
   - Home: index.md
   - News: news.md
+  - Articles:
+    - articles/index.md
+    - VRRP HMAC Authentication: articles/vrrp-hmac-authentication.md
   - Download: download.md
   - Documentation:
     - documentation.md
@@ -101,6 +107,7 @@ nav:
     - ChangeLog: documentation/changelog.md
   - Release Notes:
     - release-notes/index.md
+    - Release 2.4.0: release-notes/Release-2.4.0.md
     - Release 2.3.4: release-notes/Release-2.3.4.md
     - Release 2.3.3: release-notes/Release-2.3.3.md
     - Release 2.3.2: release-notes/Release-2.3.2.md

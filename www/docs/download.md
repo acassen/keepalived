@@ -2,13 +2,13 @@
 
 ## Latest stable release
 
-!!! success "Keepalived 2.3.4"
+!!! success "Keepalived 2.4.0"
 
-    Released June 10, 2025.
-    [:material-download: keepalived-2.3.4.tar.gz](software/keepalived-2.3.4.tar.gz){ .md-button .md-button--primary }
-    [:material-text-box-outline: Release Notes](release-notes/Release-2.3.4.md){ .md-button }
+    Released June 22, 2026.
+    [:material-download: keepalived-2.4.0.tar.gz](software/keepalived-2.4.0.tar.gz){ .md-button .md-button--primary }
+    [:material-text-box-outline: Release Notes](release-notes/Release-2.4.0.md){ .md-button }
 
-    `MD5  622b09f4502ada4c6d20ef1c29205f77`
+    `MD5  efff185055cdc68864cf408336974f76`
 
 ## Install from your distribution
 
@@ -60,6 +60,7 @@ against the published MD5 checksum before building.
 
 | Version | Date | MD5 | Notes |
 | --- | --- | --- | --- |
+| [2.4.0](software/keepalived-2.4.0.tar.gz) | 2026-06-22 | `efff185055cdc68864cf408336974f76` | [Release Notes](release-notes/Release-2.4.0.md) |
 | [2.3.4](software/keepalived-2.3.4.tar.gz) | 2025-06-10 | `622b09f4502ada4c6d20ef1c29205f77` | [Release Notes](release-notes/Release-2.3.4.md) |
 | [2.3.3](software/keepalived-2.3.3.tar.gz) | 2025-03-30 | `c7b5023bff83655247590b254ff630c8` | [Release Notes](release-notes/Release-2.3.3.md) |
 | [2.3.2](software/keepalived-2.3.2.tar.gz) | 2024-11-03 | `a5e84e7a7b6d37dc5378c14fcfad1574` | [Release Notes](release-notes/Release-2.3.2.md) |

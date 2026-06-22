@@ -17,7 +17,9 @@ infrastructures, and it runs in production across data centers, ISPs and
 hardware vendors worldwide.
 </p>
 
-[:material-bullhorn: Latest release **2.3.4** · June 2025 :octicons-arrow-right-24:](news.md){ .ka-latest }
+[:material-bullhorn: Latest release **2.4.0** · June 2026 :octicons-arrow-right-24:](release-notes/Release-2.4.0.md){ .ka-latest }
+
+[:material-newspaper-variant-outline: Latest article **VRRP HMAC Authentication** · June 2026 :octicons-arrow-right-24:](articles/vrrp-hmac-authentication.md){ .ka-latest }
 
 [:material-rocket-launch-outline: Get started](documentation/user-guide/quick-start.md){ .md-button .md-button--primary }
 [:material-download: Download](download.md){ .md-button }
@@ -53,8 +55,8 @@ exactly the resilient infrastructure you need.
     ---
 
     A full implementation of VRRP v2 and v3 for IPv4 and IPv6, with sync
-    groups that keep routing paths consistent after a takeover, plus IPSEC-AH
-    securing of protocol adverts.
+    groups that keep routing paths consistent after a takeover, plus HMAC
+    authentication that secures adverts on unicast and multicast.
 
 -   :material-scale-balance:{ .lg } __Load balancing (LVS/IPVS)__
 
