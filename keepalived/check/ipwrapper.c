@@ -941,7 +941,7 @@ rs_exist(real_server_t *old_rs, list_head_t *l)
 }
 
 static void
-migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new_rs)
+migrate_checkers(virtual_server_t *new_vs, virtual_server_t *old_vs, real_server_t *old_rs, real_server_t *new_rs)
 {
 	checker_t *old_c, *new_c;
 	checker_t dummy_checker;
@@ -952,7 +952,8 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 			if (!new_c->checker_funcs->compare)
 				continue;
 			list_for_each_entry(old_c, &old_rs->checkers_list, rs_list) {
-				if (old_c->checker_funcs->type == new_c->checker_funcs->type && new_c->checker_funcs->compare(old_c, new_c)) {
+				if ((old_vs->s_svr && ISALIVE(old_vs->s_svr)) ||
+				    old_c->checker_funcs->type == new_c->checker_funcs->type && new_c->checker_funcs->compare(old_c, new_c)) {
 					/* Update status if different */
 					if (old_c->has_run && old_c->is_up != new_c->is_up)
 						set_checker_state(new_c, old_c->is_up);
@@ -1006,13 +1007,13 @@ migrate_checkers(virtual_server_t *vs, real_server_t *old_rs, real_server_t *new
 
 	/* If there are no failed checkers, the RS needs to be up */
 	if (!new_rs->num_failed_checkers && !new_rs->alive) {
-		dummy_checker.vs = vs;
+		dummy_checker.vs = new_vs;
 		dummy_checker.rs = new_rs;
 		perform_svr_state(true, &dummy_checker);
 	} else if (new_rs->num_failed_checkers && new_rs->set != new_rs->inhibit) {
 		/* ipvs_cmd() checks for alive rather than set */
 		new_rs->alive = new_rs->set;
-		ipvs_cmd(new_rs->inhibit ? IP_VS_SO_SET_ADDDEST : IP_VS_SO_SET_DELDEST, vs, new_rs);
+		ipvs_cmd(new_rs->inhibit ? IP_VS_SO_SET_ADDDEST : IP_VS_SO_SET_DELDEST, new_vs, new_rs);
 		new_rs->alive = false;
 	}
 }
@@ -1058,7 +1059,7 @@ clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs)
 		 * For alpha mode checkers, if it was up, we don't need another
 		 * success to say it is now up.
 		 */
-		migrate_checkers(new_vs, rs, new_rs);
+		migrate_checkers(new_vs, old_vs, rs, new_rs);
 
 		/* Do we need to update the RS configuration? */
 		if ((new_rs->alive && new_rs->effective_weight != rs->effective_weight) ||
