@@ -40,8 +40,8 @@ to force an election, and captured adverts replay just as easily.
 ```
 
 The `auth_hmac` extension closes that gap. It appends a trailer to each advert
-carrying an HMAC-SHA256 tag truncated to 128 bits and a time-based sequence
-number. The tag proves the advert came from a holder of the shared key and was
+carrying an HMAC-SHA256 truncated to 128 bits and a time-based sequence
+number. The HMAC proves the advert came from a holder of the shared key and was
 not altered, the sequence number proves it is fresh, and both behave the same
 for VRRPv2 and v3, IPv4 and IPv6, unicast and multicast. It encrypts nothing,
 because adverts are not secret, and a captured advert is useless once it leaves
@@ -50,7 +50,7 @@ cleartext password travels in the open, which is why RFC 3768 removed it, and
 the IPSEC-AH option only ever existed for VRRPv2.
 
 !!! info "Specification"
-    The wire format, the pseudo-header bound into the MAC, and the full threat
+    The wire format, the pseudo-header bound into the HMAC, and the full threat
     model are specified in the [IETF Internet-Draft](#ietf-draft) referenced at
     the bottom of this page.
 
@@ -240,12 +240,16 @@ these variants ships under `doc/samples/`.
 ## Replay protection
 
 `anti_replay time`, the default, enforces a freshness window and a per-sender
-monotonic sequence, so it needs the nodes to agree on wall clock time within
-`time_window` seconds. The window accepts 1 to 300 seconds and defaults to
+monotonic sequence, so it needs the nodes to agree on UTC within `time_window`
+seconds. The window accepts 1 to 300 seconds and defaults to
 `max(3 x advert_int, 5)`, and a small window such as 5 seconds is a good start
-when NTP is healthy. `anti_replay monotonic` drops the clock dependency and only
-asks each sender's sequence to keep growing, which suits deployments that cannot
-guarantee synchronized clocks, at the cost of the freshness guarantee.
+when NTP is healthy. `anti_replay monotonic` drops the need for nodes to share a
+common clock and only asks each sender's sequence to keep growing, which suits
+deployments that cannot guarantee synchronized clocks, at the cost of the
+freshness guarantee. The sequence is still clock-derived, so it relies on each
+sender's own clock moving forward across a restart. A node with no reliable
+clock and no persistent storage can otherwise reuse an earlier sequence after a
+reboot, and its adverts are rejected until the sequence catches up.
 
 ## Rolling out without breaking the cluster
 
@@ -292,8 +296,8 @@ that receivers already accept, then drop the retired key and reload once more.
 Keepalived logs and counts each authentication outcome per instance, rate
 limited, so you can watch the migration and spot trouble. A missing trailer is
 informational in permissive mode and means a node is not signing once you
-enforce. An invalid MAC points at a key mismatch or a forgery attempt. A stale
-trailer is reported apart from an invalid MAC, so you can tell clock drift from
+enforce. An invalid HMAC points at a key mismatch or a forgery attempt. A stale
+trailer is reported apart from an invalid HMAC, so you can tell clock drift from
 an attack, and a clock skew warning fires on accepted adverts once the skew
 passes half the window, which is the early signal to fix NTP before adverts
 start failing.
@@ -317,11 +321,11 @@ reference. The keywords are:
 The construction is symmetric with no key exchange on the wire, so it has no
 exposure to Shor's algorithm and stays post-quantum resistant by design. A
 quantum search only halves the effective key strength, which is the reason for
-the 32 byte minimum, since it preserves a 128 bit margin. The MAC binds the
-address family, VRRP version, virtual router id, and source address into the
-digest, so an attacker cannot splice a valid trailer onto a different instance
-or a different sender, while the IP header stays out of the MAC, which keeps the
-design clean across IPv4, IPv6, and the unicast TTL handling. The trailer adds
+the 32 byte minimum, since it preserves a 128 bit margin. The HMAC binds the
+address family, VRRP version, virtual router id, and source address, so an
+attacker cannot splice a valid trailer onto a different instance or a different
+sender, while the IP header stays out of the HMAC, which keeps the design clean
+across IPv4, IPv6, and the unicast TTL handling. The trailer adds
 28 bytes to each advert, and Keepalived reserves that room when it decides how
 many virtual addresses fit in a packet, so on an instance whose address list
 sits near the interface MTU a few addresses move to the excluded set rather than
@@ -332,7 +336,5 @@ overflowing the packet.
 The on-the-wire format and the security analysis are specified in an IETF
 Internet-Draft, *An HMAC Authentication Extension for the Virtual Router
 Redundancy Protocol (VRRP)* (`draft-cassen-vrrp-auth-hmac`), by A. Cassen and
-Q. Armitage. The link will point at the IETF Datatracker once the draft is
-published.
-
-<!-- TODO: replace with the Datatracker URL once draft-cassen-vrrp-auth-hmac is published -->
+Q. Armitage. Read it on the
+[IETF Datatracker](https://datatracker.ietf.org/doc/draft-cassen-vrrp-auth-hmac/).

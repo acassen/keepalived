@@ -6,6 +6,7 @@ history of changes, read the [Release Notes](release-notes/index.md) and the
 
 ## 2026
 
+- **June 26 · Release 2.4.1**. A point release that aligns the `auth_hmac` VRRP extension with the updated IETF Internet-Draft. The trailer format and terminology changed, so upgrade every node in a virtual router together. [Release Notes](release-notes/Release-2.4.1.md)
 - **June 22 · Release 2.4.0**. A major release adding the `auth_hmac` VRRP authentication extension, a broad security hardening pass, and a rebuilt website. [Release Notes](release-notes/Release-2.4.0.md)
 - **June 20 · VRRP HMAC authentication**. A new `auth_hmac` extension adds origin authentication, integrity and replay protection to VRRP adverts. It closes the off-segment injection hole that unicast deployments inherit once the TTL=255 guard no longer applies, and an upcoming IETF Internet-Draft specifies the wire format. [Read the article](articles/vrrp-hmac-authentication.md)
 
