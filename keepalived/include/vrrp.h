@@ -111,7 +111,7 @@ typedef enum vrrp_rlflags {
 	VRRP_RLFLAG_AUTH_EXT_MISSING	= 0x80000,
 	VRRP_RLFLAG_AUTH_EXT_MALFORMED	= 0x100000,
 	VRRP_RLFLAG_AUTH_EXT_UNKNOWN_KEY = 0x200000,
-	VRRP_RLFLAG_AUTH_EXT_BAD_MAC	= 0x400000,
+	VRRP_RLFLAG_AUTH_EXT_BAD_HMAC	= 0x400000,
 	VRRP_RLFLAG_AUTH_EXT_STALE	= 0x800000,
 	VRRP_RLFLAG_AUTH_EXT_REPLAY	= 0x1000000,
 	VRRP_RLFLAG_AUTH_EXT_CLOCK_SKEW	= 0x2000000,
@@ -235,7 +235,7 @@ typedef struct _vrrp_stats {
 	uint32_t	auth_ext_missing;
 	uint32_t	auth_ext_malformed;
 	uint32_t	auth_ext_unknown_key;
-	uint32_t	auth_ext_invalid_mac;
+	uint32_t	auth_ext_invalid_hmac;
 	uint32_t	auth_ext_stale;
 	uint32_t	auth_ext_replay;
 #endif

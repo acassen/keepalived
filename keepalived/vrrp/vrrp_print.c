@@ -100,7 +100,7 @@ vrrp_print_stats(bool clear_stats)
 		fprintf(file, "    Missing: %u\n", vrrp->stats->auth_ext_missing);
 		fprintf(file, "    Malformed: %u\n", vrrp->stats->auth_ext_malformed);
 		fprintf(file, "    Unknown Key: %u\n", vrrp->stats->auth_ext_unknown_key);
-		fprintf(file, "    Invalid MAC: %u\n", vrrp->stats->auth_ext_invalid_mac);
+		fprintf(file, "    Invalid HMAC: %u\n", vrrp->stats->auth_ext_invalid_hmac);
 		fprintf(file, "    Stale: %u\n", vrrp->stats->auth_ext_stale);
 		fprintf(file, "    Replay: %u\n", vrrp->stats->auth_ext_replay);
 #endif

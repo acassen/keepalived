@@ -891,9 +891,9 @@ vrrp_auth_ext_verify(vrrp_t *vrrp, const vrrphdr_t *hd, size_t pkt_len, const vr
 		++vrrp->stats->auth_ext_unknown_key;
 		log_rate_limited_error(vrrp, VRRP_RLFLAG_AUTH_EXT_UNKNOWN_KEY, "(%s) unknown authentication key id %u from %s", vrrp->iname, trailer->key_id, inet_sockaddrtos(&vrrp->pkt_saddr));
 		break;
-	case VRRP_AUTH_HMAC_BAD_MAC:
-		++vrrp->stats->auth_ext_invalid_mac;
-		log_rate_limited_error(vrrp, VRRP_RLFLAG_AUTH_EXT_BAD_MAC, "(%s) invalid authentication MAC from %s", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
+	case VRRP_AUTH_HMAC_BAD_HMAC:
+		++vrrp->stats->auth_ext_invalid_hmac;
+		log_rate_limited_error(vrrp, VRRP_RLFLAG_AUTH_EXT_BAD_HMAC, "(%s) invalid authentication HMAC from %s", vrrp->iname, inet_sockaddrtos(&vrrp->pkt_saddr));
 		break;
 	case VRRP_AUTH_HMAC_STALE:
 		++vrrp->stats->auth_ext_stale;

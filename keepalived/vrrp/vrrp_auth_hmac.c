@@ -106,7 +106,7 @@ compute_hmac(const uint8_t *key, size_t key_len,
 }
 
 /*
- * Synthetic header bound into the MAC. Binding family, version and vrid stops
+ * Synthetic header bound into the HMAC. Binding family, version and vrid stops
  * splicing between instances that share a key, binding the source ties the
  * packet to its claimed sender. The IP header is deliberately excluded.
  */
@@ -192,28 +192,47 @@ next_lru(vrrp_auth_hmac_t *ah)
 	return ah->lru_clock;
 }
 
+/* RFC1982 serial number arithmetic over the 64 bit sequence */
+static inline bool
+seq_after(uint64_t a, uint64_t b)
+{
+	return (int64_t)(a - b) > 0;
+}
+
 /*
- * Time based sequence. The seconds value is clamped to its own last value so a
- * backward clock step never breaks strict monotonicity. No state is persisted,
- * a restarted sender stays monotonic because the clock has moved on.
+ * Pack a realtime clock reading into the 64 bit sequence with the counter
+ * cleared: seconds in the high 32 bits, a 1/2^16 second fraction in the next 16.
  */
-static void
-next_seq(vrrp_auth_hmac_t *ah, uint32_t *sec, uint32_t *ctr)
+static uint64_t
+clock_seq(void)
 {
 	struct timespec ts;
-	uint32_t now;
+	uint64_t subsec;
 
 	clock_gettime(CLOCK_REALTIME, &ts);
-	now = (uint32_t)ts.tv_sec;
+	subsec = ((uint64_t)ts.tv_nsec << 16) / 1000000000U;
 
-	if (now > ah->send_sec) {
-		ah->send_sec = now;
-		ah->send_ctr = 0;
-	} else if (!++ah->send_ctr)
-		ah->send_sec++;		/* counter wrapped within a second, borrow one */
+	return ((uint64_t)(uint32_t)ts.tv_sec << 32) | (subsec << 16);
+}
 
-	*sec = ah->send_sec;
-	*ctr = ah->send_ctr;
+/*
+ * Time based sequence, the larger of the clock and the last value plus one. The
+ * increment carries into the timestamp on overflow so the sequence grows even
+ * when the clock has not, and serial arithmetic keeps it correct across the
+ * field wrap. No state is persisted, a restarted sender stays monotonic as long
+ * as the clock advances across the restart.
+ */
+static uint64_t
+next_seq(vrrp_auth_hmac_t *ah)
+{
+	uint64_t clk = clock_seq();
+
+	if (seq_after(clk, ah->send_seq))
+		ah->send_seq = clk;
+	else
+		ah->send_seq++;
+
+	return ah->send_seq;
 }
 
 /*
@@ -229,7 +248,7 @@ vrrp_auth_hmac_sign(vrrp_t *vrrp)
 	uint8_t pseudo[VRRP_AUTH_HMAC_PSEUDO_LEN];
 	uint8_t digest[SHA256_DIGEST_LEN];
 	size_t pdu_off;
-	uint32_t sec, ctr;
+	uint64_t seq;
 
 	if (!ah)
 		return;
@@ -240,25 +259,26 @@ vrrp_auth_hmac_sign(vrrp_t *vrrp)
 	tr->ext_type = ah->ext_type;
 	tr->key_id = ah->active_key;
 	tr->reserved = 0;
-	next_seq(ah, &sec, &ctr);
-	tr->sec = htonl(sec);
-	tr->ctr = htonl(ctr);
-	memset(tr->mac, 0, sizeof(tr->mac));
+	seq = next_seq(ah);
+	tr->sec = htonl((uint32_t)(seq >> 32));
+	tr->subsec = htons((uint16_t)(seq >> 16));
+	tr->ctr = htons((uint16_t)seq);
+	memset(tr->hmac, 0, sizeof(tr->hmac));
 
 	key = vrrp_auth_hmac_find_key(ah, ah->active_key);
 	if (!key)
-		return;		/* a zero mac is rejected by every receiver */
+		return;		/* a zero hmac is rejected by every receiver */
 
 	build_pseudo(pseudo, vrrp->family, vrrp->version, vrrp->vrid, &vrrp->saddr);
 	compute_hmac(key->data, key->len, pseudo, sizeof(pseudo),
 		     PTR_CAST(uint8_t, vrrp->send_buffer) + pdu_off,
 		     vrrp->send_buffer_size - pdu_off, NULL, 0, digest);
-	memcpy(tr->mac, digest, VRRP_AUTH_HMAC_MAC_LEN);
+	memcpy(tr->hmac, digest, VRRP_AUTH_HMAC_LEN);
 }
 
 /*
  * Locate the replay slot for a multicast source, allocating or evicting the
- * least recently used entry. Only reached once the MAC has verified so a flood
+ * least recently used entry. Only reached once the HMAC has verified so a flood
  * of forged sources cannot churn the table.
  */
 static vrrp_replay_state_t *
@@ -286,55 +306,56 @@ mcast_state(vrrp_auth_hmac_t *ah, const sockaddr_t *addr)
 
 /*
  * Reject a non growing sequence from a known sender, then raise the high water
- * mark. The window check has already run, so only strict growth remains.
+ * mark. The window check has already run, so only strict growth remains, ordered
+ * under serial number arithmetic so it survives the field wrap.
  */
 static bool
-replay_ok(vrrp_replay_state_t *state, uint32_t sec, uint32_t ctr)
+replay_ok(vrrp_replay_state_t *state, uint64_t seq)
 {
-	if (state->valid && (sec < state->sec || (sec == state->sec && ctr <= state->ctr)))
+	if (state->valid && !seq_after(seq, state->seq))
 		return false;
 
 	state->valid = true;
-	state->sec = sec;
-	state->ctr = ctr;
+	state->seq = seq;
 
 	return true;
 }
 
 /*
  * Verify a received trailer. The unicast caller passes the peer replay slot,
- * the multicast caller passes NULL and the table is consulted after the MAC.
+ * the multicast caller passes NULL and the table is consulted after the HMAC.
  */
 vrrp_auth_hmac_result_t
 vrrp_auth_hmac_check(vrrp_t *vrrp, const void *pdu, size_t pdu_len,
 		     const vrrp_auth_ext_t *tr, vrrp_replay_state_t *uni_state, int *skew)
 {
-	static const uint8_t zero_mac[VRRP_AUTH_HMAC_MAC_LEN];
+	static const uint8_t zero_hmac[VRRP_AUTH_HMAC_LEN];
 	vrrp_auth_hmac_t *ah = vrrp->auth_hmac;
 	vrrp_auth_key_t *key;
 	vrrp_replay_state_t *state;
 	uint8_t pseudo[VRRP_AUTH_HMAC_PSEUDO_LEN];
 	uint8_t digest[SHA256_DIGEST_LEN];
-	uint32_t sec, ctr;
+	uint32_t sec;
+	uint64_t seq;
 
 	if (tr->ext_type != ah->ext_type || tr->reserved != 0)
 		return VRRP_AUTH_HMAC_MALFORMED;
 
 	sec = ntohl(tr->sec);
-	ctr = ntohl(tr->ctr);
+	seq = ((uint64_t)sec << 32) | ((uint64_t)ntohs(tr->subsec) << 16) | ntohs(tr->ctr);
 
 	/*
 	 * Drop a stale sequence before the costly HMAC so a flood of replayed
 	 * captures cannot force a digest per packet. The timestamp is not yet
 	 * authenticated so this only rejects, it never grants trust. The replay
-	 * high water mark stays after the MAC, it must never move on forged data.
+	 * high water mark stays after the HMAC, it must never move on forged data.
 	 */
 	if (ah->anti_replay_time) {
 		struct timespec ts;
-		int delta;
+		int32_t delta;
 
 		clock_gettime(CLOCK_REALTIME, &ts);
-		delta = (int)((int64_t)ts.tv_sec - (int64_t)sec);
+		delta = (int32_t)((uint32_t)ts.tv_sec - sec);
 		*skew = delta;
 		if (delta > (int)ah->time_window || delta < -(int)ah->time_window)
 			return VRRP_AUTH_HMAC_STALE;
@@ -346,13 +367,13 @@ vrrp_auth_hmac_check(vrrp_t *vrrp, const void *pdu, size_t pdu_len,
 
 	build_pseudo(pseudo, vrrp->family, vrrp->version, vrrp->vrid, &vrrp->pkt_saddr);
 	compute_hmac(key->data, key->len, pseudo, sizeof(pseudo),
-		     pdu, pdu_len + offsetof(vrrp_auth_ext_t, mac),
-		     zero_mac, sizeof(zero_mac), digest);
-	if (memcmp_constant_time(tr->mac, digest, VRRP_AUTH_HMAC_MAC_LEN))
-		return VRRP_AUTH_HMAC_BAD_MAC;
+		     pdu, pdu_len + offsetof(vrrp_auth_ext_t, hmac),
+		     zero_hmac, sizeof(zero_hmac), digest);
+	if (memcmp_constant_time(tr->hmac, digest, VRRP_AUTH_HMAC_LEN))
+		return VRRP_AUTH_HMAC_BAD_HMAC;
 
 	state = uni_state ? uni_state : mcast_state(ah, &vrrp->pkt_saddr);
-	if (!replay_ok(state, sec, ctr))
+	if (!replay_ok(state, seq))
 		return VRRP_AUTH_HMAC_REPLAY;
 
 	return VRRP_AUTH_HMAC_OK;

@@ -36,7 +36,7 @@
 
 /* Extension scheme identifiers carried in the trailer ext_type field */
 #define VRRP_AUTH_HMAC_TYPE_SHA256	1	/* HMAC SHA256 truncated to 128 bits */
-#define VRRP_AUTH_HMAC_MAC_LEN		16	/* truncated digest length */
+#define VRRP_AUTH_HMAC_LEN		16	/* truncated HMAC length */
 
 /* Key material bounds, the 32 byte floor keeps a 128 bit margin under quantum search */
 #define VRRP_AUTH_HMAC_KEY_MIN		32
@@ -53,27 +53,27 @@
  */
 #define VRRP_AUTH_HMAC_MCAST_SENDERS	4
 
-/* Pseudo header bound into the MAC: family, version, vrid, zero, address */
+/* Pseudo header bound into the HMAC: family, version, vrid, zero, address */
 #define VRRP_AUTH_HMAC_PSEUDO_LEN	20
 
 /*
- * Authenticated trailer appended after the VRRP PDU. The sequence is split
- * into seconds and counter so the 28 byte layout stays naturally aligned.
+ * Authenticated trailer appended after the VRRP PDU. The 64 bit sequence is
+ * split into seconds, subseconds and counter, keeping the 28 byte layout.
  */
 typedef struct _vrrp_auth_ext {
 	uint8_t			ext_type;	/* scheme identifier */
 	uint8_t			key_id;		/* selects the verifying key */
 	uint16_t		reserved;	/* zero on send */
-	uint32_t		sec;		/* unix seconds, network order */
-	uint32_t		ctr;		/* per second counter, network order */
-	uint8_t			mac[VRRP_AUTH_HMAC_MAC_LEN];
+	uint32_t		sec;		/* UTC seconds since the Unix epoch, network order */
+	uint16_t		subsec;		/* binary fraction of a second, network order */
+	uint16_t		ctr;		/* tie breaker within one timestamp, network order */
+	uint8_t			hmac[VRRP_AUTH_HMAC_LEN];
 } vrrp_auth_ext_t;
 
 /* Per sender anti replay high water mark */
 typedef struct _vrrp_replay_state {
 	bool			valid;
-	uint32_t		sec;
-	uint32_t		ctr;
+	uint64_t		seq;		/* last accepted 64 bit sequence */
 } vrrp_replay_state_t;
 
 /*
@@ -104,9 +104,8 @@ typedef struct _vrrp_auth_hmac {
 	bool			anti_replay_time;	/* true enforces the freshness window */
 	unsigned		time_window;	/* freshness window, seconds */
 
-	/* send sequence state */
-	uint32_t		send_sec;
-	uint32_t		send_ctr;
+	/* send sequence state, the last 64 bit sequence emitted */
+	uint64_t		send_seq;
 
 	/* multicast receive replay state */
 	unsigned		lru_clock;	/* monotonic rank source for eviction */
@@ -118,7 +117,7 @@ typedef enum {
 	VRRP_AUTH_HMAC_OK,
 	VRRP_AUTH_HMAC_MALFORMED,
 	VRRP_AUTH_HMAC_UNKNOWN_KEY,
-	VRRP_AUTH_HMAC_BAD_MAC,
+	VRRP_AUTH_HMAC_BAD_HMAC,
 	VRRP_AUTH_HMAC_STALE,
 	VRRP_AUTH_HMAC_REPLAY,
 } vrrp_auth_hmac_result_t;
