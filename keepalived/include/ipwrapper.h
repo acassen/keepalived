@@ -48,6 +48,7 @@ rs_iseq(const real_server_t *rs_a, const real_server_t *rs_b)
 {
 	return sockstorage_equal(&rs_a->addr, &rs_b->addr);
 }
+extern bool __attribute__((pure)) vs_iseq(const virtual_server_t *, const virtual_server_t *);
 
 /* prototypes */
 extern void update_svr_wgt(int64_t, virtual_server_t *, real_server_t *, bool);

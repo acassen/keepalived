@@ -1070,15 +1070,30 @@ check_check_script_security(void)
 bool
 validate_check_config(void)
 {
-	virtual_server_t *vs, *vs_tmp;
+	virtual_server_t *vs, *vs_tmp, *vs1;
 	virtual_server_group_entry_t *vsge;
 	real_server_t *rs, *rs_tmp, *rs1;
 	checker_t *checker;
 	unsigned weight_sum;
-	bool rs_removed;
+	bool vs_removed, rs_removed;
 
 	using_ha_suspend = false;
 	list_for_each_entry_safe(vs, vs_tmp, &check_data->vs, e_list) {
+		/* Check the virual server is not a duplicate of any vs earlier in the list */
+		vs_removed = false;
+		list_for_each_entry(vs1, &check_data->vs, e_list) {
+			if (vs == vs1)
+				break;
+			if (vs_iseq(vs, vs1)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s is duplicated - removing second vs and all its related rs and checker entities.", FMT_VS(vs));
+				free_vs(vs);
+				vs_removed = true;
+				break;
+			}
+		}
+		if (vs_removed)
+			continue;
+
 		/* Ensure that ha_suspend is not set for any virtual server using fwmarks */
 		if (vs->ha_suspend &&
 		    (vs->vfwmark || (vs->vsg && !list_empty(&vs->vsg->vfwmark)))) {
