@@ -43,6 +43,7 @@
 #include "main.h"
 #include "global_data.h"
 #include "daemon.h"
+#include "config_notify.h"
 #ifndef _ONE_PROCESS_DEBUG_
 #include "config_notify.h"
 #endif
@@ -572,6 +573,9 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 
 	if (!have_child)
 		log_message(LOG_INFO, "Warning - keepalived has no configuration to run");
+#ifdef _USE_SYSTEMD_NOTIFY_
+		systemd_notify_running();
+#endif
 }
 
 static bool
