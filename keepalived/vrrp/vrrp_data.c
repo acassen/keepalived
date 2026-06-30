@@ -787,6 +787,9 @@ dump_vrrp(FILE *fp, const vrrp_t *vrrp)
 	if (vrrp->preempt_delay)
 		conf_write(fp, "   Preempt delay = %g secs",
 		       vrrp->preempt_delay / TIMER_HZ_DOUBLE);
+	if (vrrp->fault_init_exit_delay)
+		conf_write(fp, "   Fault Init Exit delay = %g secs",
+		       vrrp->fault_init_exit_delay / TIMER_HZ_DOUBLE);
 	conf_write(fp, "   Promote_secondaries = %s", __test_bit(VRRP_FLAG_PROMOTE_SECONDARIES, &vrrp->flags) ? "enabled" : "disabled");
 #if defined _WITH_VRRP_AUTH_
 	if (vrrp->auth_type) {
