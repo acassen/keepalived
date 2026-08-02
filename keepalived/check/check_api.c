@@ -441,25 +441,33 @@ install_checker_common_keywords(bool connection_keywords)
 }
 
 /* dump the checkers */
+static void
+dump_rs_list_checkers(FILE *fp, list_head_t *l, bool *dumped_header)
+{
+	real_server_t *rs;
+	checker_t *checker;
+
+	list_for_each_entry(rs, l, e_list) {
+		list_for_each_entry(checker, &rs->checkers_list, rs_list) {
+			if (!*dumped_header) {
+				conf_write(fp, "------< Health checkers >------");
+				*dumped_header = true;
+			}
+
+			dump_checker(fp, checker);
+		}
+	}
+}
+
 void
 dump_checkers(FILE *fp)
 {
 	virtual_server_t *vs;
-	real_server_t *rs;
-	checker_t *checker;
 	bool dumped_header = false;
 
 	list_for_each_entry(vs, &check_data->vs, e_list) {
-		list_for_each_entry(rs, &vs->rs, e_list) {
-			list_for_each_entry(checker, &rs->checkers_list, rs_list) {
-				if (!dumped_header) {
-					conf_write(fp, "------< Health checkers >------");
-					dumped_header = true;
-				}
-
-				dump_checker(fp, checker);
-			}
-		}
+		dump_rs_list_checkers(fp, &vs->rs, &dumped_header);
+		dump_rs_list_checkers(fp, &vs->backup_rs, &dumped_header);
 	}
 }
 
@@ -474,41 +482,49 @@ free_rs_checkers(const real_server_t *rs)
 }
 
 /* register checkers to the global I/O scheduler */
-void
-register_checkers_thread(void)
+static void
+register_rs_list_checkers_thread(list_head_t *l)
 {
-	virtual_server_t *vs;
 	real_server_t *rs;
 	checker_t *checker;
 	unsigned long warmup;
 
-	list_for_each_entry(vs, &check_data->vs, e_list) {
-		list_for_each_entry(rs, &vs->rs, e_list) {
-			list_for_each_entry(checker, &rs->checkers_list, rs_list) {
-				if (checker->launch) {
-					if (checker->vs->ha_suspend && !checker->vs->ha_suspend_addr_count)
-						checker->enabled = false;
+	list_for_each_entry(rs, l, e_list) {
+		list_for_each_entry(checker, &rs->checkers_list, rs_list) {
+			if (checker->launch) {
+				if (checker->vs->ha_suspend && !checker->vs->ha_suspend_addr_count)
+					checker->enabled = false;
 
-					if (!checker->enabled || !checker->has_run)
-						log_message(LOG_INFO, "%sctivating healthchecker for service %s for VS %s"
-								    , checker->enabled ? "A" : "Dea"
-								    , FMT_RS(checker->rs, checker->vs)
-								    , FMT_VS(checker->vs));
+				if (!checker->enabled || !checker->has_run)
+					log_message(LOG_INFO, "%sctivating healthchecker for service %s for VS %s"
+							    , checker->enabled ? "A" : "Dea"
+							    , FMT_RS(checker->rs, checker->vs)
+							    , FMT_VS(checker->vs));
 
-					/* wait for a random timeout to begin checker thread.
-					   It helps avoiding multiple simultaneous checks to
-					   the same RS.
-					*/
-					warmup = checker->warmup;
-					if (warmup) {
-						/* coverity[dont_call] */
-						warmup = warmup * (unsigned)random() / RAND_MAX;
-					}
-					thread_add_timer(master, checker->launch, checker,
-							 BOOTSTRAP_DELAY + warmup);
+				/* wait for a random timeout to begin checker thread.
+				   It helps avoiding multiple simultaneous checks to
+				   the same RS.
+				*/
+				warmup = checker->warmup;
+				if (warmup) {
+					/* coverity[dont_call] */
+					warmup = warmup * (unsigned)random() / RAND_MAX;
 				}
+				thread_add_timer(master, checker->launch, checker,
+						 BOOTSTRAP_DELAY + warmup);
 			}
 		}
+	}
+}
+
+void
+register_checkers_thread(void)
+{
+	virtual_server_t *vs;
+
+	list_for_each_entry(vs, &check_data->vs, e_list) {
+		register_rs_list_checkers_thread(&vs->rs);
+		register_rs_list_checkers_thread(&vs->backup_rs);
 	}
 
 #ifdef _WITH_BFD_
@@ -604,12 +620,29 @@ addr_matches(const virtual_server_t *vs, void *address)
 	return false;
 }
 
+static void
+update_rs_list_checker_activity(virtual_server_t *vs, list_head_t *l, bool enable)
+{
+	real_server_t *rs;
+	checker_t *checker;
+
+	list_for_each_entry(rs, l, e_list) {
+		list_for_each_entry(checker, &rs->checkers_list, rs_list) {
+			if (enable != checker->enabled &&
+			    (enable || vs->ha_suspend_addr_count == 0)) {
+				log_message(LOG_INFO, "%sing healthchecker for service %s for VS %s",
+							!checker->enabled ? "Activat" : "Suspend",
+							FMT_RS(checker->rs, checker->vs), FMT_VS(checker->vs));
+				checker->enabled = enable;
+			}
+		}
+	}
+}
+
 void
 update_checker_activity(sa_family_t family, void *address, bool enable)
 {
-	checker_t *checker;
 	virtual_server_t *vs;
-	real_server_t *rs;
 	char addr_str[INET6_ADDRSTRLEN];
 	bool address_logged = false;
 
@@ -652,17 +685,8 @@ update_checker_activity(sa_family_t family, void *address, bool enable)
 			vs->ha_suspend_addr_count--;
 
 		/* Processing Healthcheckers queue for this vs */
-		list_for_each_entry(rs, &vs->rs, e_list) {
-			list_for_each_entry(checker, &rs->checkers_list, rs_list) {
-				if (enable != checker->enabled &&
-				    (enable || vs->ha_suspend_addr_count == 0)) {
-					log_message(LOG_INFO, "%sing healthchecker for service %s for VS %s",
-								!checker->enabled ? "Activat" : "Suspend",
-								FMT_RS(checker->rs, checker->vs), FMT_VS(checker->vs));
-					checker->enabled = enable;
-				}
-			}
-		}
+		update_rs_list_checker_activity(vs, &vs->rs, enable);
+		update_rs_list_checker_activity(vs, &vs->backup_rs, enable);
 	}
 }
 

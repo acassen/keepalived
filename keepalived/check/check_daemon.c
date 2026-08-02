@@ -295,19 +295,27 @@ stop_check(int status)
 }
 
 static void
-set_effective_weights(void)
+set_rs_list_effective_weights(list_head_t *l)
 {
-	virtual_server_t *vs;
 	real_server_t *rs;
 	checker_t *checker;
 
-	list_for_each_entry(vs, &check_data->vs, e_list) {
-		list_for_each_entry(rs, &vs->rs, e_list) {
-			rs->effective_weight = rs->iweight;
+	list_for_each_entry(rs, l, e_list) {
+		rs->effective_weight = rs->iweight;
 
-			list_for_each_entry(checker, &rs->checkers_list, rs_list)
-				checker->rs->effective_weight += checker->cur_weight;
-		}
+		list_for_each_entry(checker, &rs->checkers_list, rs_list)
+			checker->rs->effective_weight += checker->cur_weight;
+	}
+}
+
+static void
+set_effective_weights(void)
+{
+	virtual_server_t *vs;
+
+	list_for_each_entry(vs, &check_data->vs, e_list) {
+		set_rs_list_effective_weights(&vs->rs);
+		set_rs_list_effective_weights(&vs->backup_rs);
         }
 }
 
