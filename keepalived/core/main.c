@@ -926,8 +926,10 @@ propagate_signal(__attribute__((unused)) void *v, int sig)
 		start_bfd_child();
 #endif
 
+#ifndef _ONE_PROCESS_DEBUG_
 	if (sig == SIGUSR1)
 		thread_add_event(master, print_parent_data, NULL, 0);
+#endif
 }
 
 static void
@@ -2429,7 +2431,9 @@ register_parent_thread_addresses(void)
 	register_thread_address("startup_script_completed", startup_script_completed);
 	register_thread_address("shutdown_script_completed", shutdown_script_completed);
 	register_thread_address("run_startup_script", run_startup_script);
+#ifndef _ONE_PROCESS_DEBUG_
 	register_thread_address("print_parent_data", print_parent_data);
+#endif
 }
 #endif
 
