@@ -104,6 +104,7 @@ socket_bind_connect(int fd, conn_opts_t *co)
 	}
 #endif
 
+	/* Bind socket */
 	if (co->bind_if[0]) {
 		if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, co->bind_if, (unsigned)strlen(co->bind_if) + 1) < 0) {
 			log_message(LOG_INFO, "Checker can't bind to device %s: %s", co->bind_if, strerror(errno));
@@ -111,7 +112,6 @@ socket_bind_connect(int fd, conn_opts_t *co)
 		}
 	}
 
-	/* Bind socket */
 	if (PTR_CAST_CONST(struct sockaddr, bind_addr)->sa_family != AF_UNSPEC) {
 		addrlen = sizeof(*bind_addr);
 		if (bind(fd, PTR_CAST_CONST(struct sockaddr, bind_addr), addrlen) != 0) {
@@ -256,6 +256,13 @@ udp_bind_connect(int fd, conn_opts_t *co, uint8_t *payload, uint16_t payload_len
 #endif
 
 	/* Bind socket */
+	if (co->bind_if[0]) {
+		if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, co->bind_if, (unsigned)strlen(co->bind_if) + 1) < 0) {
+			log_message(LOG_INFO, "Checker can't bind to device %s: %s", co->bind_if, strerror(errno));
+			return connect_error;
+		}
+	}
+
 	if (PTR_CAST_CONST(struct sockaddr, bind_addr)->sa_family != AF_UNSPEC) {
 		addrlen = sizeof(*bind_addr);
 		if (bind(fd, PTR_CAST_CONST(struct sockaddr, bind_addr), addrlen) != 0) {
