@@ -2650,8 +2650,10 @@ The syntax for virtual_server is :
         }
 
         \fBSSL_GET \fR{
-            # when provided, send Server Name Indicator during SSL handshake
+            # when provided, send Server Name Indicator during SSL handshake.
             \fBenable_sni\fR
+	    # If SNI_name is specified, it will be used as the SNI.
+	    \fBsni_name\fR SNI_name
 	    # Comply with TLS protocol - send close_notify alert
 	    #   (see SSL_set_quiet_shutdown(3) man page)
 	    \fBtls_compliant\fR

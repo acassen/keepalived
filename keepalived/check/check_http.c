@@ -325,6 +325,7 @@ free_http_check(checker_t *checker)
 
 	free_url_list(&http_get_chk->url);
 	free_http_request(http_get_chk->req);
+	FREE_CONST_PTR(http_get_chk->sni_name);
 	FREE_CONST_PTR(http_get_chk->virtualhost);
 	FREE_PTR(http_get_chk);
 	FREE(checker->co);
@@ -344,6 +345,8 @@ dump_http_check(FILE *fp, const checker_t *checker)
 		conf_write(fp, "   Virtualhost = %s", http_get_chk->virtualhost);
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 	conf_write(fp, "   Enable SNI %sset", http_get_chk->enable_sni ? "" : "un");
+	if (http_get_chk->sni_name)
+		conf_write(fp, "     SNI name = %s", http_get_chk->sni_name);
 #endif
 	conf_write(fp, "   Fast recovery %sset", http_get_chk->fast_recovery ? "" : "un");
 	if (http_get_chk->proto == PROTO_SSL)
@@ -361,7 +364,6 @@ alloc_http_get(const char *proto)
 	INIT_LIST_HEAD(&new->url);
 	new->proto = (!strcmp(proto, "HTTP_GET")) ? PROTO_HTTP : PROTO_SSL;
 	new->http_protocol = HTTP_PROTOCOL_1_0;
-	new->virtualhost = NULL;
 
 	if (new->proto == PROTO_SSL)
 		check_data->ssl_required = true;
@@ -395,6 +397,10 @@ compare_http_check(const checker_t *old_c, checker_t *new_c)
 	if (!old->virtualhost != !new->virtualhost)
 		return false;
 	if (old->virtualhost && strcmp(old->virtualhost, new->virtualhost))
+		return false;
+	if (!old->sni_name != !new->sni_name)
+		return false;
+	if (old->sni_name && strcmp(old->sni_name, new->sni_name))
 		return false;
 
 	list_for_each_entry(u1, &old->url, e_list) {
@@ -851,6 +857,21 @@ enable_sni_handler(const vector_t *strvec)
 	}
 	http_get_chk->enable_sni = res;
 }
+
+static void
+sni_name_handler(const vector_t *strvec)
+{
+	http_checker_t *http_get_chk = current_checker->data;
+
+	if (vector_size(strvec) >= 2)
+		set_string(&http_get_chk->sni_name, strvec, "sni_name");
+	else if (http_get_chk->sni_name) {
+		report_config_error(CONFIG_GENERAL_ERROR, "sni_name already specified as %s - ignoring setting to default", http_get_chk->sni_name);
+		return;
+	}
+
+	http_get_chk->enable_sni = true;
+}
 #endif
 
 static void
@@ -954,6 +975,7 @@ install_http_ssl_check_keyword(const char *keyword)
 	install_keyword("http_protocol", &http_protocol_handler);
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 	install_keyword("enable_sni", &enable_sni_handler);
+	install_keyword("sni_name", &sni_name_handler);
 #endif
 	install_keyword("fast_recovery", &fast_recovery_handler);
 	if (!strcmp(keyword, "SSL_GET"))

@@ -266,7 +266,9 @@ ssl_connect(thread_ref_t thread, int new_req)
 #endif
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 		if (http_get_check->enable_sni) {
-			if (url && url->virtualhost)
+			if (http_get_check->sni_name)
+				vhost.name_const = http_get_check->sni_name;
+			else if (url && url->virtualhost)
 				vhost.name_const = url->virtualhost;
 			else if (http_get_check->virtualhost)
 				vhost.name_const = http_get_check->virtualhost;
