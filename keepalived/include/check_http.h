@@ -125,6 +125,7 @@ typedef struct _http_checker {
 	const char			*virtualhost;
 #ifdef _HAVE_SSL_SET_TLSEXT_HOST_NAME_
 	bool				enable_sni;
+	const char			*sni_name;
 #endif
 	bool				fast_recovery;
 	bool				tls_compliant;
