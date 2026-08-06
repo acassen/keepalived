@@ -419,9 +419,12 @@ icmp_ping_thread(thread_ref_t thread)
 static void
 icmp_connect_thread(thread_ref_t thread)
 {
+	socklen_t addrlen;
 	checker_t *checker = THREAD_ARG(thread);
 	ping_check_t *ping_checker = CHECKER_ARG(checker);
 	conn_opts_t *co = checker->co;
+	const sockaddr_t *bind_addr = &co->bindto;
+
 	int fd;
 	int size = SOCK_RECV_BUFF;
 
@@ -451,6 +454,28 @@ icmp_connect_thread(thread_ref_t thread)
 		thread_add_timer(thread->master, icmp_connect_thread, checker,
 				checker->delay_loop);
 		return;
+	}
+
+	/* Bind socket */
+	if (co->bind_if[0]) {
+		if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, co->bind_if, (unsigned)strlen(co->bind_if) + 1) < 0) {
+			log_message(LOG_INFO, "Checker can't bind to device %s: %s", co->bind_if, strerror(errno));
+			/* Is this correct. Should we return connect_error? */
+			thread_add_timer(thread->master, icmp_connect_thread, checker,
+					checker->delay_loop);
+			return;
+		}
+	}
+
+	if (PTR_CAST_CONST(struct sockaddr, bind_addr)->sa_family != AF_UNSPEC) {
+		addrlen = sizeof(*bind_addr);
+		if (bind(fd, PTR_CAST_CONST(struct sockaddr, bind_addr), addrlen) != 0) {
+			log_message(LOG_INFO, "bind failed. errno: %d, error: %s", errno, strerror(errno));
+			/* Is this correct. Should we return connect_error? */
+			thread_add_timer(thread->master, icmp_connect_thread, checker,
+					checker->delay_loop);
+			return;
+		}
 	}
 
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size)))
