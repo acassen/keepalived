@@ -510,8 +510,6 @@ delayed_start_clear_thread(__attribute__((unused)) thread_ref_t thread)
 static void
 start_vrrp(data_t *prev_global_data)
 {
-	unsigned delay_remaining;
-
 	/* Clear the flags used for optimising performance */
 	clear_summary_flags();
 
@@ -622,7 +620,9 @@ start_vrrp(data_t *prev_global_data)
 				log_message(LOG_INFO, "Delaying startup for %g seconds", global_data->vrrp_startup_delay / TIMER_HZ_DOUBLE);
 			} else
 				vrrp_delayed_start_time.tv_sec = 0;
-		} else if (vrrp_delayed_start_time.tv_sec) {
+		}
+#ifndef _ONE_PROCESS_DEBUG_
+		else if (vrrp_delayed_start_time.tv_sec) {
 			vrrp_delayed_start_time = timer_sub_long(vrrp_delayed_start_time, prev_global_data->vrrp_startup_delay);
 			vrrp_delayed_start_time = timer_add_long(vrrp_delayed_start_time, global_data->vrrp_startup_delay);
 			if (time_now.tv_sec > vrrp_delayed_start_time.tv_sec ||
@@ -631,12 +631,15 @@ start_vrrp(data_t *prev_global_data)
 				vrrp_delayed_start_time.tv_sec = 0;
 				log_message(LOG_INFO, "Reduced delayed start passed");
 			} else {
+				unsigned delay_remaining;
+
 				delay_remaining = (vrrp_delayed_start_time.tv_sec - time_now.tv_sec) * 1000000UL
 						+ vrrp_delayed_start_time.tv_usec - time_now.tv_usec;
 				thread_add_timer(master, delayed_start_clear_thread, NULL, delay_remaining);
 				log_message(LOG_INFO, "Delaying startup for a further %g seconds", delay_remaining / TIMER_HZ_DOUBLE);
 			}
 		}
+#endif
 
 		if (!reload && global_data->disable_local_igmp)
 			set_disable_local_igmp();

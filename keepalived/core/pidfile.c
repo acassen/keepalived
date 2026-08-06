@@ -133,9 +133,12 @@ pidfile_rm(pidfile_t *pidf)
 void
 close_other_pidfiles(void)
 {
+#ifndef _ONE_PROCESS_DEBUG_
 	if (prog_type != PROG_TYPE_PARENT)
+#endif
 		pidfile_close(&main_pidfile, true);
 
+#ifndef _ONE_PROCESS_DEBUG_
 #ifdef _WITH_VRRP_
 	if (prog_type != PROG_TYPE_VRRP)
 		pidfile_close(&vrrp_pidfile, true);
@@ -149,6 +152,7 @@ close_other_pidfiles(void)
 #ifdef _WITH_BFD_
 	if (prog_type != PROG_TYPE_BFD)
 		pidfile_close(&bfd_pidfile, true);
+#endif
 #endif
 }
 
