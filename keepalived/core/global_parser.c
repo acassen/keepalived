@@ -172,6 +172,21 @@ use_symlink_path_handler(const vector_t *strvec)
 	global_data->use_symlinks = res;
 }
 static void
+set_supplementary_groups_handler(const vector_t *strvec)
+{
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res == -1) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid set_supplementary_groups parameter %s", strvec_slot(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->set_supplementary_groups = res;
+}
+static void
 routerid_handler(const vector_t *strvec)
 {
 	if (vector_size(strvec) < 2) {
@@ -1473,11 +1488,11 @@ notify_fifo(const vector_t *strvec, const char *type, notify_fifo_t *fifo)
 	}
 
 	if (vector_size(strvec) > 2) {
-		if (set_script_uid_gid(strvec, 2, &fifo->uid, &fifo->gid)) {
+		if (set_script_uid_gid(strvec, 2, &fifo->user_id)) {
 			log_message(LOG_INFO, "Invalid user/group for %s fifo %s - ignoring", type, fifo->name);
 			return;
 		}
-	} else if (get_default_script_user(&fifo->uid, &fifo->gid)) {
+	} else if (get_default_script_user(&fifo->user_id)) {
 		log_message(LOG_INFO, "Failed to set default user for %s fifo %s - ignoring", type, fifo->name);
 		return;
 	}
@@ -2612,6 +2627,7 @@ init_global_keywords(bool global_active)
 	install_keyword("bfd_process_name", &bfd_process_name_handler);
 #endif
 	install_keyword("use_symlink_paths", &use_symlink_path_handler);
+	install_keyword("set_supplementary_groups", &set_supplementary_groups_handler);
 	install_keyword("router_id", &routerid_handler);
 	install_keyword("notification_email_from", &emailfrom_handler);
 	install_keyword("smtp_server", &smtpserver_handler);

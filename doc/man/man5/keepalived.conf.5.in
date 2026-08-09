@@ -81,7 +81,11 @@ if they exit with a non-zero status.
 
 By default the scripts will be executed by user keepalived_script if that user
 exists, or if not by root, but for each script the user/group under which it is
-to be executed can be specified.
+to be executed can be specified. If the groupname is preceeded by a ':' character,
+then the supplementary groups of the user executing the script will be set
+for the process; if ':' is specified with no groupname, then the supplementary
+groups will be specified as above, and the primary group will be the primary
+group of the user executing the script.
 
 There are significant security implications if scripts are executed with root
 privileges, especially if the scripts themselves are modifiable or replaceable
@@ -266,6 +270,11 @@ possibly following any cleanup actions needed.
     # To keep symlinks in pathnames, specify use_syslink_paths.
     \fBuse_symlink_paths \fR[<BOOL>]
 
+    # By default, keepalived does not set the supplementary groups of a
+    # process running a script. This option changes the default to setting
+    # the supplementary groups for a script.
+    \fBset_supplementary_groups
+
     # The startup and shutdown scripts are run once, when keepalived starts
     # before any child processes are run, and when keepalived stops after
     # all child processes have terminated, respectively.
@@ -280,9 +289,9 @@ possibly following any cleanup actions needed.
     # The timeouts (in seconds default 10 seconds) are the time allowed for
     # scripts to run; if the timeout expires the scripts will be killed (this
     # is to stop keepalived hanging waiting for the scripts to terminate).
-    \fBstartup_script\fR SCRIPT_NAME [username [groupname]]
+    \fBstartup_script\fR SCRIPT_NAME [username [:][groupname]]
     \fBstartup_script_timeout\fR SECONDS    # range [1,1000]
-    \fBshutdown_script\fR SCRIPT_NAME [username [groupname]]
+    \fBshutdown_script\fR SCRIPT_NAME [username [:][groupname]]
     \fBshutdown_script_timeout\fR SECONDS   # range [1,1000]
 
     # Set of email To: notify. To include a display name, the whole email address
@@ -727,7 +736,7 @@ possibly following any cleanup actions needed.
     # If this option is not specified, the user defaults to keepalived_script
     # if that user exists, otherwise the uid/gid under which keepalived is running.
     # If groupname is not specified, it defaults to the user's group.
-    \fBscript_user \fRusername [groupname]
+    \fBscript_user \fRusername [:][groupname]
 
     # Don't run scripts configured to be run as root if any part of the path
     # is writable by a non-root user. Also, enforce the default script_user is
@@ -748,7 +757,7 @@ possibly following any cleanup actions needed.
 
     # script to be run by keepalived to process notify events
     # The FIFO name will be passed to the script as the last parameter
-    \fBnotify_fifo_script \fRSTRING|QUOTED-STRING [username [groupname]]
+    \fBnotify_fifo_script \fRSTRING|QUOTED-STRING [username [:][groupname]]
 
     # FIFO to write vrrp notify events to.
     # The string written will be a line of the form: INSTANCE "VI_1" MASTER 100
@@ -759,7 +768,7 @@ possibly following any cleanup actions needed.
 
     # script to be run by keepalived to process vrrp notify events
     # The FIFO name will be passed to the script as the last parameter
-    \fBvrrp_notify_fifo_script \fRSTRING|QUOTED-STRING [username [groupname]]
+    \fBvrrp_notify_fifo_script \fRSTRING|QUOTED-STRING [username [:][groupname]]
 
     # FIFO to write notify healthchecker events to
     # The string written will be a line of the form:
@@ -770,7 +779,7 @@ possibly following any cleanup actions needed.
 
     # script to be run by keepalived to process healthchecher notify events
     # The FIFO name will be passed to the script as the last parameter
-    \fBlvs_notify_fifo_script \fRSTRING|QUOTED-STRING [username [groupname]]
+    \fBlvs_notify_fifo_script \fRSTRING|QUOTED-STRING [username [:][groupname]]
 
     # By default, when keepalived reloads the vrrp instance and sync group states
     # are not written to the relevant FIFOs. Setting this option will cause the
@@ -1451,7 +1460,7 @@ The syntax for the vrrp script is:
 
     # user/group names to run script under.
     #  group default to group of user
-    \fBuser \fRUSERNAME [GROUPNAME]
+    \fBuser \fRusername [:][groupname]
 
     # assume script initially is in failed state
     \fBinit_fail\fR
@@ -1549,22 +1558,22 @@ The syntax for vrrp_sync_group is :
     # global script_user and script_group
 
     # to MASTER transition
-    \fBnotify_master \fR/path/to_master.sh [username [groupname]]
+    \fBnotify_master \fR/path/to_master.sh [username [:][groupname]]
 
     # to BACKUP transition
-    \fBnotify_backup \fR/path/to_backup.sh [username [groupname]]
+    \fBnotify_backup \fR/path/to_backup.sh [username [:][groupname]]
 
     # FAULT transition
-    \fBnotify_fault \fR"/path/fault.sh VG_1" [username [groupname]]
+    \fBnotify_fault \fR"/path/fault.sh VG_1" [username [:][groupname]]
 
     # executed when stopping vrrp
-    \fBnotify_stop \fR<STRING>|<QUOTED-STRING> [username [groupname]]
+    \fBnotify_stop \fR<STRING>|<QUOTED-STRING> [username [:][groupname]]
 
     # notify_deleted causes DELETED to be sent to notifies rather
     # than the default FAULT after a vrrp instance is deleted during a
     # reload. If a script is specified, that script will be executed
     # as well.
-    \fBnotify_deleted [\fR<STRING>|<QUOTED-STRING> [username [groupname]]]
+    \fBnotify_deleted [\fR<STRING>|<QUOTED-STRING> [username [:][groupname]]]
 
     # for ANY state transition.
     # "notify" script is called AFTER the notify_* script(s) and
@@ -1579,7 +1588,7 @@ The syntax for vrrp_sync_group is :
     # strings sent are the same ones listed above
     #   ("GROUP"/"INSTANCE", "MASTER"/"BACKUP"/"FAULT"/"STOP"/"DELETED")
     # (note: DELETED is only applicable to instances)
-    \fBnotify \fR<STRING>|<QUOTED-STRING> [username [groupname]]
+    \fBnotify \fR<STRING>|<QUOTED-STRING> [username [:][groupname]]
 
     # The notify fifo output is the same as the last 4 parameters for the "notify"
     # script, with the addition of "MASTER_RX_LOWER_PRI" instead of state for an
@@ -2199,16 +2208,16 @@ The syntax for vrrp_instance is :
     \fBdebug \fR<LEVEL>
 
     # notify scripts, alert as above
-    \fBnotify_master \fR<STRING>|<QUOTED-STRING> [username [groupname]]
-    \fBnotify_backup \fR<STRING>|<QUOTED-STRING> [username [groupname]]
-    \fBnotify_fault \fR<STRING>|<QUOTED-STRING> [username [groupname]]
+    \fBnotify_master \fR<STRING>|<QUOTED-STRING> [username [:][groupname]]
+    \fBnotify_backup \fR<STRING>|<QUOTED-STRING> [username [:][groupname]]
+    \fBnotify_fault \fR<STRING>|<QUOTED-STRING> [username [:][groupname]]
     # executed when stopping vrrp
-    \fBnotify_stop \fR<STRING>|<QUOTED-STRING> [username [groupname]]
-    \fBnotify \fR<STRING>|<QUOTED-STRING> [username [groupname]]
+    \fBnotify_stop \fR<STRING>|<QUOTED-STRING> [username [:][groupname]]
+    \fBnotify \fR<STRING>|<QUOTED-STRING> [username [:][groupname]]
 
     # The notify_master_rx_lower_pri script is executed if a master
     #  receives an advert with priority lower than the master's priority.
-    \fBnotify_master_rx_lower_pri \fR<STRING>|<QUOTED-STRING> [username [groupname]]
+    \fBnotify_master_rx_lower_pri \fR<STRING>|<QUOTED-STRING> [username [:][groupname]]
 
     # Send vrrp instance priority notifications on notify FIFOs.
     \fBnotify_priority_changes\fR <BOOL>
@@ -2440,10 +2449,10 @@ The syntax for virtual_server is :
     \fBhysteresis \fR<INTEGER>
 
     # Script to execute when quorum is gained.
-    \fBquorum_up \fR<STRING>|<QUOTED-STRING> [username [groupname]]
+    \fBquorum_up \fR<STRING>|<QUOTED-STRING> [username [:][groupname]]
 
     # Script to execute when quorum is lost.
-    \fBquorum_down \fR<STRING>|<QUOTED-STRING> [username [groupname]]
+    \fBquorum_down \fR<STRING>|<QUOTED-STRING> [username [:][groupname]]
 
     # IP family for a fwmark service (only needed if all real servers are tunnelled
     # and persistence_granularity is not specified). Defaults to inet if not specified.
@@ -2506,10 +2515,10 @@ The syntax for virtual_server is :
 
         # Script to execute when healthchecker
         # considers service as up.
-        \fBnotify_up \fR<STRING>|<QUOTED-STRING> [username [groupname]]
+        \fBnotify_up \fR<STRING>|<QUOTED-STRING> [username [:][groupname]]
         # Script to execute when healthchecker
         # considers service as down.
-        \fBnotify_down \fR<STRING>|<QUOTED-STRING> [username [groupname]]
+        \fBnotify_down \fR<STRING>|<QUOTED-STRING> [username [:][groupname]]
 
         # maximum number of connections to server
         \fButhreshold \fR<INTEGER>
@@ -2714,9 +2723,9 @@ The syntax for virtual_server is :
 
             # Specify the username/groupname that the script should
             #   be run under.
-            # If GROUPNAME is not specified, the group of the user
+            # If groupname is not specified, the group of the user
             #   is used
-            \fBuser \fRUSERNAME [GROUPNAME]
+            \fBuser \fRusername [:][groupname]
         }
 
         # BFD instance name to check

@@ -67,6 +67,7 @@ dump_misc_check(FILE *fp, const checker_t *checker)
 {
 	const misc_checker_t *misck_checker = checker->data;
 	char time_str[26];
+	int i;
 
 	conf_write(fp, "   Keepalive method = MISC_CHECK");
 	if (misck_checker->script.path)
@@ -74,7 +75,12 @@ dump_misc_check(FILE *fp, const checker_t *checker)
 	conf_write(fp, "   script = %s", cmd_str(&misck_checker->script));
 	conf_write(fp, "   timeout = %lu", misck_checker->timeout/TIMER_HZ);
 	conf_write(fp, "   dynamic = %s", misck_checker->dynamic ? "YES" : "NO");
-	conf_write(fp, "   uid:gid = %u:%u", misck_checker->script.uid, misck_checker->script.gid);
+	conf_write(fp, "   uid:gid = %u:%u", misck_checker->script.user_id.uid, misck_checker->script.user_id.gid);
+	if (misck_checker->script.user_id.num_sup_grp) {
+		conf_write(fp, "     Supplementary groups:");
+		for (i = 0; i < misck_checker->script.user_id.num_sup_grp; i++)
+			conf_write(fp, "       %u", misck_checker->script.user_id.sup_grp[i]);
+	}
 	ctime_r(&misck_checker->last_ran.tv_sec, time_str);
 	conf_write(fp, "   Last ran = %" PRI_tv_sec ".%6.6" PRI_tv_usec " (%.24s.%6.6" PRI_tv_usec ")", misck_checker->last_ran.tv_sec, misck_checker->last_ran.tv_usec, time_str, misck_checker->last_ran.tv_usec);
 	conf_write(fp, "   Last status = %u", misck_checker->last_exit_code);
@@ -172,7 +178,7 @@ misc_user_handler(const vector_t *strvec)
 		return;
 	}
 
-	if (set_script_uid_gid(strvec, 1, &new_misck_checker->script.uid, &new_misck_checker->script.gid)) {
+	if (set_script_uid_gid(strvec, 1, &new_misck_checker->script.user_id)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Failed to set uid/gid for misc checker script %s - removing", cmd_str(&new_misck_checker->script));
 		dequeue_new_checker();
 	}
@@ -193,7 +199,7 @@ misc_end_handler(void)
 
 	if (!script_user_set)
 	{
-		if (get_default_script_user(&new_misck_checker->script.uid, &new_misck_checker->script.gid)) {
+		if (get_default_script_user(&new_misck_checker->script.user_id)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Unable to set default user for misc script %s - removing", cmd_str(&new_misck_checker->script));
 			dequeue_new_checker();
 			return;

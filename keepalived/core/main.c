@@ -476,6 +476,7 @@ read_config_file(bool write_config_copy)
 #endif
 
 	init_data(conf_file, global_init_keywords, write_config_copy);
+	notify_resource_release();
 
 #ifndef _ONE_PROCESS_DEBUG_
 	if (write_config_copy)
@@ -890,7 +891,7 @@ print_parent_data(__attribute__((unused)) thread_ref_t thread)
 void
 reinitialise_global_vars(void)
 {
-	reset_default_script_user();
+	/* Currently there is nothing that needs reinitialising */
 }
 
 /* SIGHUP/USR1/USR2/STATS_CLEAR handler */
@@ -1048,8 +1049,10 @@ start_validate_reload_conf_child(void)
 	script.args = argv;
 	script.num_args = argc;
 	script.flags = SC_EXECABLE;
-	script.uid = 0;
-	script.gid = 0;
+	script.user_id.uid = 0;
+	script.user_id.gid = 0;
+	script.user_id.num_sup_grp = 0;
+	script.user_id.sup_grp = NULL;
 
 	if (truncate(global_data->reload_check_config, 0) && errno != ENOENT) {
 		/* The file exists, but truncate failed. It might be a character

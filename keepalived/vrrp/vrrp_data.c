@@ -189,15 +189,23 @@ free_sync_group_list(list_head_t *l)
 static void
 dump_notify_script(FILE *fp, const notify_script_t *script, const char *type)
 {
+	int i;
+
 	if (!script)
 		return;
 
 	if (script->path)
 		conf_write(fp, "   %s state transition script = %s, params = %s, uid:gid %u:%u"
-			     , type, script->path, cmd_str(script), script->uid, script->gid);
+			     , type, script->path, cmd_str(script), script->user_id.uid, script->user_id.gid);
 	else
 		conf_write(fp, "   %s state transition script = %s, uid:gid %u:%u"
-			     , type, cmd_str(script), script->uid, script->gid);
+			     , type, cmd_str(script), script->user_id.uid, script->user_id.gid);
+
+	if (script->user_id.num_sup_grp) {
+		conf_write(fp, "     Supplementary groups:");
+		for (i = 0; i < script->user_id.num_sup_grp; i++)
+			conf_write(fp, "       %u", script->user_id.sup_grp[i]);
+	}
 }
 
 static void
@@ -278,6 +286,7 @@ free_vscript(vrrp_script_t *vscript)
 {
 	list_del_init(&vscript->e_list);
 	free_tracking_obj_list(&vscript->tracking_vrrp);
+	FREE_CONST(vscript->script.user_id.sup_grp);
 	FREE_CONST(vscript->sname);
 	notify_free_script(&vscript->script);
 	FREE(vscript);
@@ -325,7 +334,7 @@ dump_vscript(FILE *fp, const vrrp_script_t *vscript)
 	}
 	conf_write(fp, "   Init state = %s", str);
 	conf_write(fp, "   Status = %s", vscript->result >= vscript->rise ? "GOOD" : "BAD");
-	conf_write(fp, "   Script uid:gid = %u:%u", vscript->script.uid, vscript->script.gid);
+	conf_write(fp, "   Script uid:gid = %u:%u", vscript->script.user_id.uid, vscript->script.user_id.gid);
 	conf_write(fp, "   VRRP instances :");
 	dump_tracking_obj_list(fp, &vscript->tracking_vrrp, dump_tracking_vrrp);
 	conf_write(fp, "   State = %s",

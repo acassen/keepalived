@@ -448,6 +448,7 @@ free_global_data(data_t **datap)
 	FREE_CONST_PTR(data->network_namespace_ipvs);
 	FREE_CONST_PTR(data->instance_name);
 	FREE_CONST_PTR(data->process_name);
+	FREE_CONST_PTR(data->default_script_user_id.sup_grp);
 #ifdef _WITH_VRRP_
 	FREE_CONST_PTR(data->vrrp_process_name);
 #endif
@@ -600,7 +601,9 @@ open_dump_file(const char *default_file_name)
 static void 
 write_fifo_details(FILE *fp, const notify_fifo_t *fifo, const char *type)
 {
-	conf_write(fp, " %s notify fifo = %s, uid:gid %u:%u", type, fifo->name, fifo->uid, fifo->gid);
+	int i;
+
+	conf_write(fp, " %s notify fifo = %s, uid:gid %u:%u", type, fifo->name, fifo->user_id.uid, fifo->user_id.gid);
 
 	if (!fifo->script)
 		return;
@@ -610,14 +613,20 @@ write_fifo_details(FILE *fp, const notify_fifo_t *fifo, const char *type)
 			    type,
 			    fifo->script->path,
 			    cmd_str(fifo->script),
-			    fifo->script->uid,
-			    fifo->script->gid);
+			    fifo->script->user_id.uid,
+			    fifo->script->user_id.gid);
 	else
 		conf_write(fp, " %s notify fifo script = %s, uid:gid %u:%u",
 			    type,
 			    cmd_str(fifo->script),
-			    fifo->script->uid,
-			    fifo->script->gid);
+			    fifo->script->user_id.uid,
+			    fifo->script->user_id.gid);
+
+	if (fifo->script->user_id.num_sup_grp) {
+		conf_write(fp, "   Supplementary groups:");
+		for (i = 0; i < fifo->script->user_id.num_sup_grp; i++)
+			conf_write(fp, "     %u", fifo->script->user_id.sup_grp[i]);
+	}
 }
 
 void
@@ -632,8 +641,7 @@ dump_global_data(FILE *fp, data_t * data)
 	struct tm tm;
 #endif
 	unsigned val;
-	uid_t uid;
-	gid_t gid;
+	int i;
 
 	if (!data)
 		return;
@@ -664,6 +672,7 @@ dump_global_data(FILE *fp, data_t * data)
 		conf_write(fp, " BFD process name = %s", data->bfd_process_name);
 #endif
 	conf_write(fp, " %s symlinks in script paths", data->use_symlinks ? "Keep" : "Replace");
+	conf_write(fp, " %set supplementary groups for all scripts", data->set_supplementary_groups ? "S" : "Don't s");
 	if (data->router_id)
 		conf_write(fp, " Router ID = %s", data->router_id);
 	if (data->smtp_server.ss_family) {
@@ -716,14 +725,14 @@ dump_global_data(FILE *fp, data_t * data)
 	if (data->startup_script)
 		conf_write(fp, " Startup script = %s, uid:gid %u:%u, timeout %u",
 			    cmd_str(data->startup_script),
-			    data->startup_script->uid,
-			    data->startup_script->gid,
+			    data->startup_script->user_id.uid,
+			    data->startup_script->user_id.gid,
 			    data->startup_script_timeout);
 	if (data->shutdown_script)
 		conf_write(fp, " Shutdown script = %s, uid:gid %u:%u timeout %u",
 			    cmd_str(data->shutdown_script),
-			    data->shutdown_script->uid,
-			    data->shutdown_script->gid,
+			    data->shutdown_script->user_id.uid,
+			    data->shutdown_script->user_id.gid,
 			    data->shutdown_script_timeout);
 #ifdef _WITH_VRRP_
 	conf_write(fp, " Dynamic interfaces = %s", data->dynamic_interfaces ? "true" : "false");
@@ -921,8 +930,14 @@ dump_global_data(FILE *fp, data_t * data)
 	conf_write(fp, " DBus no interface name = %s", data->dbus_no_interface_name ? data->dbus_no_interface_name : dbus_no_interface_name);
 #endif
 	conf_write(fp, " Script security %s", script_security ? "enabled" : "disabled");
-	if (!get_default_script_user(&uid, &gid))
-		conf_write(fp, " Default script uid:gid %u:%u", uid, gid);
+	if (global_data->default_script_uid_set) {
+		conf_write(fp, " Default script uid:gid %u:%u", global_data->default_script_user_id.uid, global_data->default_script_user_id.gid);
+		if (global_data->default_script_user_id.sup_grp) {
+			conf_write(fp, "   Supplementary groups:");
+			for (i = 0; i < global_data->default_script_user_id.num_sup_grp; i++)
+				conf_write(fp, "     %u", global_data->default_script_user_id.sup_grp[i]);
+		}
+	}
 #ifdef _WITH_VRRP_
 	conf_write(fp, " vrrp_netlink_cmd_rcv_bufs = %u", global_data->vrrp_netlink_cmd_rcv_bufs);
 	conf_write(fp, " vrrp_netlink_cmd_rcv_bufs_force = %d", global_data->vrrp_netlink_cmd_rcv_bufs_force);

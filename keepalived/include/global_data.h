@@ -121,6 +121,11 @@ typedef struct _data {
 	notify_script_t			*shutdown_script;
 	unsigned			shutdown_script_timeout;
 	bool				use_symlinks;
+	bool				set_supplementary_groups;
+	user_id_t			default_script_user_id;		/* Default user/group for script execution */
+	bool				default_script_uid_set;		/* Have we got a default user OK? */
+	bool				default_user_fail;
+
 #ifndef _ONE_PROCESS_DEBUG_
 	const char			*reload_check_config;	/* log file name for validating new configuration before reloading */
 	const char			*reload_time_file;

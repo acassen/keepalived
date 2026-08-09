@@ -5564,8 +5564,9 @@ clear_diff_script(void)
 		if (nvscript) {
 			/* Check if the scripts are the same */
 			if (vscript->script.num_args != nvscript->script.num_args ||
-			    vscript->script.uid != nvscript->script.uid ||
-			    vscript->script.gid != nvscript->script.gid ||
+			    vscript->script.user_id.uid != nvscript->script.user_id.uid ||
+			    vscript->script.user_id.gid != nvscript->script.user_id.gid ||
+			    vscript->script.user_id.num_sup_grp != nvscript->script.user_id.num_sup_grp ||
 			    !vscript->script.path != !nvscript->script.path ||
 			    (vscript->script.path &&
 			     strcmp(vscript->script.path, nvscript->script.path)))
