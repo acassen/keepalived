@@ -709,7 +709,6 @@ dump_global_data(FILE *fp, data_t * data)
 	if (data->reload_file)
 		conf_write(fp, " Reload_file = %s", data->reload_file);
 #endif
-	conf_write(fp, " keep script symlinks = %s", data->use_symlinks ? "true" : "false");
 	if (data->config_directory)
 		conf_write(fp, " config save directory = %s", data->config_directory);
 	if (data->data_use_instance)
