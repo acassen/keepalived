@@ -56,36 +56,30 @@ typedef enum {
 	SCRIPT_INIT_STATE_FAILED,
 } script_init_state_t;
 
+typedef struct _user_id {
+	uid_t	uid;		/* uid of user to execute script */
+	gid_t	gid;		/* gid of group to execute script */
+	int num_sup_grp;	/* number of supplementary groups */
+	const gid_t *sup_grp;	/* array of supplementary groups */
+} user_id_t;
+
 /* notify_script details */
 typedef struct _notify_script {
 	const char **args;	/* Script args - should be "char const * const *" */
 	int	num_args;	/* Used for notify script when adding last 4 parameters */
 	const char *path;	/* The path to the executable if different from args[0] */
 	int	flags;
-	uid_t	uid;		/* uid of user to execute script */
-	gid_t	gid;		/* gid of group to execute script */
+	user_id_t user_id;	/* uid, gid, sup gids */
 } notify_script_t;
 
 /* notify_fifo details */
 typedef struct _notify_fifo {
 	const char *name;
 	int	fd;
-	uid_t	uid;		/* uid of user of fifo if create */
-	gid_t	gid;		/* gid of group of fifo */
+	user_id_t user_id;	/* uid, gid, sup gids */
 	bool	created_fifo;	/* We created the FIFO */
 	notify_script_t *script; /* Script to run to process FIFO */
 } notify_fifo_t;
-
-static inline void
-free_notify_script(notify_script_t **script)
-{
-	if (!*script)
-		return;
-	FREE_PTR((*script)->args);
-	FREE_CONST_PTR((*script)->path);
-	FREE_PTR(*script);
-	*script = NULL;
-}
 
 /* Script security enabled */
 extern bool script_security;
@@ -102,10 +96,9 @@ extern void child_killed_thread(thread_ref_t);
 extern void script_killall(thread_master_t *, int, bool);
 extern unsigned check_script_secure(notify_script_t *, magic_t);
 extern unsigned check_notify_script_secure(notify_script_t **, magic_t);
-extern void reset_default_script_user(void);
 extern bool set_default_script_user(const char *, const char *);
-extern bool get_default_script_user(uid_t *, gid_t *);
-extern bool set_script_uid_gid(const vector_t *, unsigned, uid_t *, gid_t *);
+extern bool get_default_script_user(user_id_t *);
+extern bool set_script_uid_gid(const vector_t *, unsigned, user_id_t *);
 extern void set_script_params_array(const vector_t *, notify_script_t *, unsigned);
 extern notify_script_t* notify_script_init(int, const char *);
 extern void add_script_param(notify_script_t *, const char *);
@@ -116,5 +109,15 @@ extern void set_our_uid_gid(void);
 #ifdef THREAD_DUMP
 extern void register_notify_addresses(void);
 #endif
+
+static inline void
+free_notify_script(notify_script_t **script)
+{
+	if (!*script)
+		return;
+	notify_free_script(*script);
+	FREE_PTR(*script);
+	*script = NULL;
+}
 
 #endif

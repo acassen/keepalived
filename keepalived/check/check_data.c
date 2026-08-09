@@ -472,12 +472,19 @@ dump_tracking_rs(FILE *fp, const void *data)
 static void
 dump_notify_vs_rs_script(FILE *fp, const notify_script_t *script, const char *type, const char *state)
 {
+	int i;
+
 	if (script->path)
 		conf_write(fp, "   %s %s notify script = %s, params = %s, uid:gid %u:%u", type, state,
-			    script->path, cmd_str(script), script->uid, script->gid);
+			    script->path, cmd_str(script), script->user_id.uid, script->user_id.gid);
 	else
 		conf_write(fp, "   %s %s notify script = %s, uid:gid %u:%u", type, state,
-			    cmd_str(script), script->uid, script->gid);
+			    cmd_str(script), script->user_id.uid, script->user_id.gid);
+	if (script->user_id.num_sup_grp) {
+		conf_write(fp, "     Supplementary groups:");
+		for (i = 0; i < script->user_id.num_sup_grp; i++)
+			conf_write(fp, "       %u", script->user_id.sup_grp[i]);
+	}
 }
 
 static void

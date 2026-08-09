@@ -57,7 +57,6 @@
 #include "list_head.h"
 #include "rttables.h"
 #include "scheduler.h"
-#include "notify.h"
 #include "bitops.h"
 #include "utils.h"
 #include "process.h"
@@ -3396,8 +3395,6 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 
 	free_keywords(keywords);
 	free_parser_data();
-
-	notify_resource_release();
 }
 
 int

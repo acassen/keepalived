@@ -1814,7 +1814,7 @@ vrrp_vscript_fall_handler(const vector_t *strvec)
 static void
 vrrp_vscript_user_handler(const vector_t *strvec)
 {
-	if (set_script_uid_gid(strvec, 1, &current_vscr->script.uid, &current_vscr->script.gid)) {
+	if (set_script_uid_gid(strvec, 1, &current_vscr->script.user_id)) {
 		report_config_error(CONFIG_GENERAL_ERROR, "Unable to set uid/gid for script %s"
 							, cmd_str(&current_vscr->script));
 		remove_script = true;
@@ -1833,7 +1833,7 @@ vrrp_vscript_end_handler(void)
 		remove_script = true;
 	}
 	else if (!remove_script && !script_user_set) {
-		if (get_default_script_user(&current_vscr->script.uid, &current_vscr->script.gid)) {
+		if (get_default_script_user(&current_vscr->script.user_id)) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Unable to set default user for vrrp"
 								  " script %s - removing"
 								, current_vscr->sname);

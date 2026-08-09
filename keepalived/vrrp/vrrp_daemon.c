@@ -528,6 +528,7 @@ start_vrrp(data_t *prev_global_data)
 	}
 
 	init_data(conf_file, vrrp_init_keywords, false);
+	notify_resource_release();
 
 	/* Update process name if necessary */
 	if ((!prev_global_data && 		// startup

@@ -325,6 +325,7 @@ start_check(data_t *prev_global_data)
 	}
 
 	init_data(conf_file, check_init_keywords, false);
+	notify_resource_release();
 
 	if (reload)
 		init_global_data(global_data, prev_global_data, true);
