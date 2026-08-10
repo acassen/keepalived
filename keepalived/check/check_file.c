@@ -142,34 +142,42 @@ install_file_check_keyword(void)
 
 static const checker_funcs_t file_checker_funcs = { CHECKER_FILE, free_file_check, dump_file_check, NULL, NULL };
 
+static void
+add_rs_list_to_track_files(virtual_server_t *vs, list_head_t *l)
+{
+	real_server_t *rs;
+	tracked_file_monitor_t *tfl;
+
+	list_for_each_entry(rs, l, e_list) {
+		current_rs = rs;
+		list_for_each_entry(tfl, &rs->track_files, e_list) {
+			/* queue new checker - we don't have a compare function since we don't
+			 * update file checkers that way on a reload. */
+			queue_checker(&file_checker_funcs, NULL, tfl->file, NULL, false);
+			current_checker->vs = vs;
+			current_checker->rs = rs;
+
+			/* There is no concept of the checker running, but we will have
+			 * checked the file, so mark it as run. */
+			current_checker->has_run = true;
+
+			/* Clear Alpha mode - we know the state of the checker immediately */
+			current_checker->alpha = false;
+
+			add_obj_to_track_file(current_checker, tfl, FMT_RS(rs, vs), dump_tracking_rs);
+		}
+	}
+}
+
 void
 add_rs_to_track_files(void)
 {
 	virtual_server_t *vs;
-	real_server_t *rs;
-	tracked_file_monitor_t *tfl;
 
 	list_for_each_entry(vs, &check_data->vs, e_list) {
 		current_vs = vs;
-		list_for_each_entry(rs, &vs->rs, e_list) {
-			current_rs = rs;
-			list_for_each_entry(tfl, &rs->track_files, e_list) {
-				/* queue new checker - we don't have a compare function since we don't
-				 * update file checkers that way on a reload. */
-				queue_checker(&file_checker_funcs, NULL, tfl->file, NULL, false);
-				current_checker->vs = vs;
-				current_checker->rs = rs;
-
-				/* There is no concept of the checker running, but we will have
-				 * checked the file, so mark it as run. */
-				current_checker->has_run = true;
-
-				/* Clear Alpha mode - we know the state of the checker immediately */
-				current_checker->alpha = false;
-
-				add_obj_to_track_file(current_checker, tfl, FMT_RS(rs, vs), dump_tracking_rs);
-			}
-		}
+		add_rs_list_to_track_files(vs, &vs->rs);
+		add_rs_list_to_track_files(vs, &vs->backup_rs);
 	}
 	current_vs = NULL;
 	current_rs = NULL;

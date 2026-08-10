@@ -224,10 +224,9 @@ install_misc_check_keyword(void)
 }
 
 /* Check that the scripts are secure */
-unsigned
-check_misc_script_security(magic_t magic)
+static unsigned
+check_rs_list_misc_script_security(list_head_t *l, magic_t magic)
 {
-	virtual_server_t *vs;
 	real_server_t *rs;
 	checker_t *checker, *checker_tmp;
 	misc_checker_t *misc_script;
@@ -235,35 +234,47 @@ check_misc_script_security(magic_t magic)
 	unsigned flags;
 	bool insecure;
 
-	list_for_each_entry(vs, &check_data->vs, e_list) {
-		list_for_each_entry(rs, &vs->rs, e_list) {
-			list_for_each_entry_safe(checker, checker_tmp, &rs->checkers_list, rs_list) {
-				if (checker->launch != misc_check_thread)
-					continue;
+	list_for_each_entry(rs, l, e_list) {
+		list_for_each_entry_safe(checker, checker_tmp, &rs->checkers_list, rs_list) {
+			if (checker->launch != misc_check_thread)
+				continue;
 
-				misc_script = CHECKER_ARG(checker);
+			misc_script = CHECKER_ARG(checker);
 
-				script_flags |= (flags = check_script_secure(&misc_script->script, magic));
+			script_flags |= (flags = check_script_secure(&misc_script->script, magic));
 
-				/* Mark not to run if needs inhibiting */
-				insecure = false;
-				if (flags & SC_INHIBIT) {
-					log_message(LOG_INFO, "Disabling misc script %s due to insecure", cmd_str(&misc_script->script));
-					insecure = true;
-				}
-				else if (flags & SC_NOTFOUND) {
-					log_message(LOG_INFO, "Disabling misc script %s since not found/accessible", cmd_str(&misc_script->script));
-					insecure = true;
-				}
-				else if (!(flags & (SC_EXECUTABLE | SC_SYSTEM)))
-					insecure = true;
+			/* Mark not to run if needs inhibiting */
+			insecure = false;
+			if (flags & SC_INHIBIT) {
+				log_message(LOG_INFO, "Disabling misc script %s due to insecure", cmd_str(&misc_script->script));
+				insecure = true;
+			}
+			else if (flags & SC_NOTFOUND) {
+				log_message(LOG_INFO, "Disabling misc script %s since not found/accessible", cmd_str(&misc_script->script));
+				insecure = true;
+			}
+			else if (!(flags & (SC_EXECUTABLE | SC_SYSTEM)))
+				insecure = true;
 
-				if (insecure) {
-					/* Remove the script */
-					free_checker(checker);
-				}
+			if (insecure) {
+				/* Remove the script */
+				free_checker(checker);
 			}
 		}
+	}
+
+	return script_flags;
+}
+
+unsigned
+check_misc_script_security(magic_t magic)
+{
+	virtual_server_t *vs;
+	unsigned script_flags = 0;
+
+	list_for_each_entry(vs, &check_data->vs, e_list) {
+		script_flags |= check_rs_list_misc_script_security(&vs->rs, magic);
+		script_flags |= check_rs_list_misc_script_security(&vs->backup_rs, magic);
 	}
 
 	return script_flags;

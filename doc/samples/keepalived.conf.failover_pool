@@ -1,0 +1,70 @@
+! Sample configuration for a failover (backup) pool.
+! The virtual server below has a primary pool of three
+! real servers and a failover pool of two backup real
+! servers. While at least two primary servers (more than
+! 50%) are passing their health checks, the primary pool
+! serves the virtual server and the backup servers, while
+! continuously health checked, receive no traffic.
+!
+! Once at least 50% of the primary servers (i.e. two of
+! the three) have failed their health checks, the alive
+! primary servers are removed from the LVS topology and
+! replaced with the backup servers that are passing their
+! checks. The failover_up script is executed. As soon as
+! the proportion of failed primary servers drops below
+! 50% again, the primary pool is reinstated and the
+! failover_down script is executed.
+!
+! failover_threshold defaults to 100, meaning the switch
+! only happens when every primary server has failed.
+!
+! The sorry server remains the last resort: it is only
+! added if the failover pool is not active - either the
+! threshold has not been reached, or every backup server
+! is failing its health checks too.
+!
+! Note that quorum/hysteresis and quorum_up/quorum_down
+! always refer to the primary pool only.
+
+virtual_server 10.0.1.1 80 {
+  delay_loop 6
+  lb_algo wrr
+  lb_kind NAT
+  protocol TCP
+  failover_threshold 50
+  failover_up /usr/local/sbin/failover-up.sh
+  failover_down /usr/local/sbin/failover-down.sh
+  sorry_server 192.168.200.200 80
+
+  real_server 10.0.0.1 80 {
+    weight 1
+    TCP_CHECK {
+      connect_timeout 3
+    }
+  }
+  real_server 10.0.0.2 80 {
+    weight 1
+    TCP_CHECK {
+      connect_timeout 3
+    }
+  }
+  real_server 10.0.0.3 80 {
+    weight 1
+    TCP_CHECK {
+      connect_timeout 3
+    }
+  }
+
+  backup_real_server 10.0.10.1 80 {
+    weight 1
+    TCP_CHECK {
+      connect_timeout 3
+    }
+  }
+  backup_real_server 10.0.10.2 80 {
+    weight 1
+    TCP_CHECK {
+      connect_timeout 3
+    }
+  }
+}

@@ -111,6 +111,7 @@ typedef struct _real_server {
 	unsigned			num_failed_checkers;/* Number of failed checkers */
 	bool				set;		/* in the IPVS table */
 	bool				reloaded;	/* active state was copied from old config while reloading */
+	bool				is_backup;	/* member of the failover (backup) pool */
 	const char			*virtualhost;	/* Default virtualhost for HTTP and SSL health checkers */
 #if defined(_WITH_SNMP_CHECKER_)
 	/* Statistics */
@@ -219,6 +220,12 @@ typedef struct _virtual_server {
 	notify_script_t			*notify_quorum_down;	/* A hook to call when the VS loses quorum. */
 	unsigned			quorum;		/* Minimum live RSs to consider VS up. */
 	unsigned			hysteresis;	/* up/down events "lag" WRT quorum. */
+	list_head_t			backup_rs;	/* real_server_t - failover (backup) pool */
+	unsigned			failover_threshold; /* % of primary RSs failed before
+							 * switching to the failover pool. */
+	bool				failover_state_up; /* Set if the failover pool is in the IPVS table. */
+	notify_script_t			*notify_failover_up;	/* A hook to call when switching to the failover pool. */
+	notify_script_t			*notify_failover_down;	/* A hook to call when reverting to the primary pool. */
 	int				smtp_alert;	/* Send email on status change */
 	bool				quorum_state_up; /* Reflects result of the last transition done. */
 	bool				reloaded;	/* quorum_state was copied from old config while reloading */

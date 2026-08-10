@@ -49,6 +49,19 @@ rs_iseq(const real_server_t *rs_a, const real_server_t *rs_b)
 	return sockstorage_equal(&rs_a->addr, &rs_b->addr);
 }
 
+/* A real server may only be in the IPVS table while the pool it belongs
+ * to holds the virtual server. The primary pool is suppressed while the
+ * failover pool is active or the sorry server is in place. */
+static inline bool __attribute((pure))
+rs_pool_selectable(const virtual_server_t *vs, const real_server_t *rs)
+{
+	if (rs->is_backup)
+		return vs->failover_state_up;
+
+	return !vs->failover_state_up &&
+	       (vs->quorum_state_up || !vs->s_svr || !ISALIVE(vs->s_svr));
+}
+
 /* prototypes */
 extern void update_svr_wgt(int64_t, virtual_server_t *, real_server_t *, bool);
 extern void set_checker_state(checker_t *, bool);

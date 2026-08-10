@@ -494,7 +494,7 @@ dump_rs(FILE *fp, const real_server_t *rs)
 	cref_tracked_bfd_t *tbfd;
 #endif
 
-	conf_write(fp, "   ------< Real server >------");
+	conf_write(fp, "   ------< %s server >------", rs->is_backup ? "Backup real" : "Real");
 	conf_write(fp, "   RIP = %s, RPORT = %d, WEIGHT = %d EFF WEIGHT = %" PRIi64
 			    , inet_sockaddrtos(&rs->addr)
 			    , ntohs(inet_sockaddrport(&rs->addr))
@@ -637,8 +637,11 @@ free_vs(virtual_server_t *vs)
 #endif
 	FREE_PTR(vs->s_svr);
 	free_rs_list(&vs->rs);
+	free_rs_list(&vs->backup_rs);
 	free_notify_script(&vs->notify_quorum_up);
 	free_notify_script(&vs->notify_quorum_down);
+	free_notify_script(&vs->notify_failover_up);
+	free_notify_script(&vs->notify_failover_down);
 	FREE(vs);
 }
 
@@ -734,6 +737,12 @@ dump_vs(FILE *fp, const virtual_server_t *vs)
 		dump_notify_vs_rs_script(fp, vs->notify_quorum_up, "Quorum", "up");
 	if (vs->notify_quorum_down)
 		dump_notify_vs_rs_script(fp, vs->notify_quorum_down, "Quorum", "down");
+	if (!list_empty(&vs->backup_rs))
+		conf_write(fp, "   failover threshold = %u%%", vs->failover_threshold);
+	if (vs->notify_failover_up)
+		dump_notify_vs_rs_script(fp, vs->notify_failover_up, "Failover", "up");
+	if (vs->notify_failover_down)
+		dump_notify_vs_rs_script(fp, vs->notify_failover_down, "Failover", "down");
 	if (vs->ha_suspend)
 		conf_write(fp, "   Using HA suspend");
 	conf_write(fp, "   Using smtp notification = %s", vs->smtp_alert ? "yes" : "no");
@@ -759,9 +768,12 @@ dump_vs(FILE *fp, const virtual_server_t *vs)
 	}
 	conf_write(fp, "   VS alive = %d", vs->alive);
 	conf_write(fp, "   quorum_state_up = %d", vs->quorum_state_up);
+	if (!list_empty(&vs->backup_rs))
+		conf_write(fp, "   failover_state_up = %d", vs->failover_state_up);
 	conf_write(fp, "   reloaded = %d", vs->reloaded);
 
 	dump_rs_list(fp, &vs->rs);
+	dump_rs_list(fp, &vs->backup_rs);
 }
 
 static void
@@ -829,6 +841,10 @@ alloc_vs(const char *param1, const char *param2)
 	new->quorum = 1;
 	new->hysteresis = 0;
 	new->quorum_state_up = true;
+	new->failover_threshold = 100;
+	new->failover_state_up = false;
+	new->notify_failover_up = NULL;
+	new->notify_failover_down = NULL;
 	new->flags = 0;
 	new->forwarding_method = IP_VS_CONN_F_FWD_MASK;		/* So we can detect if it has been set */
 	new->connection_to = 5 * TIMER_HZ;
@@ -840,6 +856,7 @@ alloc_vs(const char *param1, const char *param2)
 	new->smtp_alert = -1;
 	new->persistence_granularity = 0xffffffff;
 	INIT_LIST_HEAD(&new->rs);
+	INIT_LIST_HEAD(&new->backup_rs);
 
 	return new;
 }
@@ -1058,6 +1075,11 @@ check_check_script_security(void)
 			script_flags |= check_notify_script_secure(&rs->notify_up, magic);
 			script_flags |= check_notify_script_secure(&rs->notify_down, magic);
 		}
+
+		list_for_each_entry(rs, &vs->backup_rs, e_list) {
+			script_flags |= check_notify_script_secure(&rs->notify_up, magic);
+			script_flags |= check_notify_script_secure(&rs->notify_down, magic);
+		}
 	}
 
 	if (global_data->notify_fifo.script)
@@ -1074,13 +1096,167 @@ check_check_script_security(void)
 		ka_magic_close(magic);
 }
 
+/* Set the forwarding method and take default values from the virtual server */
+static void
+set_rs_defaults(virtual_server_t *vs, real_server_t *rs)
+{
+	/* Set the forwarding method if necessary */
+	if (rs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
+		if (vs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: no forwarding method set, setting default NAT", FMT_VS(vs));
+			vs->forwarding_method = IP_VS_CONN_F_MASQ;
+		}
+		rs->forwarding_method = vs->forwarding_method;
+#ifdef _HAVE_IPVS_TUN_TYPE_
+		rs->tun_type = vs->tun_type;
+		rs->tun_port = vs->tun_port;
+#ifdef _HAVE_IPVS_TUN_CSUM_
+		rs->tun_flags = vs->tun_flags;
+#endif
+#endif
+	}
+
+	/* Take default values from virtual server */
+	if (rs->alpha == -1)
+		rs->alpha = vs->alpha;
+	if (rs->inhibit == -1)
+		rs->inhibit = vs->inhibit;
+	if (rs->retry == UINT_MAX)
+		rs->retry = vs->retry;
+	if (rs->connection_to == UINT_MAX)
+		rs->connection_to = vs->connection_to;
+	if (rs->delay_loop == ULONG_MAX)
+		rs->delay_loop = vs->delay_loop;
+	if (rs->warmup == ULONG_MAX)
+		rs->warmup = vs->warmup;
+	if (rs->delay_before_retry == ULONG_MAX)
+		rs->delay_before_retry = vs->delay_before_retry;
+	if (rs->effective_weight == INT64_MAX) {
+		rs->effective_weight = vs->weight;
+		rs->iweight = rs->effective_weight;
+	}
+
+	if (rs->smtp_alert == -1) {
+		if (global_data->smtp_alert_checker != -1)
+			rs->smtp_alert = global_data->smtp_alert_checker;
+		else if (global_data->smtp_alert != -1)
+			rs->smtp_alert = global_data->smtp_alert;
+		else {
+			/* This is inconsistent with the defaults for other smtp_alerts
+			 * in order to maintain backwards compatibility */
+			rs->smtp_alert = true;
+		}
+	}
+}
+
+static void
+check_fwmark_rs_ports(virtual_server_t *vs, list_head_t *l)
+{
+	real_server_t *rs;
+
+	list_for_each_entry(rs, l, e_list) {
+		if (rs->forwarding_method == IP_VS_CONN_F_MASQ)
+			continue;
+		if (inet_sockaddrport(&rs->addr))
+			report_config_error(CONFIG_GENERAL_ERROR, "WARNING - fwmark virtual server %s, real server %s has port specified - port will be ignored", FMT_VS(vs), FMT_RS(rs, vs));
+	}
+}
+
+static void
+check_vsge_rs_ports(virtual_server_t *vs, const virtual_server_group_entry_t *vsge, list_head_t *l)
+{
+	real_server_t *rs;
+
+	list_for_each_entry(rs, l, e_list) {
+		if (rs->forwarding_method == IP_VS_CONN_F_MASQ)
+			continue;
+		if (inet_sockaddrport(&rs->addr) &&
+		    inet_sockaddrport(&vsge->addr) != inet_sockaddrport(&rs->addr))
+			report_config_error(CONFIG_GENERAL_ERROR, "virtual server %s:[%s] and real server %s ports don't match", FMT_VS(vs), format_vsge(vsge), FMT_RS(rs, vs));
+	}
+}
+
+static void
+set_rs_ports(virtual_server_t *vs, list_head_t *l)
+{
+	real_server_t *rs;
+
+	list_for_each_entry(rs, l, e_list) {
+		if (rs->forwarding_method == IP_VS_CONN_F_MASQ) {
+			if (!vs->vfwmark && !inet_sockaddrport(&rs->addr))
+				inet_set_sockaddrport(&rs->addr, inet_sockaddrport(&vs->addr));
+			continue;
+		}
+
+		if (vs->vfwmark) {
+			if (inet_sockaddrport(&rs->addr)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "WARNING - fwmark virtual server %s, real server %s has port specified - clearing", FMT_VS(vs), FMT_RS(rs, vs));
+				inet_set_sockaddrport(&rs->addr, 0);
+			}
+		} else {
+			if (!inet_sockaddrport(&rs->addr))
+				inet_set_sockaddrport(&rs->addr, inet_sockaddrport(&vs->addr));
+			else if (inet_sockaddrport(&vs->addr) != inet_sockaddrport(&rs->addr)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "WARNING - virtual server %s and real server %s ports don't match - resetting", FMT_VS(vs), FMT_RS(rs, vs));
+				inet_set_sockaddrport(&rs->addr, inet_sockaddrport(&vs->addr));
+			}
+		}
+	}
+}
+
+static void
+set_rs_checker_defaults(real_server_t *rs)
+{
+	checker_t *checker;
+
+	list_for_each_entry(checker, &rs->checkers_list, rs_list) {
+		/* Ensure any checkers that don't have ha_suspend set are enabled */
+		if (!checker->vs->ha_suspend)
+			checker->enabled = true;
+
+		/* Take default values from real server */
+		if (checker->alpha == -1)
+			checker->alpha = checker->rs->alpha;
+		if (checker->launch) {
+			if (checker->retry == UINT_MAX)
+				checker->retry = checker->rs->retry != UINT_MAX ? checker->rs->retry : checker->default_retry;
+			if (checker->co && checker->co->connection_to == UINT_MAX)
+				checker->co->connection_to = checker->rs->connection_to;
+			if (checker->delay_loop == ULONG_MAX)
+				checker->delay_loop = checker->rs->delay_loop;
+			if (checker->warmup == ULONG_MAX)
+				checker->warmup = checker->rs->warmup != ULONG_MAX ? checker->rs->warmup : checker->delay_loop;
+			if (checker->delay_before_retry == ULONG_MAX) {
+				checker->delay_before_retry =
+					checker->rs->delay_before_retry != ULONG_MAX ?
+						checker->rs->delay_before_retry :
+					checker->default_delay_before_retry ?
+						checker->default_delay_before_retry :
+						checker->delay_loop;
+			}
+		}
+
+		/* In Alpha mode also mark any checker that hasn't run as failed.
+		 * Reloading is handled in migrate_checkers() */
+		if (!reload) {
+			if (checker->alpha) {
+				set_checker_state(checker, false);
+				UNSET_ALIVE(checker->rs);
+			}
+
+			/* For non alpha mode, one failure is enough initially.
+			 * For alpha mode, log failure after one failure */
+			checker->retry_it = checker->retry;
+		}
+	}
+}
+
 bool
 validate_check_config(void)
 {
 	virtual_server_t *vs, *vs_tmp;
 	virtual_server_group_entry_t *vsge;
 	real_server_t *rs, *rs_tmp, *rs1;
-	checker_t *checker;
 	unsigned weight_sum;
 	bool rs_removed;
 
@@ -1182,53 +1358,7 @@ validate_check_config(void)
 			if (rs_removed)
 				continue;
 
-			/* Set the forwarding method if necessary */
-			if (rs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
-				if (vs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
-					report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: no forwarding method set, setting default NAT", FMT_VS(vs));
-					vs->forwarding_method = IP_VS_CONN_F_MASQ;
-				}
-				rs->forwarding_method = vs->forwarding_method;
-#ifdef _HAVE_IPVS_TUN_TYPE_
-				rs->tun_type = vs->tun_type;
-				rs->tun_port = vs->tun_port;
-#ifdef _HAVE_IPVS_TUN_CSUM_
-				rs->tun_flags = vs->tun_flags;
-#endif
-#endif
-			}
-
-			/* Take default values from virtual server */
-			if (rs->alpha == -1)
-				rs->alpha = vs->alpha;
-			if (rs->inhibit == -1)
-				rs->inhibit = vs->inhibit;
-			if (rs->retry == UINT_MAX)
-				rs->retry = vs->retry;
-			if (rs->connection_to == UINT_MAX)
-				rs->connection_to = vs->connection_to;
-			if (rs->delay_loop == ULONG_MAX)
-				rs->delay_loop = vs->delay_loop;
-			if (rs->warmup == ULONG_MAX)
-				rs->warmup = vs->warmup;
-			if (rs->delay_before_retry == ULONG_MAX)
-				rs->delay_before_retry = vs->delay_before_retry;
-			if (rs->effective_weight == INT64_MAX) {
-				rs->effective_weight = vs->weight;
-				rs->iweight = rs->effective_weight;
-			}
-
-			if (rs->smtp_alert == -1) {
-				if (global_data->smtp_alert_checker != -1)
-					rs->smtp_alert = global_data->smtp_alert_checker;
-				else if (global_data->smtp_alert != -1)
-					rs->smtp_alert = global_data->smtp_alert;
-				else {
-					/* This is inconsistent with the defaults for other smtp_alerts
-					 * in order to maintain backwards compatibility */
-					rs->smtp_alert = true;
-				}
-			}
+			set_rs_defaults(vs, rs);
 			weight_sum += rs->effective_weight;
 
 			/* Check if the real server is the same as the sorry server,
@@ -1242,6 +1372,45 @@ validate_check_config(void)
 
 				vs->s_svr_duplicates_rs = true;
 			}
+		}
+
+		/* Spin through the failover (backup) pool */
+		list_for_each_entry_safe(rs, rs_tmp, &vs->backup_rs, e_list) {
+			/* Check the backup server is not a duplicate of any backup server earlier in the list */
+			rs_removed = false;
+			list_for_each_entry(rs1, &vs->backup_rs, e_list) {
+				if (rs == rs1)
+					break;
+				if (rs_iseq(rs, rs1)) {
+					report_config_error(CONFIG_GENERAL_ERROR, "VS %s: backup real server %s is duplicated - removing second rs", FMT_VS(vs), FMT_RS(rs, vs));
+					free_rs(rs);
+					rs_removed = true;
+					break;
+				}
+			}
+			if (rs_removed)
+				continue;
+
+			/* A backup server duplicating a primary real server cannot be
+			 * added and removed independently of it - remove it. */
+			list_for_each_entry(rs1, &vs->rs, e_list) {
+				if (rs_iseq(rs, rs1)) {
+					report_config_error(CONFIG_GENERAL_ERROR, "VS %s: backup real server %s duplicates a real server - removing it", FMT_VS(vs), FMT_RS(rs, vs));
+					free_rs(rs);
+					rs_removed = true;
+					break;
+				}
+			}
+			if (rs_removed)
+				continue;
+
+			if (vs->s_svr && rs_iseq(vs->s_svr, rs)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "VS %s: backup real server %s duplicates the sorry server - removing it", FMT_VS(vs), FMT_RS(rs, vs));
+				free_rs(rs);
+				continue;
+			}
+
+			set_rs_defaults(vs, rs);
 		}
 
 		if (vs->s_svr && vs->s_svr->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
@@ -1278,24 +1447,15 @@ validate_check_config(void)
 		 * Also if a fwmark is used, ensure that unless NAT, the real server port is 0. */
 		if (vs->vsg) {
 			if (!list_empty(&vs->vsg->vfwmark)) {
-				list_for_each_entry(rs, &vs->rs, e_list) {
-					if (rs->forwarding_method == IP_VS_CONN_F_MASQ)
-						continue;
-					if (inet_sockaddrport(&rs->addr))
-						report_config_error(CONFIG_GENERAL_ERROR, "WARNING - fwmark virtual server %s, real server %s has port specified - port will be ignored", FMT_VS(vs), FMT_RS(rs, vs));
-				}
+				check_fwmark_rs_ports(vs, &vs->rs);
+				check_fwmark_rs_ports(vs, &vs->backup_rs);
 				if (vs->s_svr && vs->s_svr->forwarding_method != IP_VS_CONN_F_MASQ &&
 				    inet_sockaddrport(&vs->s_svr->addr))
 					report_config_error(CONFIG_GENERAL_ERROR, "WARNING - fwmark virtual server %s, sorry server has port specified - port will be ignored", FMT_VS(vs));
 			}
 			list_for_each_entry(vsge, &vs->vsg->addr_range, e_list) {
-				list_for_each_entry(rs, &vs->rs, e_list) {
-					if (rs->forwarding_method == IP_VS_CONN_F_MASQ)
-						continue;
-					if (inet_sockaddrport(&rs->addr) &&
-					    inet_sockaddrport(&vsge->addr) != inet_sockaddrport(&rs->addr))
-						report_config_error(CONFIG_GENERAL_ERROR, "virtual server %s:[%s] and real server %s ports don't match", FMT_VS(vs), format_vsge(vsge), FMT_RS(rs, vs));
-				}
+				check_vsge_rs_ports(vs, vsge, &vs->rs);
+				check_vsge_rs_ports(vs, vsge, &vs->backup_rs);
 				if (vs->s_svr && vs->s_svr->forwarding_method != IP_VS_CONN_F_MASQ &&
 				    inet_sockaddrport(&vs->s_svr->addr) &&
 				    inet_sockaddrport(&vsge->addr) != inet_sockaddrport(&vs->s_svr->addr))
@@ -1303,27 +1463,8 @@ validate_check_config(void)
 			}
 		} else {
 			/* We can also correct errors here */
-			list_for_each_entry(rs, &vs->rs, e_list) {
-				if (rs->forwarding_method == IP_VS_CONN_F_MASQ) {
-					if (!vs->vfwmark && !inet_sockaddrport(&rs->addr))
-						inet_set_sockaddrport(&rs->addr, inet_sockaddrport(&vs->addr));
-					continue;
-				}
-
-				if (vs->vfwmark) {
-					if (inet_sockaddrport(&rs->addr)) {
-						report_config_error(CONFIG_GENERAL_ERROR, "WARNING - fwmark virtual server %s, real server %s has port specified - clearing", FMT_VS(vs), FMT_RS(rs, vs));
-						inet_set_sockaddrport(&rs->addr, 0);
-					}
-				} else {
-					if (!inet_sockaddrport(&rs->addr))
-						inet_set_sockaddrport(&rs->addr, inet_sockaddrport(&vs->addr));
-					else if (inet_sockaddrport(&vs->addr) != inet_sockaddrport(&rs->addr)) {
-						report_config_error(CONFIG_GENERAL_ERROR, "WARNING - virtual server %s and real server %s ports don't match - resetting", FMT_VS(vs), FMT_RS(rs, vs));
-						inet_set_sockaddrport(&rs->addr, inet_sockaddrport(&vs->addr));
-					}
-				}
-			}
+			set_rs_ports(vs, &vs->rs);
+			set_rs_ports(vs, &vs->backup_rs);
 
 			/* Check any sorry server */
 			if (vs->s_svr && vs->s_svr->forwarding_method != IP_VS_CONN_F_MASQ) {
@@ -1345,48 +1486,10 @@ validate_check_config(void)
 	}
 
 	list_for_each_entry(vs, &check_data->vs, e_list) {
-		list_for_each_entry(rs, &vs->rs, e_list) {
-			list_for_each_entry(checker, &rs->checkers_list, rs_list) {
-				/* Ensure any checkers that don't have ha_suspend set are enabled */
-				if (!checker->vs->ha_suspend)
-					checker->enabled = true;
-
-				/* Take default values from real server */
-				if (checker->alpha == -1)
-					checker->alpha = checker->rs->alpha;
-				if (checker->launch) {
-					if (checker->retry == UINT_MAX)
-						checker->retry = checker->rs->retry != UINT_MAX ? checker->rs->retry : checker->default_retry;
-					if (checker->co && checker->co->connection_to == UINT_MAX)
-						checker->co->connection_to = checker->rs->connection_to;
-					if (checker->delay_loop == ULONG_MAX)
-						checker->delay_loop = checker->rs->delay_loop;
-					if (checker->warmup == ULONG_MAX)
-						checker->warmup = checker->rs->warmup != ULONG_MAX ? checker->rs->warmup : checker->delay_loop;
-					if (checker->delay_before_retry == ULONG_MAX) {
-						checker->delay_before_retry =
-							checker->rs->delay_before_retry != ULONG_MAX ?
-								checker->rs->delay_before_retry :
-							checker->default_delay_before_retry ?
-								checker->default_delay_before_retry :
-								checker->delay_loop;
-					}
-				}
-
-				/* In Alpha mode also mark any checker that hasn't run as failed.
-				 * Reloading is handled in migrate_checkers() */
-				if (!reload) {
-					if (checker->alpha) {
-						set_checker_state(checker, false);
-						UNSET_ALIVE(checker->rs);
-					}
-
-					/* For non alpha mode, one failure is enough initially.
-					 * For alpha mode, log failure after one failure */
-					checker->retry_it = checker->retry;
-				}
-			}
-		}
+		list_for_each_entry(rs, &vs->rs, e_list)
+			set_rs_checker_defaults(rs);
+		list_for_each_entry(rs, &vs->backup_rs, e_list)
+			set_rs_checker_defaults(rs);
 	}
 
 	/* Add the FIFO name to the end of the parameter list */

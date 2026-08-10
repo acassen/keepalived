@@ -173,6 +173,22 @@ vs_end_handler(void)
 		return;
 	}
 
+	/* The failover pool options are meaningless without any backup real servers */
+	if (list_empty(&current_vs->backup_rs)) {
+		if (current_vs->failover_threshold != 100) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: failover_threshold specified without backup_real_servers - ignoring", FMT_VS(current_vs));
+			current_vs->failover_threshold = 100;
+		}
+		if (current_vs->notify_failover_up) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: failover_up specified without backup_real_servers - ignoring", FMT_VS(current_vs));
+			free_notify_script(&current_vs->notify_failover_up);
+		}
+		if (current_vs->notify_failover_down) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: failover_down specified without backup_real_servers - ignoring", FMT_VS(current_vs));
+			free_notify_script(&current_vs->notify_failover_down);
+		}
+	}
+
 	/* If the real (sorry) server uses tunnel forwarding, the address family
 	 * does not have to match the address family of the virtual server */
 	if (current_vs->s_svr
@@ -212,6 +228,17 @@ vs_end_handler(void)
 			else if (current_vs->af != rs->addr.ss_family) {
 				mixed_af = true;
 				break;
+			}
+		}
+
+		if (!mixed_af) {
+			list_for_each_entry(rs, &current_vs->backup_rs, e_list) {
+				if (current_vs->af == AF_UNSPEC)
+					current_vs->af = rs->addr.ss_family;
+				else if (current_vs->af != rs->addr.ss_family) {
+					mixed_af = true;
+					break;
+				}
 			}
 		}
 
@@ -658,7 +685,15 @@ rs_handler(const vector_t *strvec)
 }
 
 static void
-rs_end_handler(void)
+backup_rs_handler(const vector_t *strvec)
+{
+	current_rs = alloc_rs(strvec_slot(strvec, 1), vector_size(strvec) >= 3 ? strvec_slot(strvec, 2) : NULL);
+	if (current_rs)
+		current_rs->is_backup = true;
+}
+
+static bool
+rs_end_common(void)
 {
 	/* For tunnelled forwarding, the address families don't have to be the same, so
 	 * long as the kernel supports IPVS_DEST_ATTR_ADDR_FAMILY */
@@ -669,16 +704,37 @@ rs_end_handler(void)
 		if (current_vs->af == AF_UNSPEC)
 			current_vs->af = current_rs->addr.ss_family;
 		else if (current_vs->af != current_rs->addr.ss_family) {
-			report_config_error(CONFIG_GENERAL_ERROR, "Address family of virtual server and real server %s don't match - skipping real server.", inet_sockaddrtos(&current_rs->addr));
+			report_config_error(CONFIG_GENERAL_ERROR, "Address family of virtual server and %s server %s don't match - skipping %s server.",
+					current_rs->is_backup ? "backup real" : "real",
+					inet_sockaddrtos(&current_rs->addr),
+					current_rs->is_backup ? "backup real" : "real");
 			FREE(current_rs);
-			return;
+			return false;
 		}
 	}
+
+	return true;
+}
+
+static void
+rs_end_handler(void)
+{
+	if (!rs_end_common())
+		return;
 
 	list_add_tail(&current_rs->e_list, &current_vs->rs);
 #ifdef _WITH_SNMP_CHECKER_
 	current_vs->rs_cnt++;
 #endif
+}
+
+static void
+backup_rs_end_handler(void)
+{
+	if (!rs_end_common())
+		return;
+
+	list_add_tail(&current_rs->e_list, &current_vs->backup_rs);
 }
 
 static void
@@ -930,6 +986,70 @@ vs_weight_handler(const vector_t *strvec)
 	}
 	current_vs->weight = weight;
 }
+static void
+failover_threshold_handler(const vector_t *strvec)
+{
+	unsigned threshold;
+
+	if (!read_unsigned_strvec(strvec, 1, &threshold, 1, 100, true)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Failover threshold %s must be in [1, 100] - ignoring", strvec_slot(strvec, 1));
+		return;
+	}
+
+	current_vs->failover_threshold = threshold;
+}
+static void
+failover_up_handler(const vector_t *strvec)
+{
+	if (current_vs->notify_failover_up) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) failover_up script already specified - ignoring %s", current_vs->vsgname, strvec_slot(strvec,1));
+		return;
+	}
+	current_vs->notify_failover_up = set_check_notify_script(strvec, "failover");
+}
+static void
+failover_down_handler(const vector_t *strvec)
+{
+	if (current_vs->notify_failover_down) {
+		report_config_error(CONFIG_GENERAL_ERROR, "(%s) failover_down script already specified - ignoring %s", current_vs->vsgname, strvec_slot(strvec,1));
+		return;
+	}
+	current_vs->notify_failover_down = set_check_notify_script(strvec, "failover");
+}
+
+/* Install the keywords common to real_server and backup_real_server blocks.
+ * Must be called immediately after installing the keyword opening the block. */
+static void
+install_rs_common_keywords(void (*end_handler)(void))
+{
+	vpp_t check_ptr;
+
+	check_ptr = install_sublevel(VPP &current_rs);
+	install_keyword("weight", &rs_weight_handler);
+	install_keyword("lvs_method", &rs_forwarding_handler);
+	install_keyword("uthreshold", &uthreshold_handler);
+	install_keyword("lthreshold", &lthreshold_handler);
+	install_keyword("inhibit_on_failure", &rs_inhibit_handler);
+	install_keyword_quoted("notify_up", &notify_up_handler);
+	install_keyword_quoted("notify_down", &notify_down_handler);
+	install_keyword("alpha", &rs_alpha_handler);
+	install_keyword("retry", &rs_retry_handler);
+	install_keyword("delay_before_retry", &rs_delay_before_retry_handler);
+	install_keyword("warmup", &rs_warmup_handler);
+	install_keyword("connect_timeout", &rs_co_timeout_handler);
+	install_keyword("delay_loop", &rs_delay_handler);
+	install_keyword("smtp_alert", &rs_smtp_alert_handler);
+	install_keyword("virtualhost", &rs_virtualhost_handler);
+#ifdef _WITH_SNMP_CHECKER_
+	install_keyword("snmp_name", &rs_snmp_name_handler);
+#endif
+
+	install_level_end_handler(end_handler);
+
+	/* Checkers mapping */
+	install_checkers_keyword();
+	install_sublevel_end(check_ptr);
+}
 
 #ifdef _WITH_SANITIZE_UNDEFINED_
 __attribute__((no_sanitize("null")))
@@ -937,8 +1057,6 @@ __attribute__((no_sanitize("null")))
 void
 init_check_keywords(bool active)
 {
-	vpp_t check_ptr;
-
 	/* SSL mapping */
 	install_keyword_root("SSL", &ssl_handler, active, VPP &check_data->ssl);	// Causes sanitizer error: member access within null pointer of type 'struct check_data_t'
 	install_keyword("password", &sslpass_handler);
@@ -992,37 +1110,20 @@ init_check_keywords(bool active)
 	install_keyword("quorum", &quorum_handler);
 	install_keyword("hysteresis", &hysteresis_handler);
 	install_keyword("weight", &vs_weight_handler);
+	install_keyword("failover_threshold", &failover_threshold_handler);
+	install_keyword_quoted("failover_up", &failover_up_handler);
+	install_keyword_quoted("failover_down", &failover_down_handler);
 
 	/* Real server mapping */
 	install_keyword("sorry_server", &ssvr_handler);
 	install_keyword("sorry_server_inhibit", &ssvri_handler);
 	install_keyword("sorry_server_lvs_method", &ss_forwarding_handler);
 	install_keyword("real_server", &rs_handler);
-	check_ptr = install_sublevel(VPP &current_rs);
-	install_keyword("weight", &rs_weight_handler);
-	install_keyword("lvs_method", &rs_forwarding_handler);
-	install_keyword("uthreshold", &uthreshold_handler);
-	install_keyword("lthreshold", &lthreshold_handler);
-	install_keyword("inhibit_on_failure", &rs_inhibit_handler);
-	install_keyword_quoted("notify_up", &notify_up_handler);
-	install_keyword_quoted("notify_down", &notify_down_handler);
-	install_keyword("alpha", &rs_alpha_handler);
-	install_keyword("retry", &rs_retry_handler);
-	install_keyword("delay_before_retry", &rs_delay_before_retry_handler);
-	install_keyword("warmup", &rs_warmup_handler);
-	install_keyword("connect_timeout", &rs_co_timeout_handler);
-	install_keyword("delay_loop", &rs_delay_handler);
-	install_keyword("smtp_alert", &rs_smtp_alert_handler);
-	install_keyword("virtualhost", &rs_virtualhost_handler);
-#ifdef _WITH_SNMP_CHECKER_
-	install_keyword("snmp_name", &rs_snmp_name_handler);
-#endif
+	install_rs_common_keywords(&rs_end_handler);
 
-	install_level_end_handler(&rs_end_handler);
-
-	/* Checkers mapping */
-	install_checkers_keyword();
-	install_sublevel_end(check_ptr);
+	/* Failover (backup) pool mapping */
+	install_keyword("backup_real_server", &backup_rs_handler);
+	install_rs_common_keywords(&backup_rs_end_handler);
 }
 
 const vector_t *

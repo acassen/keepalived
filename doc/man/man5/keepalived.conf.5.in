@@ -774,6 +774,9 @@ possibly following any cleanup actions needed.
     # The string written will be a line of the form:
     # VS [192.168.201.15]:tcp:80 {UP|DOWN}
     # RS [1.2.3.4]:tcp:80 [192.168.201.15]:tcp:80 {UP|DOWN}
+    # or, when a virtual server switches between its primary
+    # pool and its failover pool of backup_real_servers:
+    # VS [192.168.201.15]:tcp:80 {FAILOVER|FAILBACK}
     # and will be terminated with a new line character.
     \fBlvs_notify_fifo \fRFIFO_NAME [username [groupname]]
 
@@ -2454,6 +2457,28 @@ The syntax for virtual_server is :
     # Script to execute when quorum is lost.
     \fBquorum_down \fR<STRING>|<QUOTED-STRING> [username [:][groupname]]
 
+    # Percentage of the primary pool's real servers (by count,
+    # regardless of weights) that must have failed their health
+    # checks before the virtual server switches to the failover
+    # pool of backup_real_servers. The comparison is
+    #   failed * 100 >= failover_threshold * total
+    # so with 3 real servers a threshold of 50 switches once 2
+    # have failed. When the proportion of failed servers drops
+    # below the threshold again the primary pool is reinstated.
+    # Only meaningful if backup_real_servers are configured.
+    # Defaults to 100 (only switch when every real server has
+    # failed).
+    # Note: quorum, hysteresis and quorum_up/quorum_down always
+    # refer to the primary pool only; backup_real_servers take
+    # no part in the quorum calculation.
+    \fBfailover_threshold \fR<INTEGER: 1-100>
+
+    # Script to execute when the failover pool is activated.
+    \fBfailover_up \fR<STRING>|<QUOTED-STRING> [username [groupname]]
+
+    # Script to execute when the primary pool is reinstated.
+    \fBfailover_down \fR<STRING>|<QUOTED-STRING> [username [groupname]]
+
     # IP family for a fwmark service (only needed if all real servers are tunnelled
     # and persistence_granularity is not specified). Defaults to inet if not specified.
     \fBip_family \fRinet|inet6
@@ -2464,6 +2489,11 @@ The syntax for virtual_server is :
     #  If a sorry server is configured, all real servers will
     #  be brought down when the quorum is not achieved and be
     #  replaced with the sorry server.
+    #  If backup_real_servers are also configured, the failover
+    #  pool takes precedence: the sorry server is only used while
+    #  the failover pool is not active (i.e. the failover
+    #  threshold has not been reached, or no backup real server
+    #  is passing its health checks).
     \fBsorry_server \fR<IPADDR> [<PORT>]
     # applies inhibit_on_failure behaviour to the sorry_server
     # It is very unlikely that you want to use this, since if you
@@ -2783,6 +2813,28 @@ The syntax for virtual_server is :
             # The weight multiplier to apply to the value read from the file
             \fBweight\fR <-2147483647..2147483647> [reverse]
         }
+    }
+
+    # one entry for each member of the failover (backup) pool.
+    # Backup real servers form a standby pool that replaces the
+    # primary real servers in the LVS topology once at least
+    # failover_threshold percent of the primary real servers have
+    # failed their health checks. They are health checked
+    # continuously, exactly like real servers, and only backup
+    # servers that are passing their checks are added on failover.
+    # When the failover pool is active and the primary pool
+    # recovers below the threshold, the primary pool is
+    # reinstated. If every backup real server fails while the
+    # failover pool is active, any configured sorry_server takes
+    # over as the last resort.
+    # Backup real servers take no part in the quorum calculation,
+    # and inhibit_on_failure on a backup real server only applies
+    # while the failover pool is active. Backup real servers are
+    # not currently exposed via SNMP.
+    # Takes exactly the same options as real_server, including
+    # health checkers.
+    \fBbackup_real_server \fR<IPADDR> [<PORT>] {
+        # see real_server above
     }
 }
 .fi
