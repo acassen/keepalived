@@ -29,6 +29,8 @@
 #define RLIMIT_RTTIME	15
 #endif
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdbool.h>
@@ -68,6 +70,36 @@ pid_t main_pid;
  * it can simply be referenced. */
 pid_t our_pid;
 
+/* mlockall(MCL_FUTURE) charges later mappings against RLIMIT_MEMLOCK, so report the
+ * limit; a process that outgrows it fails an allocation and exits. */
+static void
+report_memlock_limit(void)
+{
+	struct rlimit rlim;
+	rlim_t locked_kb = 0;
+	char buf[128];
+	FILE *fp;
+
+	if (getrlimit(RLIMIT_MEMLOCK, &rlim) < 0 || rlim.rlim_cur == RLIM_INFINITY)
+		return;
+
+	if (!(fp = fopen("/proc/self/status", "re")))
+		return;
+	while (fgets(buf, sizeof(buf), fp)) {
+		if (!strncmp(buf, "VmLck:", 6)) {
+			locked_kb = strtoul(buf + 6, NULL, 10);
+			break;
+		}
+	}
+	fclose(fp);
+
+	log_message(LOG_INFO, "Locked %" PRI_rlim_t " kB of the %" PRI_rlim_t " kB RLIMIT_MEMLOCK",
+			      locked_kb, rlim.rlim_cur / 1024);
+}
+
+/* NOTE: This function generates a "stack protector not protecting local variables:
+   variable length buffer" warning */
+RELAX_STACK_PROTECTOR_START
 static void
 set_process_dont_swap(size_t stack_reserve)
 {
@@ -96,7 +128,10 @@ set_process_dont_swap(size_t stack_reserve)
 	}
 
 	cur_stack_reserve = stack_reserve;
+
+	report_memlock_limit();
 }
+RELAX_STACK_PROTECTOR_END
 
 static void
 reset_process_dont_swap(void)
