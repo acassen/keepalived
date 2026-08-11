@@ -575,6 +575,8 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 
 		if (exit_status != EXIT_SUCCESS)
 			log_message(LOG_INFO, "%s exited with status %d", prog_id, exit_status);
+		if (exit_status == KEEPALIVED_EXIT_NO_MEMORY)
+			log_message(LOG_INFO, "  An allocation failed - if a *_no_swap option is set, check RLIMIT_MEMLOCK");
 	} else if (WIFSIGNALED(status)) {
 		if (WTERMSIG(status) == SIGSEGV) {
 			struct utsname uname_buf;
