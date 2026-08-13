@@ -61,6 +61,7 @@
 #include "utils.h"
 #include "process.h"
 #include "signals.h"
+#include "safe_snprintf.h"
 
 #ifdef USE_MEMFD_CREATE_SYSCALL
 #ifndef SYS_memfd_create
@@ -3380,12 +3381,19 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 #ifndef _ONE_PROCESS_DEBUG_
 		if (config_save_dir) {
 			char buf[128];
+			char *obuf = buf;
 			pid_t pid = our_pid;
 
-			sprintf(buf, "cp /proc/%d/fd/%d %s/keepalived.conf.%d.%u", pid, fileno(conf_copy), config_save_dir, pid, conf_num++);
-			if (system(buf)) {
+			obuf = safe_snprintf(buf, sizeof(buf), "cp /proc/%d/fd/%d %s/keepalived.conf.%d.%u", pid, fileno(conf_copy), config_save_dir, pid, conf_num++);
+
+			if (system(obuf)) {
 				/* If it fails, there is nothing we can do about it */
 			};
+
+			if (obuf != buf) {
+				log_message(LOG_DEBUG, "%s:%s() buf[%zu] too small", __FILE__, __func__, sizeof(buf));
+				FREE(obuf);
+			}
 		}
 #endif
 	}

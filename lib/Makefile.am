@@ -18,11 +18,13 @@ noinst_LIBRARIES	= liblib.a
 liblib_a_SOURCES	= memory.c utils.c timer.c scheduler.c \
 			  vector.c html.c parser.c signals.c logger.c \
 			  list_head.c rbtree.c process.c json_writer.c \
+			  safe_snprintf.c \
 			  bitops.h timer.h scheduler.h vector.h parser.h \
 			  signals.h logger.h memory.h html.h utils.h \
 			  keepalived_magic.h list_head.h rbtree_ka.h rbtree.h \
 			  rbtree_types.h process.h rbtree_augmented.h assert_debug.h \
-			  json_writer.h warnings.h container.h align.h sockaddr.h
+			  json_writer.h warnings.h container.h align.h sockaddr.h \
+			  safe_snprintf.h
 
 liblib_a_LIBADD		=
 EXTRA_liblib_a_SOURCES	=
