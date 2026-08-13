@@ -37,13 +37,13 @@
 #include <stdbool.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
+#include <sys/stat.h>
 #if defined _WITH_LVS_ || defined _HAVE_LIBIPSET_
 #include <sys/wait.h>
 #endif
 #ifdef _WITH_PERF_
 #include <stdio.h>
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/epoll.h>
 #include <sys/inotify.h>
 #endif
@@ -1468,8 +1468,23 @@ keepalived_modprobe(const char *mod_name)
 void
 set_tmp_dir(void)
 {
-	if (!(tmp_dir = getenv("TMPDIR")) || tmp_dir[0] != '/')
-		tmp_dir = KA_TMP_DIR;
+	struct stat statbuf;
+
+	/* github-advanced-security identifies this as a high security risk.
+	 * See https://github.com/acassen/keepalived/pull/2661#discussion_r3778043666
+	 *     https://github.com/acassen/keepalived/security/code-scanning/197
+	 *
+	 * Is this really an issue? root can open and write any writeable file.
+	 */
+	if ((tmp_dir = getenv("TMPDIR")) && tmp_dir[0] == '/') {
+		/* Check it is a directory */
+		if (!stat(tmp_dir, &statbuf) && S_ISDIR(statbuf.st_mode))
+			return;
+
+		log_message(LOG_INFO, "Environment TMPDIR=%s not a directory", tmp_dir);
+	}
+
+	tmp_dir = KA_TMP_DIR;
 }
 
 const char *
