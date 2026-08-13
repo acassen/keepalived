@@ -530,8 +530,6 @@ keepalived_free_realloc_common(struct mem_domain *mem, void *buffer, size_t size
 	mem->mem_allocated -= entry->size;
 
 	if (!size) {
-		free(buffer);
-
 		if (is_realloc) {
 			fprintf(mem->log_op, "%s%-7s[%3u:%3u], %9p, %4zu at " SRC_LOC_FMT " -> %9s, %4s at " SRC_LOC_FMT "\n",
 			       format_time(), "realloc", entry->seq_num,
@@ -574,6 +572,8 @@ keepalived_free_realloc_common(struct mem_domain *mem, void *buffer, size_t size
 		free_list_size++;
 
 		mem->number_alloc_list--;
+
+		free(buffer);
 
 		/* coverity[leaked_storage] - entry2 is added to the bad_list */
 		return NULL;
