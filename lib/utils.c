@@ -214,7 +214,7 @@ write_stacktrace(const char *file_name, const char *str)
 		tmp_filename = make_tmp_filename("keepalived.stack");
 	else if (file_name[0] != '/')
 		tmp_filename = make_tmp_filename(file_name);
-	cmd = MALLOC(6 + 1 + PID_MAX_DIGITS + 1 + 2 + ( tmp_filename ? strlen(tmp_filename) : strlen(file_name)) + 1);
+	cmd = MALLOC(6 + 1 + PID_MAX_CHRS + 1 + 2 + ( tmp_filename ? strlen(tmp_filename) : strlen(file_name)) + 1);
 	sprintf(cmd, "gstack %d >>%s", our_pid, tmp_filename ? tmp_filename : file_name);
 
 	i = system(cmd);	/* We don't care about return value but gcc thinks we should */
