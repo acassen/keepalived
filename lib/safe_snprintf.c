@@ -39,10 +39,12 @@ safe_snprintf(char *buf, size_t buf_size, const char *format, ...)
 	size_t required_buf_size;
 	va_list args;
 
-	va_start(args, format);
 
 	do {
+		va_start(args, format);
 		required_buf_size = vsnprintf(obuf, buf_size, format, args);
+		va_end(args);
+
 		if (required_buf_size < buf_size)
 			break;
 
@@ -52,8 +54,6 @@ safe_snprintf(char *buf, size_t buf_size, const char *format, ...)
 			FREE(obuf);
 		obuf = MALLOC(buf_size = required_buf_size + 1);
 	} while (true);
-
-	va_end(args);
 
 	return obuf;
 }
