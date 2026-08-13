@@ -44,6 +44,7 @@
 #include "check_nftables.h"
 #include "check_data.h"
 #endif
+#include "decimal_chars.h"
 
 static bool no_ipvs = false;
 
@@ -135,14 +136,13 @@ format_srule(char *buf, const ipvs_service_t *srule)
 	bufp += strlen(bufp);
 	*bufp++ = ':';
 	if (srule->user.protocol == IPPROTO_TCP)
-		strcpy(bufp, "tcp");
+		bufp = stpcpy(bufp, "tcp");
 	else if (srule->user.protocol == IPPROTO_UDP)
-		strcpy(bufp, "udp");
+		bufp = stpcpy(bufp, "udp");
 	else if (srule->user.protocol == IPPROTO_SCTP)
-		strcpy(bufp, "sctp");
+		bufp = stpcpy(bufp, "sctp");
 	else
-		sprintf(bufp, "%d", srule->user.protocol);
-	bufp += strlen(bufp);
+		bufp += sprintf(bufp, "%d", srule->user.protocol);
 	bufp += sprintf(bufp, ":%d", ntohs(srule->user.port));
 
 	return (bufp - buf);
@@ -217,7 +217,7 @@ ipvs_talk(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, ipvs_daemon_t *dae
 	if (ignore_error)
 		result = 0;
 	else if (result) {
-		char buf[2 + INET6_ADDRSTRLEN + 6 + 5 + 4 + INET6_ADDRSTRLEN + 1 + 5 + 1 + 1];	/* " (" + IPv6 + ":sctp:" + port + " -> " + IPV6 + ":" + port + ")" */
+		char buf[2 + INET6_ADDRSTRLEN + 2 + TYPE_MAX_CHRS(srule->user.protocol) + TYPE_MAX_CHRS(srule->user.port) + 4 + INET6_ADDRSTRLEN + 1 + TYPE_MAX_CHRS(drule->user.port) + 1 + 1];	/* " (" + IPv6 + ":sctp:" + port + " -> " + IPV6 + ":" + port + ")" */
 
 		if (errno == EEXIST &&
 			(cmd == IP_VS_SO_SET_ADD || cmd == IP_VS_SO_SET_ADDDEST))

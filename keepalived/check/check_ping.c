@@ -38,6 +38,7 @@
 #include "smtp.h"
 #include "ipwrapper.h"
 #include "check_parser.h"
+#include "decimal_chars.h"
 
 #define ICMP_BUFSIZE 128
 #define SOCK_RECV_BUFF 128*1024
@@ -53,7 +54,7 @@ static void icmp_ping_thread(thread_ref_t);
 bool
 set_ping_group_range(bool set)
 {
-	char buf[10 + 1 + 10 + 1 + 1 + 1];	/* 2000000000<TAB>4294967295<TAB><NL> + NUL */
+	char buf[UINT_MAX_CHRS + 1 + ULONG_MAX_CHRS + 1 + 1 + 1];	/* 2000000000<TAB>4294967295<TAB><NL> + NUL */
 	int fd;
 	ssize_t len, ret;
 	unsigned long val[2];

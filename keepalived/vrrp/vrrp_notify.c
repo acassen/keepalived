@@ -40,6 +40,8 @@
 #include "vrrp_snmp.h"
 #endif
 #include "smtp.h"
+#include "safe_snprintf.h"
+#include "decimal_chars.h"
 
 static notify_script_t*
 get_iscript(vrrp_t * vrrp)
@@ -91,7 +93,6 @@ static void
 notify_fifo(const char *name, int state_num, bool group, uint8_t priority)
 {
 	const char *state = "{UNKNOWN}";
-	size_t size;
 	char *line;
 	const char *type;
 
@@ -128,12 +129,7 @@ notify_fifo(const char *name, int state_num, bool group, uint8_t priority)
 
 	type = group ? "GROUP" : "INSTANCE";
 
-	size = strlen(type) + strlen(state) + strlen(name) + 10;
-	line = MALLOC(size);
-	if (!line)
-		return;
-
-	snprintf(line, size, "%s \"%s\" %s %d\n", type, name, state, priority);
+	line = safe_snprintf(NULL, 0, "%s \"%s\" %s %d\n", type, name, state, priority);
 
 	if (global_data->notify_fifo.fd != -1) {
 		if (write(global_data->notify_fifo.fd, line, strlen(line)) == -1 && errno != EAGAIN)
@@ -162,7 +158,7 @@ notify_group_fifo(const vrrp_sgroup_t *vgroup)
 static void
 notify_script_exec(notify_script_t* script, const char *type, int state_num, const char* name, int prio)
 {
-	char prio_buf[4];
+	char prio_buf[INT_MAX_CHRS + 1];
 
 	/*
 	 * script {GROUP|INSTANCE} NAME {MASTER|BACKUP|FAULT|STOP|DELETED} PRIO

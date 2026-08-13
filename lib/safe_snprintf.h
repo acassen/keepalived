@@ -23,6 +23,8 @@
 #ifndef _SAFE_SNPRINTF_H
 #define _SAFE_SNPRINTF_H
 
+#include "config.h"
+
 char * __attribute__ ((format (printf, 3, 4)))
 safe_snprintf(char *, size_t, const char *, ...);
 

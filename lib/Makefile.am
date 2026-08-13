@@ -24,7 +24,7 @@ liblib_a_SOURCES	= memory.c utils.c timer.c scheduler.c \
 			  keepalived_magic.h list_head.h rbtree_ka.h rbtree.h \
 			  rbtree_types.h process.h rbtree_augmented.h assert_debug.h \
 			  json_writer.h warnings.h container.h align.h sockaddr.h \
-			  safe_snprintf.h
+			  safe_snprintf.h decimal_chars.h
 
 liblib_a_LIBADD		=
 EXTRA_liblib_a_SOURCES	=

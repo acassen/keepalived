@@ -20,12 +20,18 @@
  * Copyright (C) 2026-2026 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 #include <stdio.h>
 
 #include "safe_snprintf.h"
 #include "memory.h"
 #include "logger.h"
 
+/* Note: if safe_snprintf is called with buf = NULL, buf_size = 0,
+ * then it is guaranteed that a buffer will be malloc'd.
+ * This is similar to make_message() in the printf man page.
+ */
 char * __attribute__ ((format (printf, 3, 4)))
 safe_snprintf(char *buf, size_t buf_size, const char *format, ...)
 {

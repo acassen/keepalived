@@ -62,6 +62,7 @@
 #include "process.h"
 #include "signals.h"
 #include "safe_snprintf.h"
+#include "decimal_chars.h"
 
 #ifdef USE_MEMFD_CREATE_SYSCALL
 #ifndef SYS_memfd_create
@@ -953,7 +954,7 @@ dump_keywords(vector_t *keydump, int level, FILE *fp)
 	size_t file_name_len;
 
 	if (!level) {
-		file_name_len = strlen(tmp_dir) + 1 + 8 + 1 + PID_MAX_DIGITS + 1;		/* TMP_DIR/keywords.PID\0 */
+		file_name_len = strlen(tmp_dir) + 1 + 8 + 1 + PID_MAX_CHRS + 1;		/* TMP_DIR/keywords.PID\0 */
 		file_name = MALLOC(file_name_len);
 		snprintf(file_name, file_name_len, "%s/keywords.%d", tmp_dir, our_pid);
 
@@ -2651,7 +2652,7 @@ read_line(char *buf, size_t size)
 			seq_list_count > multiline_seq_depth) {
 			seq_t *seq = list_last_entry(&seq_list, seq_t, e_list);
 			if (list_empty(&seq->lst_params)) {
-				char val[21];
+				char val[LONG_MAX_CHRS];
 				if (seq->hex)
 					snprintf(val, sizeof(val), "%lx", (unsigned long)seq->next);
 				else

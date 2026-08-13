@@ -79,6 +79,7 @@
 #include "logger.h"
 #include "process.h"
 #include "timer.h"
+#include "decimal_chars.h"
 
 #if defined USE_CLOSE_RANGE_SYSCALL && !defined SYS_close_range
 #define SYS_close_range __NR_close_range
@@ -407,7 +408,7 @@ run_perf(const char *process, const char *network_namespace, const char *instanc
 
 		/* Child */
 		if (!pid) {
-			char buf[PID_MAX_DIGITS + 1];
+			char buf[PID_MAX_CHRS + 1];
 
 			snprintf(buf, sizeof buf, "%d", getppid());
 			execlp("perf", "perf", "record", "-p", buf, "-q", "-g", "--call-graph", "fp", NULL);
@@ -1048,7 +1049,7 @@ format_mac_buf(char *op, size_t op_len, const unsigned char *addr, size_t addr_l
 const char *
 format_decimal(unsigned long val, int dp)
 {
-	static char buf[22];	/* Sufficient for 2^64 as decimal plus decimal point */
+	static char buf[2 * ULONG_MAX_CHRS + 1 + 1];	/* Sufficient for 2^64 as decimal plus decimal point */
 	unsigned dp_factor = 1;
 	int i;
 
