@@ -48,7 +48,8 @@ safe_snprintf(char *buf, size_t buf_size, const char *format, ...)
 		if (required_buf_size < buf_size)
 			break;
 
-		log_message(LOG_DEBUG, "safe_snprintf buf[%zu] too small - needs to be [%zu]", buf_size, required_buf_size + 1);
+		if (buf)	// Don't print message if no buffer was passed
+			log_message(LOG_DEBUG, "safe_snprintf buf[%zu] too small - needs to be [%zu]", buf_size, required_buf_size + 1);
 
 		if (obuf != buf)	// This should never happen
 			FREE(obuf);
