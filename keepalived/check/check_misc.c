@@ -446,7 +446,7 @@ misc_check_child_thread(thread_ref_t thread)
 	}
 
 	if (script_exit_type) { /* not the case if retry check will follow and log_all_failures unset */
-		char message[40];
+		char message[40]; 	// longest string: "=> MISC CHECK succeeded on service <="
 
 		if (!script_success) {
 			/*

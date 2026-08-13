@@ -50,6 +50,7 @@
 #ifdef _WITH_DBUS_
 #include "vrrp_dbus.h"
 #endif
+#include "safe_snprintf.h"
 
 /* global vars */
 data_t *global_data = NULL;
@@ -536,7 +537,6 @@ open_dump_file(const char *default_file_name)
 	const char *file_name;
 	char *full_file_name;
 	const char *dot;
-	size_t len;
 	const char *dir;
 	size_t dir_len;
 
@@ -568,24 +568,15 @@ open_dump_file(const char *default_file_name)
 	if (!(dot = strrchr(file_name, '.')))
 		dot = file_name + strlen(file_name);
 
-	len = dir_len + 1 + strlen(file_name) + 1 + strlen(default_file_name);
-	if (global_data->data_use_instance) {
-		if (global_data->instance_name)
-			len += strlen(global_data->instance_name) + 1;
-		if (global_data->network_namespace)
-			len += strlen(global_data->network_namespace) + 1;
-	}
-
-	full_file_name = MALLOC(len);
-
-	snprintf(full_file_name, len, "%.*s/%.*s%s%s%s%s%s%s", (int)dir_len, dir,
-			(int)(dot - file_name), file_name,
-			default_file_name,
-			global_data->data_use_instance && (global_data->instance_name || global_data->network_namespace) ? "." : "",
-			global_data->data_use_instance && global_data->network_namespace ? global_data->network_namespace : "",
-			global_data->data_use_instance && global_data->instance_name && global_data->network_namespace ? "_" : "",
-			global_data->data_use_instance && global_data->instance_name ? global_data->instance_name : "",
-			dot);
+	full_file_name =
+		safe_snprintf(NULL, 0, "%.*s/%.*s%s%s%s%s%s%s", (int)dir_len, dir,
+				(int)(dot - file_name), file_name,
+				default_file_name,
+				global_data->data_use_instance && (global_data->instance_name || global_data->network_namespace) ? "." : "",
+				global_data->data_use_instance && global_data->network_namespace ? global_data->network_namespace : "",
+				global_data->data_use_instance && global_data->instance_name && global_data->network_namespace ? "_" : "",
+				global_data->data_use_instance && global_data->instance_name ? global_data->instance_name : "",
+				dot);
 
 	fp = fopen_safe(full_file_name, "we");
 

@@ -54,6 +54,7 @@
 #include "rbtree_ka.h"
 #include "list_head.h"
 #endif
+#include "decimal_chars.h"
 
 #define SRC_LOC_FMT	"%s:%d%s%s%s"
 #define FUNC_PARAMS(func) func ? " (" : "", func ? func : "", func ? ")" : ""
@@ -529,8 +530,6 @@ keepalived_free_realloc_common(struct mem_domain *mem, void *buffer, size_t size
 	mem->mem_allocated -= entry->size;
 
 	if (!size) {
-		free(buffer);
-
 		if (is_realloc) {
 			fprintf(mem->log_op, "%s%-7s[%3u:%3u], %9p, %4zu at " SRC_LOC_FMT " -> %9s, %4s at " SRC_LOC_FMT "\n",
 			       format_time(), "realloc", entry->seq_num,
@@ -573,6 +572,8 @@ keepalived_free_realloc_common(struct mem_domain *mem, void *buffer, size_t size
 		free_list_size++;
 
 		mem->number_alloc_list--;
+
+		free(buffer);
 
 		/* coverity[leaked_storage] - entry2 is added to the bad_list */
 		return NULL;
@@ -796,7 +797,7 @@ mem_log_init_common(struct mem_domain *mem, const char* prog_name, const char *b
 	if (mem->log_op)
 		fclose(mem->log_op);
 
-	log_name_len = strlen(tmp_dir) + 1 + strlen(prog_name) + 5 + PID_MAX_DIGITS + 4 + 1;	/* tmp_dir + "/" + prog_name + "_mem." + PID + ".log" + '\0" */
+	log_name_len = strlen(tmp_dir) + 1 + strlen(prog_name) + 5 + PID_MAX_CHRS + 4 + 1;	/* tmp_dir + "/" + prog_name + "_mem." + PID + ".log" + '\0" */
 	log_name = malloc(log_name_len);
 	if (!log_name) {
 		log_message(LOG_INFO, "Unable to malloc log file name");

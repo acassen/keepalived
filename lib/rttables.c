@@ -80,6 +80,7 @@
 #include "logger.h"
 #include "parser.h"
 #include "rttables.h"
+#include "decimal_chars.h"
 
 
 #define RT_TABLES_FILE	"rt_tables"
@@ -186,7 +187,7 @@ static LIST_HEAD_INITIALIZE(rt_addrprotos);
 #endif
 static LIST_HEAD_INITIALIZE(rt_scopes);
 
-static char ret_buf[11];	/* uint32_t in decimal */
+static char ret_buf[UINT_MAX_CHRS + 1];	/* uint32_t in decimal */
 
 static dir_state_t dir_state = DIRS_NOT_CHECKED;
 static const char **iproute_etc_dir;
@@ -358,7 +359,8 @@ wanted_file(char *file_path, const char *path, const char *dir, const char *name
 		return false;
 
 	/* Ensure what we have is a regular file */
-	snprintf(file_path, PATH_MAX, "%s/%s.d/%s", path, dir, name);
+	if (snprintf(file_path, PATH_MAX, "%s/%s.d/%s", path, dir, name) >= PATH_MAX)
+		return false;
 	if (stat(file_path, &statbuf) || (statbuf.st_mode & S_IFMT) != S_IFREG)
 		return false;
 

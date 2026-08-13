@@ -120,6 +120,7 @@
 #include "sanitizer.h"
 #endif
 #include "warnings.h"
+#include "safe_snprintf.h"
 
 #define CHILD_WAIT_SECS	5
 
@@ -1034,9 +1035,7 @@ start_validate_reload_conf_child(void)
 
 	/* add --config-fd */
 	if ((fd = get_config_fd()) != -1) {
-		len = 13 + 6 + 1;	/* --config-fd=XXXXXX */
-		config_fd_str = MALLOC(len);
-		snprintf(config_fd_str, len, "--config-fd=%d", fd);
+		config_fd_str = safe_snprintf(NULL, 0, "--config-fd=%d", fd);
 		argv[argc++] = config_fd_str;
 
 		/* Allow fd to be inherited by exec'd process */

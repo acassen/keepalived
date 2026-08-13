@@ -29,9 +29,6 @@
 
 #define	RT_RLIMIT_DEFAULT	10000
 
-/* The maximum pid is 2^22 - see definition of PID_MAX_LIMIT in kernel source include/linux/threads.h */
-#define PID_MAX_DIGITS		7
-
 extern unsigned min_auto_priority_delay;
 extern pid_t main_pid;
 extern pid_t our_pid;

@@ -35,6 +35,7 @@
 #include "parser.h"
 #include "utils.h"
 #include "process.h"
+#include "safe_snprintf.h"
 
 
 static int child_reloaded_event = -1;
@@ -109,6 +110,7 @@ save_config(bool post, const char *process, void(*func)(FILE *))
 	static unsigned reload_num = 0;
 	FILE *file;
 	char buf[128];
+	char *obuf = buf;
 
 	if (!config_save_dir)
 		return;
@@ -116,16 +118,20 @@ save_config(bool post, const char *process, void(*func)(FILE *))
 	if (!post)
 		reload_num++;
 
-	sprintf(buf, "%s/keepalived_%s.%d.%u.%s", config_save_dir, process, our_pid, reload_num, post ? "post" : "pre");
+	obuf = safe_snprintf(buf, sizeof(buf), "%s/keepalived_%s.%d.%u.%s", config_save_dir, process, our_pid, reload_num, post ? "post" : "pre");
 
-	file = fopen_safe(buf, "we");
-	if (!file) {
-		log_message(LOG_INFO, "Failed to open config_save file %s", buf);
-		return;
+	file = fopen_safe(obuf, "we");
+	if (!file)
+		log_message(LOG_INFO, "Failed to open config_save file %s", obuf);
+	else {
+		(*func)(file);
+		fclose(file);
 	}
 
-	(*func)(file);
-	fclose(file);
+	if (obuf != buf) {
+		log_message(LOG_DEBUG, "%s:%s() buf[%zu] too small", __FILE__, __func__, sizeof(buf));
+		FREE(obuf);
+	}
 }
 #endif
 

@@ -56,6 +56,7 @@
 #include "process.h"
 #include "align.h"
 #include "systemd.h"
+#include "decimal_chars.h"
 
 
 #ifdef THREAD_DUMP
@@ -540,7 +541,7 @@ int
 report_child_status(int status, pid_t pid, char const *prog_name)
 {
 	char const *prog_id = NULL;
-	char pid_buf[4 + PID_MAX_DIGITS + 1];	/* "pid 4194303" + '\0' */
+	char pid_buf[4 + PID_MAX_CHRS + 1];	/* "pid 4194303" + '\0' */
 	int exit_status ;
 
 	if (prog_name)
