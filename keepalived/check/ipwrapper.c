@@ -42,7 +42,7 @@
 #include "check_data.h"
 #endif
 
-static bool __attribute((pure))
+bool __attribute((pure))
 vs_iseq(const virtual_server_t *vs_a, const virtual_server_t *vs_b)
 {
 	if (!vs_a->vsgname != !vs_b->vsgname)
