@@ -164,6 +164,7 @@ typedef struct _interface {
 							   otherwise the physical interface */
 	bool			is_ours;		/* keepalived created the interface */
 	bool			deleting;		/* Set when we are deleting the interface */
+	bool			cleaning;		/* Set when we are cleaning the interface */
 	bool			seen_interface;		/* The interface has existed at some point since we started */
 	bool			changeable_type;	/* The interface type or underlying interface can be changed */
 #ifdef _HAVE_VRF_
