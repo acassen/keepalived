@@ -79,12 +79,12 @@ static sysctl_opts_t vmac_sysctl[] = {
 	{ IPV4_DEVCONF_ACCEPT_LOCAL, 1 },
 	{ IPV4_DEVCONF_RP_FILTER, 0 },
 	{ IPV4_DEVCONF_PROMOTE_SECONDARIES, 1 },
-	{ 0, 0}
+	{ 0, 0 }
 };
 
 static sysctl_opts_t vmac_sysctl_6[] = {
 	{ IPV4_DEVCONF_ARP_IGNORE, 1 },
-	{ 0, 0}
+	{ 0, 0 }
 };
 
 #endif
