@@ -187,7 +187,7 @@ alloc_linkbeat_interface(const vector_t *strvec)
 	interface_t *ifp;
 	int lb_type = 0;
 
-	if (!(ifp = if_get_by_ifname(vector_slot(strvec, 0), global_data->dynamic_interfaces))) {
+	if (!(ifp = if_get_by_ifname(vector_slot(strvec, 0), IF_CREATE_IF_DYNAMIC))) {
 		report_config_error(CONFIG_FATAL, "unknown interface %s specified for linkbeat interface", strvec_slot(strvec, 0));
 		return;
 	}
@@ -2227,7 +2227,7 @@ alloc_if_up_down_delay(const vector_t *strvec)
 	unsigned long delay;
 	interface_t *ifp;
 
-	if (!(ifp = if_get_by_ifname(strvec_slot(strvec, 0), global_data->dynamic_interfaces))) {
+	if (!(ifp = if_get_by_ifname(strvec_slot(strvec, 0), IF_CREATE_IF_DYNAMIC))) {
 		report_config_error(CONFIG_FATAL, "unknown interface %s specified for up/down delay", strvec_slot(strvec, 0));
 		return;
 	}

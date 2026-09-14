@@ -128,7 +128,7 @@ rta_addattr64(struct rtattr *rta, size_t maxlen, unsigned short type, uint64_t d
 extern struct rtattr *rta_nest(struct rtattr *, size_t, unsigned short);
 extern size_t rta_nest_end(struct rtattr *, struct rtattr *);
 extern ssize_t netlink_talk(nl_handle_t *, struct nlmsghdr *);
-extern int netlink_interface_lookup(char *);
+extern int netlink_interface_lookup(const char *);
 extern void kernel_netlink_poll(void);
 extern void process_if_status_change(interface_t *);
 #endif

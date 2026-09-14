@@ -1538,7 +1538,7 @@ netlink_request(nl_handle_t *nl,
 #ifndef _WITH_VRRP_
 		__attribute__((unused))
 #endif
-					char *name)
+					const char *name)
 {
 	ssize_t status;
 	struct sockaddr_nl snl = { .nl_family = AF_NETLINK };
@@ -2063,7 +2063,7 @@ netlink_if_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 
 /* Interfaces lookup bootstrap function */
 int
-netlink_interface_lookup(char *name)
+netlink_interface_lookup(const char *name)
 {
 	/* Interface lookup */
 	if (netlink_request(&nl_cmd, AF_PACKET, RTM_GETLINK, name) < 0)
@@ -2694,12 +2694,12 @@ kernel_netlink_read_interfaces(void)
 	netlink_socket(&nl_cmd, global_data->vrrp_netlink_cmd_rcv_bufs, global_data->vrrp_netlink_cmd_rcv_bufs_force, 0, 0);
 
 	if (nl_cmd.fd < 0)
-		fprintf(stderr, "Error while registering Kernel netlink cmd channel\n");
+		log_message(LOG_INFO, "Error while registering Kernel netlink cmd channel\n");
 
 	init_interface_queue();
 
 	if ((ret = netlink_address_lookup()))
-		fprintf(stderr, "netlink_address_lookup() returned %d\n", ret);
+		log_message(LOG_INFO, "netlink_address_lookup() returned %d\n", ret);
 
 	kernel_netlink_close_cmd();
 }

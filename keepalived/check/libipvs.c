@@ -122,7 +122,7 @@ static struct nla_policy ipvs_dest_policy[IPVS_DEST_ATTR_MAX + 1] = {
 	[IPVS_DEST_ATTR_TUN_FLAGS]	= { .type = NLA_U16 },
 #endif
 #ifdef _WITH_LVS_64BIT_STATS_
-	[IPVS_DEST_ATTR_STATS64]	= {.type = NLA_NESTED },
+	[IPVS_DEST_ATTR_STATS64]	= { .type = NLA_NESTED },
 #endif
 };
 
