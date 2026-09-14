@@ -2694,12 +2694,12 @@ kernel_netlink_read_interfaces(void)
 	netlink_socket(&nl_cmd, global_data->vrrp_netlink_cmd_rcv_bufs, global_data->vrrp_netlink_cmd_rcv_bufs_force, 0, 0);
 
 	if (nl_cmd.fd < 0)
-		fprintf(stderr, "Error while registering Kernel netlink cmd channel\n");
+		log_message(LOG_INFO, "Error while registering Kernel netlink cmd channel\n");
 
 	init_interface_queue();
 
 	if ((ret = netlink_address_lookup()))
-		fprintf(stderr, "netlink_address_lookup() returned %d\n", ret);
+		log_message(LOG_INFO, "netlink_address_lookup() returned %d\n", ret);
 
 	kernel_netlink_close_cmd();
 }
