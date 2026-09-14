@@ -169,7 +169,7 @@ nest_start(struct nlmsghdr *nlh, unsigned short type)
 {
 	struct nlattr *nest = PTR_CAST(struct nlattr, NLMSG_TAIL(nlh));
 
-	nest->nla_type = type;
+	nest->nla_type = type | NLA_F_NESTED;
 	nlh->nlmsg_len += sizeof(struct nlattr);
 
 	return nest;
