@@ -1538,7 +1538,7 @@ netlink_request(nl_handle_t *nl,
 #ifndef _WITH_VRRP_
 		__attribute__((unused))
 #endif
-					char *name)
+					const char *name)
 {
 	ssize_t status;
 	struct sockaddr_nl snl = { .nl_family = AF_NETLINK };
@@ -2063,7 +2063,7 @@ netlink_if_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 
 /* Interfaces lookup bootstrap function */
 int
-netlink_interface_lookup(char *name)
+netlink_interface_lookup(const char *name)
 {
 	/* Interface lookup */
 	if (netlink_request(&nl_cmd, AF_PACKET, RTM_GETLINK, name) < 0)
