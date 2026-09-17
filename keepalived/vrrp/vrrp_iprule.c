@@ -492,7 +492,6 @@ alloc_rule(list_head_t *rule_list, const vector_t *strvec, __attribute__((unused
 				report_config_error(CONFIG_GENERAL_ERROR, "inet6 specified for IPv4 rule");
 				goto err;
 			}
-			i++;
 		}
 		else if (!strcmp(str, "inet")) {
 			if (family == AF_UNSPEC)
@@ -501,7 +500,6 @@ alloc_rule(list_head_t *rule_list, const vector_t *strvec, __attribute__((unused
 				report_config_error(CONFIG_GENERAL_ERROR, "inet specified for IPv6 rule");
 				goto err;
 			}
-			i++;
 		}
 		else if (!strcmp(str, "from")) {
 			if (new->from_addr)
