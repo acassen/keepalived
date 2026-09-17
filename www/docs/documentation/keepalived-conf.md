@@ -563,6 +563,15 @@ global_defs {
     # Set the BFD child process priority
     bfd_priority <-20 to 19>
 
+    # The following options lock the vrrp, checker and bfd processes in
+    # memory.
+    # --
+    # RLIMIT_MEMLOCK must allow for the process to grow, since later mappings
+    # are charged against it; a process that reaches the limit fails an
+    # allocation and exits. The limit is not enforced for a process with
+    # CAP_IPC_LOCK, so this normally only matters where capabilities are
+    # reduced, such as in a container.
+
     # Set the vrrp child process non swappable
     vrrp_no_swap
 
