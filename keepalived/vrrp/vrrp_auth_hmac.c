@@ -52,7 +52,7 @@ typedef struct _hmac_seg {
  * ipad/opad construction mirrors the legacy hmac_md5 so it stays portable
  * across the OpenSSL versions keepalived already supports.
  */
-static void
+static bool
 compute_hmac(const uint8_t *key, size_t key_len,
 	     const hmac_seg_t *seg, unsigned nseg, uint8_t *digest)
 {
@@ -60,22 +60,27 @@ compute_hmac(const uint8_t *key, size_t key_len,
 	unsigned char k_ipad[SHA256_BLOCK_SIZE];
 	unsigned char k_opad[SHA256_BLOCK_SIZE];
 	unsigned char tk[SHA256_DIGEST_LEN];
+	bool ret = false;
 	unsigned n;
 	int i;
 
-	/* A failed allocation leaves a zero digest so verification fails safely */
+	/* A failure leaves a zero digest, but so can a sender, so check the
+	 * return code rather than the digest */
 	memset(digest, 0, SHA256_DIGEST_LEN);
 
 	ctx = EVP_MD_CTX_new();
 	if (!ctx)
-		return;
+		return false;
 
 	/* Reduce an oversized key to its digest */
 	if (key_len > SHA256_BLOCK_SIZE) {
-		EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
-		EVP_DigestUpdate(ctx, key, key_len);
-		EVP_DigestFinal_ex(ctx, tk, NULL);
-		EVP_MD_CTX_reset(ctx);
+		if (!EVP_DigestInit_ex(ctx, EVP_sha256(), NULL) ||
+		    !EVP_DigestUpdate(ctx, key, key_len) ||
+		    !EVP_DigestFinal_ex(ctx, tk, NULL) ||
+		    !EVP_MD_CTX_reset(ctx)) {
+			EVP_MD_CTX_free(ctx);
+			return false;
+		}
 		key = tk;
 		key_len = SHA256_DIGEST_LEN;
 	}
@@ -90,23 +95,34 @@ compute_hmac(const uint8_t *key, size_t key_len,
 	}
 
 	/* inner pass: H(K xor ipad, message) */
-	EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
-	EVP_DigestUpdate(ctx, k_ipad, SHA256_BLOCK_SIZE);
-	for (n = 0; n < nseg; n++)
-		EVP_DigestUpdate(ctx, seg[n].data, seg[n].len);
-	EVP_DigestFinal_ex(ctx, digest, NULL);
+	if (EVP_DigestInit_ex(ctx, EVP_sha256(), NULL) &&
+	    EVP_DigestUpdate(ctx, k_ipad, SHA256_BLOCK_SIZE)) {
+		ret = true;
+		for (n = 0; n < nseg; n++)
+			if (!EVP_DigestUpdate(ctx, seg[n].data, seg[n].len)) {
+				ret = false;
+				break;
+			}
+	}
 
 	/* outer pass: H(K xor opad, inner) */
-	EVP_MD_CTX_reset(ctx);
-	EVP_DigestInit_ex(ctx, EVP_sha256(), NULL);
-	EVP_DigestUpdate(ctx, k_opad, SHA256_BLOCK_SIZE);
-	EVP_DigestUpdate(ctx, digest, SHA256_DIGEST_LEN);
-	EVP_DigestFinal_ex(ctx, digest, NULL);
+	if (ret)
+		ret = EVP_DigestFinal_ex(ctx, digest, NULL) &&
+		      EVP_MD_CTX_reset(ctx) &&
+		      EVP_DigestInit_ex(ctx, EVP_sha256(), NULL) &&
+		      EVP_DigestUpdate(ctx, k_opad, SHA256_BLOCK_SIZE) &&
+		      EVP_DigestUpdate(ctx, digest, SHA256_DIGEST_LEN) &&
+		      EVP_DigestFinal_ex(ctx, digest, NULL);
+
+	if (!ret)
+		memset(digest, 0, SHA256_DIGEST_LEN);
 
 	EVP_MD_CTX_free(ctx);
 	OPENSSL_cleanse(k_ipad, sizeof(k_ipad));
 	OPENSSL_cleanse(k_opad, sizeof(k_opad));
 	OPENSSL_cleanse(tk, sizeof(tk));
+
+	return ret;
 }
 
 /*
@@ -134,7 +150,7 @@ build_pseudo(uint8_t *out, sa_family_t family, uint8_t version, uint8_t vrid, co
  * Segmenting substitutes the zeros without touching the packet, so the kernel
  * written IPv6 checksum no longer desynchronizes sender and receiver.
  */
-static void
+static bool
 pdu_hmac(const vrrp_auth_key_t *key, const uint8_t *pseudo,
 	 const uint8_t *pdu, size_t len, uint8_t *digest)
 {
@@ -148,7 +164,7 @@ pdu_hmac(const vrrp_auth_key_t *key, const uint8_t *pseudo,
 		{ zero, sizeof(zero) },
 	};
 
-	compute_hmac(key->data, key->len, seg, 5, digest);
+	return compute_hmac(key->data, key->len, seg, 5, digest);
 }
 
 const char *
@@ -326,8 +342,9 @@ vrrp_auth_hmac_sign(vrrp_t *vrrp)
 		return;		/* a zero hmac is rejected by every receiver */
 
 	build_pseudo(pseudo, vrrp->family, vrrp->version, vrrp->vrid, &vrrp->saddr);
-	pdu_hmac(key, pseudo, PTR_CAST(uint8_t, vrrp->send_buffer) + pdu_off,
-		 vrrp->send_buffer_size - pdu_off - VRRP_AUTH_HMAC_LEN, digest);
+	if (!pdu_hmac(key, pseudo, PTR_CAST(uint8_t, vrrp->send_buffer) + pdu_off,
+		      vrrp->send_buffer_size - pdu_off - VRRP_AUTH_HMAC_LEN, digest))
+		return;		/* leave the zero hmac, which a receiver rejects */
 	memcpy(tr->hmac, digest, VRRP_AUTH_HMAC_LEN);
 }
 
@@ -434,7 +451,8 @@ vrrp_auth_hmac_check(vrrp_t *vrrp, const void *pdu, size_t pdu_len,
 		return VRRP_AUTH_HMAC_UNKNOWN_KEY;
 
 	build_pseudo(pseudo, vrrp->family, vrrp->version, vrrp->vrid, &vrrp->pkt_saddr);
-	pdu_hmac(key, pseudo, pdu, pdu_len + offsetof(vrrp_auth_ext_t, hmac), digest);
+	if (!pdu_hmac(key, pseudo, pdu, pdu_len + offsetof(vrrp_auth_ext_t, hmac), digest))
+		return VRRP_AUTH_HMAC_BAD_HMAC;
 	if (memcmp_constant_time(tr->hmac, digest, VRRP_AUTH_HMAC_LEN))
 		return VRRP_AUTH_HMAC_BAD_HMAC;
 

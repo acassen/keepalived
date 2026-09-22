@@ -504,10 +504,13 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, sockaddr_t *addr)
 				   -- rfc2402.3.3.3.1.1.1 & rfc2401.5
 				 */
 				memset(&ah->auth_data, 0, sizeof(ah->auth_data));
-				hmac_md5(PTR_CAST_CONST(unsigned char, &iph), sizeof iph, PTR_CAST_CONST(unsigned char, ah),
-					 vrrp->send_buffer_size - sizeof(struct iphdr), vrrp->auth_data,
-					 sizeof(vrrp->auth_data), digest);
-				memcpy(ah->auth_data, digest, HMAC_MD5_TRUNC);
+				if (!hmac_md5(PTR_CAST_CONST(unsigned char, &iph), sizeof iph, PTR_CAST_CONST(unsigned char, ah),
+					      vrrp->send_buffer_size - sizeof(struct iphdr), vrrp->auth_data,
+					      sizeof(vrrp->auth_data), digest))
+					log_message(LOG_INFO, "(%s) IPSEC-AH : cannot compute HMAC-MD5,"
+							      " sending unauthenticated advert", vrrp->iname);
+				else
+					memcpy(ah->auth_data, digest, HMAC_MD5_TRUNC);
 			}
 		}
 #endif
@@ -572,9 +575,13 @@ vrrp_in_chk_ipsecah(vrrp_t *vrrp, const struct iphdr *ip, const ipsec_ah_t *ah, 
 	memset(digest, 0, MD5_DIGEST_LENGTH);
 
 	/* Compute the ICV */
-	hmac_md5((const unsigned char *)ip_tmp, hdr_len,
-		 (const unsigned char *)hd, buflen - ((const unsigned char *)hd - (const unsigned char *)ip)
-		 , vrrp->auth_data, sizeof (vrrp->auth_data) , digest);
+	if (!hmac_md5((const unsigned char *)ip_tmp, hdr_len,
+		      (const unsigned char *)hd, buflen - ((const unsigned char *)hd - (const unsigned char *)ip)
+		      , vrrp->auth_data, sizeof (vrrp->auth_data) , digest)) {
+		log_message(LOG_INFO, "(%s) IPSEC-AH : cannot compute HMAC-MD5,"
+				      " discarding packet", vrrp->iname);
+		return true;
+	}
 
 	if (memcmp_constant_time(ah->auth_data, digest, HMAC_MD5_TRUNC) != 0) {
 		log_message(LOG_INFO, "(%s) IPSEC-AH : invalid"
@@ -1443,8 +1450,11 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, size_t buflen)
 	   => No padding needed.
 	   -- rfc2402.3.3.3.1.1.1 & rfc2401.5
 	 */
-	hmac_md5(PTR_CAST(unsigned char, buffer), buflen, NULL, 0, vrrp->auth_data, sizeof (vrrp->auth_data), digest);
-	memcpy(ah->auth_data, digest, HMAC_MD5_TRUNC);
+	if (!hmac_md5(PTR_CAST(unsigned char, buffer), buflen, NULL, 0, vrrp->auth_data, sizeof (vrrp->auth_data), digest))
+		log_message(LOG_INFO, "(%s) IPSEC-AH : cannot compute HMAC-MD5,"
+				      " sending unauthenticated advert", vrrp->iname);
+	else
+		memcpy(ah->auth_data, digest, HMAC_MD5_TRUNC);
 }
 #endif
 
