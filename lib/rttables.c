@@ -620,6 +620,8 @@ write_addrproto_config(const char *name, uint32_t val)
 	mode_t old_umask;
 
 	fp = popen("ip -V 2>&1", "re");
+	if (!fp)
+		return;
 	res = fgets(buf, sizeof(buf), fp);
 	pclose(fp);
 
