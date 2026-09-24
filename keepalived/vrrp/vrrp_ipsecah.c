@@ -33,7 +33,7 @@
 #define	BLOCK_SIZE	64
 
 /* hmac_md5 computation according to the RFCs 2085 & 2104 */
-void
+bool
 hmac_md5(const unsigned char *buffer1, size_t buffer1_len, const unsigned char *buffer2, size_t buffer2_len,
 	 const unsigned char *key, size_t key_len, unsigned char *digest)
 {
@@ -41,6 +41,7 @@ hmac_md5(const unsigned char *buffer1, size_t buffer1_len, const unsigned char *
 	unsigned char k_ipad[BLOCK_SIZE+1];	/* inner padding - key XORd with ipad */
 	unsigned char k_opad[BLOCK_SIZE+1];	/* outer padding - key XORd with opad */
 	unsigned char tk[MD5_DIGEST_LENGTH];
+	bool ret = false;
 	int i;
 
 	/* Initialize data */
@@ -48,7 +49,8 @@ hmac_md5(const unsigned char *buffer1, size_t buffer1_len, const unsigned char *
 	memset(k_opad, 0, sizeof (k_opad));
 	memset(tk, 0, sizeof (tk));
 
-	/* A failed context allocation zeroes the digest so authentication fails safely */
+	/* A failure leaves a zero digest, but so can a sender, so check the
+	 * return code rather than the digest */
 	memset(digest, 0, MD5_DIGEST_LENGTH);
 
 	/* If the key is longer than 64 bytes => set it to key=MD5(key) */
@@ -56,12 +58,15 @@ hmac_md5(const unsigned char *buffer1, size_t buffer1_len, const unsigned char *
 		EVP_MD_CTX *tctx = EVP_MD_CTX_new();
 
 		if (!tctx)
-			return;
+			return false;
 
 		/* Compute the MD5 digest */
-		EVP_DigestInit_ex(tctx, EVP_md5(), NULL);
-		EVP_DigestUpdate(tctx, key, key_len);
-		EVP_DigestFinal_ex(tctx, tk, NULL);
+		if (!EVP_DigestInit_ex(tctx, EVP_md5(), NULL) ||
+		    !EVP_DigestUpdate(tctx, key, key_len) ||
+		    !EVP_DigestFinal_ex(tctx, tk, NULL)) {
+			EVP_MD_CTX_free(tctx);
+			return false;
+		}
 
 		key = tk;
 		key_len = MD5_DIGEST_LENGTH;
@@ -93,22 +98,25 @@ hmac_md5(const unsigned char *buffer1, size_t buffer1_len, const unsigned char *
 		OPENSSL_cleanse(k_ipad, sizeof(k_ipad));
 		OPENSSL_cleanse(k_opad, sizeof(k_opad));
 		OPENSSL_cleanse(tk, sizeof(tk));
-		return;
+		return false;
 	}
 
-	EVP_DigestInit_ex(context, EVP_md5(), NULL);		/* Init context for 1st pass */
-	EVP_DigestUpdate(context, k_ipad, BLOCK_SIZE);		/* start with inner pad */
-	EVP_DigestUpdate(context, buffer1, buffer1_len);	/* next with buffer datagram */
-	if (buffer2)
-		EVP_DigestUpdate(context, buffer2, buffer2_len); /* next with buffer datagram */
-	EVP_DigestFinal_ex(context, digest, NULL);		/* Finish 1st pass */
+	if (EVP_DigestInit_ex(context, EVP_md5(), NULL) &&	/* Init context for 1st pass */
+	    EVP_DigestUpdate(context, k_ipad, BLOCK_SIZE) &&	/* start with inner pad */
+	    EVP_DigestUpdate(context, buffer1, buffer1_len) &&	/* next with buffer datagram */
+	    (!buffer2 ||
+	     EVP_DigestUpdate(context, buffer2, buffer2_len)) &&	/* next with buffer datagram */
+	    EVP_DigestFinal_ex(context, digest, NULL) &&	/* Finish 1st pass */
 
-	/* Compute outer MD5 */
-	EVP_MD_CTX_reset(context);
-	EVP_DigestInit_ex(context, EVP_md5(), NULL);		/* Init context for 2nd pass */
-	EVP_DigestUpdate(context, k_opad, BLOCK_SIZE);		/* start with inner pad */
-	EVP_DigestUpdate(context, digest, MD5_DIGEST_LENGTH);	/* next result of 1st pass */
-	EVP_DigestFinal_ex(context, digest, NULL);		/* Finish 2nd pass */
+	    /* Compute outer MD5 */
+	    EVP_MD_CTX_reset(context) &&
+	    EVP_DigestInit_ex(context, EVP_md5(), NULL) &&	/* Init context for 2nd pass */
+	    EVP_DigestUpdate(context, k_opad, BLOCK_SIZE) &&	/* start with inner pad */
+	    EVP_DigestUpdate(context, digest, MD5_DIGEST_LENGTH) &&	/* next result of 1st pass */
+	    EVP_DigestFinal_ex(context, digest, NULL))		/* Finish 2nd pass */
+		ret = true;
+	else
+		memset(digest, 0, MD5_DIGEST_LENGTH);
 
 	EVP_MD_CTX_free(context);
 
@@ -116,4 +124,6 @@ hmac_md5(const unsigned char *buffer1, size_t buffer1_len, const unsigned char *
 	OPENSSL_cleanse(k_ipad, sizeof(k_ipad));
 	OPENSSL_cleanse(k_opad, sizeof(k_opad));
 	OPENSSL_cleanse(tk, sizeof(tk));
+
+	return ret;
 }
