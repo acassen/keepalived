@@ -57,8 +57,8 @@ uid_t our_uid;
 gid_t our_gid;
 
 /* Our supplementary groups, and whether we can set them */
-static gid_t *our_sup_grp;
-static int our_num_sup_grp;
+gid_t *our_sup_grp;
+int our_num_sup_grp;
 static bool can_set_sup_grp;
 
 /* Script security enabled */
