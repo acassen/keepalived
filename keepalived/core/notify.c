@@ -56,6 +56,11 @@
 uid_t our_uid;
 gid_t our_gid;
 
+/* Our supplementary groups, and whether we can set them */
+static gid_t *our_sup_grp;
+static int our_num_sup_grp;
+static bool can_set_sup_grp;
+
 /* Script security enabled */
 bool script_security = false;
 
@@ -86,8 +91,10 @@ set_script_env(const user_id_t *user_id)
 		}
 	}
 
-	/* Set/clear any extra supplementary groups */
-	if (setgroups(user_id->num_sup_grp, user_id->sup_grp) < 0) {
+	/* Set/clear any extra supplementary groups. If we can't, check_script_secure()
+	 * has ensured that we have none that the script's user does not. */
+	if (can_set_sup_grp &&
+	    setgroups(user_id->num_sup_grp, user_id->sup_grp) < 0) {
 		log_message(LOG_ALERT, "Couldn't setgroups for %u (%m)", user_id->uid);
 		return true;
 	}
@@ -515,8 +522,7 @@ find_path(notify_script_t *script)
 	struct stat buf;
 	int ret;
 	int ret_val = ENOENT;
-	int sgid_num;
-	gid_t *sgid_list = NULL;
+	bool changed_sup_grp = false;
 	const char *subp;
 	bool got_eacces = false;
 	const char *p;
@@ -572,22 +578,14 @@ find_path(notify_script_t *script)
 			}
 		}
 
-		/* Get our supplementary groups */
-		sgid_num = getgroups(0, NULL);
-		if (sgid_num == -1) {
-			log_message(LOG_INFO, "Unable to get number of supplementary gids (%m)");
-			ret_val = EACCES;
-			goto exit;
-		}
-		sgid_list = MALLOC(((size_t)sgid_num + 1) * sizeof(gid_t));
-		sgid_num = getgroups(sgid_num, sgid_list);
-		sgid_list[sgid_num++] = our_gid;
-
 		/* Set/clear the supplementary group list */
-		if (setgroups(script->user_id.num_sup_grp, script->user_id.sup_grp)) {
-			log_message(LOG_INFO, "Unable to set supplementary gids (%m)");
-			ret_val = EACCES;
-			goto exit;
+		if (can_set_sup_grp) {
+			if (setgroups(script->user_id.num_sup_grp, script->user_id.sup_grp)) {
+				log_message(LOG_INFO, "Unable to set supplementary gids (%m)");
+				ret_val = EACCES;
+				goto exit;
+			}
+			changed_sup_grp = true;
 		}
 	}
 
@@ -677,11 +675,8 @@ exit:
 		log_message(LOG_INFO, "Unable to restore euid after script search (%m)");
 
 	/* restore supplementary groups */
-	if (sgid_list) {
-		if (setgroups((size_t)sgid_num, sgid_list))
-			log_message(LOG_INFO, "Unable to restore supplementary groups after script search (%m)");
-		FREE(sgid_list);
-	}
+	if (changed_sup_grp && setgroups((size_t)our_num_sup_grp, our_sup_grp))
+		log_message(LOG_INFO, "Unable to restore supplementary groups after script search (%m)");
 
 	/* We tried every element and none of them worked. */
 	if (got_eacces) {
@@ -837,6 +832,33 @@ clean_path(const char *old_argv)
 	return new_argv;
 }
 
+static bool
+gid_in_list(gid_t gid, int num_list, const gid_t *list)
+{
+	int i;
+
+	for (i = 0; i < num_list; i++) {
+		if (list[i] == gid)
+			return true;
+	}
+
+	return false;
+}
+
+/* Check if every group in grp, other than ignore_gid, is also in list */
+static bool
+grps_in_list(int num_grp, const gid_t *grp, int num_list, const gid_t *list, gid_t ignore_gid)
+{
+	int i;
+
+	for (i = 0; i < num_grp; i++) {
+		if (grp[i] != ignore_gid && !gid_in_list(grp[i], num_list, list))
+			return false;
+	}
+
+	return true;
+}
+
 unsigned
 check_script_secure(notify_script_t *script,
 #ifndef _HAVE_LIBMAGIC_
@@ -859,6 +881,23 @@ check_script_secure(notify_script_t *script,
 
 	if (!script)
 		return 0;
+
+	/* If we cannot set the supplementary groups, the script keeps our groups, so
+	 * we must not have any groups that the script should not have. If the script
+	 * should have groups that we don't, it runs without them, and we only log a
+	 * warning. The script's primary group is ignored, since the script runs with
+	 * it as its gid anyway. The lists are compared as sets, since getgrouplist()
+	 * can contain duplicates. */
+	if (!can_set_sup_grp) {
+		const user_id_t *user_id = &script->user_id;
+
+		if (!grps_in_list(our_num_sup_grp, our_sup_grp, user_id->num_sup_grp, user_id->sup_grp, user_id->gid)) {
+			log_message(LOG_INFO, "Cannot clear some supplementary groups for script %s - disabling", script->args[0]);
+			return SC_INHIBIT;
+		}
+		if (!grps_in_list(user_id->num_sup_grp, user_id->sup_grp, our_num_sup_grp, our_sup_grp, user_id->gid))
+			log_message(LOG_WARNING, "Cannot set some supplementary groups for script %s", script->args[0]);
+	}
 
 	/* If the script starts "</" (possibly with white space between
 	 * the '<' and '/'), it is checking for a file being openable,
@@ -1337,11 +1376,32 @@ notify_script_compare(const notify_script_t *a, const notify_script_t *b)
 	return true;
 }
 
+/* Save our supplementary groups and check if we can set them */
+static void
+save_our_sup_grp(void)
+{
+	/* Get our supplementary groups, allocating at least one entry, since MALLOC(0) may fail */
+	our_num_sup_grp = getgroups(0, NULL);
+	our_sup_grp = MALLOC(((size_t)our_num_sup_grp + 1) * sizeof(gid_t));
+	our_num_sup_grp = getgroups(our_num_sup_grp, our_sup_grp);
+
+	/* Check if we can set our supplementary groups */
+	can_set_sup_grp = !setgroups((size_t)our_num_sup_grp, our_sup_grp);
+}
+
 void
-set_our_uid_gid(void)
+set_our_creds(void)
 {
 	our_uid = geteuid();
 	our_gid = getegid();
+	save_our_sup_grp();
+}
+
+void
+free_our_creds(void)
+{
+	FREE_PTR(our_sup_grp);
+	our_num_sup_grp = 0;
 }
 
 #ifdef THREAD_DUMP
