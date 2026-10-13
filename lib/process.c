@@ -24,6 +24,7 @@
 
 #include <sys/mman.h>
 #include <sys/resource.h>
+#include <sys/syscall.h>
 #ifndef RLIMIT_RTTIME
 /* musl was very late defining RLIMIT_RTTIME, not until v1.20 */
 #define RLIMIT_RTTIME	15
@@ -136,6 +137,18 @@ reset_process_priority(void)
 	cur_priority = 0;
 }
 
+/* musl's sched_setscheduler() always fails with ENOSYS, see
+ * https://git.musl-libc.org/cgit/musl/tree/src/sched/sched_setscheduler.c */
+static int
+set_process_scheduler(int policy, int priority)
+{
+	struct sched_param sp = {
+		.sched_priority = priority
+	};
+
+	return (int)syscall(SYS_sched_setscheduler, our_pid, policy, &sp);
+}
+
 /* NOTE: This function generates a "stack protector not protecting local variables:
    variable length buffer" warning */
 RELAX_STACK_PROTECTOR_START
@@ -148,11 +161,7 @@ set_process_priorities(unsigned realtime_priority, int max_realtime_priority, un
 
 	if (realtime_priority) {
 		/* Set realtime priority */
-		struct sched_param sp = {
-			.sched_priority = realtime_priority
-		};
-
-		if (sched_setscheduler(our_pid, SCHED_RR | SCHED_RESET_ON_FORK, &sp))
+		if (set_process_scheduler(SCHED_RR | SCHED_RESET_ON_FORK, realtime_priority))
 			log_message(LOG_WARNING, "child process: cannot raise priority");
 		else {
 			cur_rt_priority = realtime_priority;
@@ -190,12 +199,7 @@ void
 reset_priority(void)
 {
 	if (cur_rt_priority) {
-		/* Set realtime priority */
-		struct sched_param sp = {
-			.sched_priority = 0
-		};
-
-		if (sched_setscheduler(our_pid, SCHED_OTHER, &sp))
+		if (set_process_scheduler(SCHED_OTHER, 0))
 			log_message(LOG_WARNING, "child process: cannot reset realtime scheduling");
 		else {
 			cur_rt_priority = 0;
@@ -259,8 +263,7 @@ restore_priority(unsigned realtime_priority, int max_realtime_priority, unsigned
 		/* We are currently using realtime */
 		if (!realtime_priority && max_realtime_priority == -1) {
 			/* Turn off rt_sched and set process_priority */
-			struct sched_param sp = { .sched_priority = process_priority };
-			sched_setscheduler(our_pid, SCHED_OTHER, &sp);
+			set_process_scheduler(SCHED_OTHER, process_priority);
 			cur_rt_priority = 0;
 			max_rt_priority = 0;
 		} else {
