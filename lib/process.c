@@ -303,6 +303,8 @@ restore_priority(unsigned realtime_priority, int max_realtime_priority, unsigned
 void
 increment_process_priority(void)
 {
+	unsigned new_priority;
+
 	if (!max_rt_priority)
 		return;
 
@@ -310,15 +312,17 @@ increment_process_priority(void)
 		if (cur_rt_priority >= max_rt_priority)
 			return;
 
-		cur_rt_priority++;
+		new_priority = cur_rt_priority + 1;
 	} else
-		cur_rt_priority = sched_get_priority_min(SCHED_RR);
+		new_priority = sched_get_priority_min(SCHED_RR);
 
-	set_process_priorities(cur_rt_priority, -1, 0,
+	/* set_process_priorities() updates cur_rt_priority only on success */
+	set_process_priorities(new_priority, -1, 0,
 			       cur_rlimit_rttime ? 0 : default_rlimit_rttime,
 			       0, 0);
 
-	log_message(LOG_INFO, "Set realtime priority %u", cur_rt_priority);
+	if (cur_rt_priority == new_priority)
+		log_message(LOG_INFO, "Set realtime priority %u", cur_rt_priority);
 }
 
 unsigned __attribute__((pure))
