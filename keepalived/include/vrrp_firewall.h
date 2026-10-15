@@ -46,6 +46,9 @@
 
 
 /* prototypes */
+#if defined _WITH_IPTABLES_ && defined _WITH_NFTABLES_
+extern void check_swap_iptables_to_nftables(void);
+#endif
 extern void firewall_handle_accept_mode(vrrp_t *, int, bool);
 extern void firewall_remove_rule_to_iplist(list_head_t *);
 #ifdef _HAVE_VRRP_VMAC_

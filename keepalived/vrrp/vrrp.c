@@ -5017,6 +5017,9 @@ vrrp_complete_init(void)
 		if (global_data->using_ipsets)
 			disable_ipsets();
 #endif
+	} else if (global_data->vrrp_iptables_inchain ||
+		   global_data->vrrp_iptables_outchain) {
+		check_swap_iptables_to_nftables();
 	}
 #endif
 
