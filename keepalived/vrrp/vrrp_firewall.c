@@ -42,6 +42,7 @@
 
 #if defined _WITH_IPTABLES_ && defined _WITH_NFTABLES_
 static bool checked_iptables_nft;
+static bool swap_iptables_to_nft;
 
 static void
 check_iptables_nft(void)
@@ -53,61 +54,75 @@ check_iptables_nft(void)
 
 	/* Increasingly the iptables command is being provided as a front end to nftables. If so,
 	 * then if we are built with nftables support, we should use nftables. */
-	checked_iptables_nft = true;
+	if (!checked_iptables_nft) {
+		checked_iptables_nft = true;
 
+		fp = popen("iptables -V", "re");
+		if (!fp) {
+			/* No iptables command, so we need to use nftables */
+			log_message(LOG_INFO, "Using nftables since no iptables command found - please update configuration");
+		} else {
+			res = fgets(buf, sizeof buf, fp);
+			pclose(fp);
+
+			if (!res) {
+				if (__test_bit(LOG_DETAIL_BIT, &debug))
+					log_message(LOG_INFO, "popen(\"iptables -V\" read failed - errno %d - %m", errno);
+				return;
+			}
+
+			/* iptables will either have no type, or the type will be "nf_tables" or "legacy" */
+			if ((len = strlen(buf)) && buf[len-1] == '\n')
+				buf[--len] = '\0';
+
+			if (len <= 10 || buf[len-1] != ')')
+				return;
+
+			/* If the type is not nf_tables, then iptables command is creating iptables configuration */
+			if (strncmp(buf + len - 1 - 9, "nf_tables", 9))
+				return;
+
+#ifdef ALLOW_IPTABLES_LEGACY
+			fp = popen("iptables-legacy -V", "re");
+
+			if (fp) {
+			    fclose(fp);
+				/* The iptables-legacy command exists, so can use iptables */
+				return;
+			}
+#endif
+
+			log_message(LOG_INFO, "Not using iptables since iptables uses nf_tables - please update configuration");
+		}
+	}
+
+	swap_iptables_to_nft = true;
+}
+
+void
+check_swap_iptables_to_nftables(void)
+{
 	/* If using iptables is not configured, we don't need to do anything */
 	if (!global_data->vrrp_iptables_inchain &&
 	    !global_data->vrrp_iptables_outchain)
 		return;
 
-	fp = popen("iptables -V", "re");
-	if (!fp) {
-		/* No iptables command, so we need to use nftables */
-		log_message(LOG_INFO, "Using nftables since no iptables command found - please update configuration");
-	} else {
-		res = fgets(buf, sizeof buf, fp);
-		pclose(fp);
+	if (!checked_iptables_nft)
+		check_iptables_nft();
 
-		if (!res) {
-			if (__test_bit(LOG_DETAIL_BIT, &debug))
-				log_message(LOG_INFO, "popen(\"iptables -V\" read failed - errno %d - %m", errno);
-			return;
-		}
+	if (swap_iptables_to_nft) {
+		FREE_CONST_PTR(global_data->vrrp_iptables_inchain);
+		FREE_CONST_PTR(global_data->vrrp_iptables_outchain);
 
-		/* iptables will either have no type, or the type will be "nf_tables" or "legacy" */
-		if ((len = strlen(buf)) && buf[len-1] == '\n')
-			buf[--len] = '\0';
-
-		if (len <= 10 || buf[len-1] != ')')
-			return;
-
-		/* If the type is not nf_tables, then iptables command is creating iptables configuration */
-		if (strncmp(buf + len - 1 - 9, "nf_tables", 9))
-			return;
-
-#ifdef ALLOW_IPTABLES_LEGACY
-		fp = popen("iptables-legacy -V", "re");
-
-		if (fp) {
-		    fclose(fp);
-			/* The iptables-legacy command exists, so can use iptables */
-			return;
-		}
-#endif
-
-		log_message(LOG_INFO, "Not using iptables since iptables uses nf_tables - please update configuration");
-	}
-
-	FREE_CONST_PTR(global_data->vrrp_iptables_inchain);
-	FREE_CONST_PTR(global_data->vrrp_iptables_outchain);
 #ifdef _HAVE_LIBIPSET_
-	if (global_data->using_ipsets)
-		disable_ipsets();
+		if (global_data->using_ipsets)
+			disable_ipsets();
 #endif
 
-	/* If nftables table name not set up, set it to default */
-	if (!global_data->vrrp_nf_table_name)
-		global_data->vrrp_nf_table_name = STRDUP(DEFAULT_NFTABLES_TABLE);
+		/* If nftables table name not set up, set it to default */
+		if (!global_data->vrrp_nf_table_name)
+			global_data->vrrp_nf_table_name = STRDUP(DEFAULT_NFTABLES_TABLE);
+	}
 }
 #endif
 
@@ -119,11 +134,6 @@ firewall_handle_accept_mode(vrrp_t *vrrp, int cmd,
 #endif
 						    bool force)
 {
-#if defined _WITH_IPTABLES_ && defined _WITH_NFTABLES_
-	if (!checked_iptables_nft)
-		check_iptables_nft();
-#endif
-
 #ifdef _WITH_IPTABLES_
 	if (global_data->vrrp_iptables_inchain)
 		handle_iptables_accept_mode(vrrp, cmd, force);
@@ -163,11 +173,6 @@ firewall_add_vmac(const vrrp_t *vrrp,
 #endif
 						const interface_t *old_ifp)
 {
-#if defined _WITH_IPTABLES_ && defined _WITH_NFTABLES_
-	if (!checked_iptables_nft)
-		check_iptables_nft();
-#endif
-
 #ifdef _WITH_IPTABLES_
 	if (global_data->vrrp_iptables_outchain)
 		iptables_add_vmac(vrrp->ifp, vrrp->family, __test_bit(VRRP_FLAG_EVIP_OTHER_FAMILY, &vrrp->flags));
