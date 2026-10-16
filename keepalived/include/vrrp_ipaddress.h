@@ -79,7 +79,7 @@ typedef struct _ip_address {
 #endif
 	unsigned		garp_gna_pending;	/* Number of GARPs/GNAs still to be sent */
 	list_head_t		garp_gna_list;
-	uint32_t		preferred_lft;		/* IPv6 preferred_lft (0 means address deprecated) */
+	uint32_t		preferred_lft;		/* IP address preferred_lft (0 means address deprecated) */
 
 	/* linked list member */
 	list_head_t		e_list;
