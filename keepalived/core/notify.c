@@ -225,6 +225,7 @@ system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned 
 	}
 
 	/* Child process */
+	our_pid = getpid();
 	reset_process_priorities();
 
 #ifdef _MEM_CHECK_
