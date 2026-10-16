@@ -1746,8 +1746,8 @@ The syntax for vrrp_instance is :
     # For a description of the group option, see use_vmac.
     \fBuse_ipvlan \fR[[name] <INTERFACE_NAME>] [IP_ADDRESS] [bridge|private|vepa] [group GROUP_ID]
 
-    # force instance to use IPv6 (this option is deprecated since
-    # the virtual ip addresses determine whether IPv4 or IPv6 is used).
+    # force instance to use IPv6 (this option when no_virtual_ipaddress
+    # is configured).
     \fBnative_ipv6\fR
 
     # Ignore VRRP interface faults (default unset).
@@ -2126,6 +2126,7 @@ The syntax for vrrp_instance is :
     # and allows VRRPv3 to be used with no VIPs.
     # WARNING - when using this with VRRPv3 it causes a protocol violation and
     # may not work with other VRRP implementations.
+    # If the VRRP instance is to be IPv6 then native_ipv6 will need to be specified.
     \fBno_virtual_ipaddress\fR
 
     # Set the promote_secondaries flag on the interface to stop other
