@@ -154,22 +154,23 @@ netlink_ipaddress(ip_address_t *ip_addr, int cmd)
 	req.n.nlmsg_type = (cmd == IPADDRESS_DEL) ? RTM_DELADDR : RTM_NEWADDR;
 	req.ifa = ip_addr->ifa;
 
-	if (cmd == IPADDRESS_ADD)
+	if (cmd == IPADDRESS_ADD) {
 		ifa_flags = ip_addr->flags;
+
+		/* A preferred_lft of 0 marks an IPv6 address as deprecated (rfc3484)
+			 * in order to prevent using VRRP VIP as source address in
+			 * healthchecking use cases. */
+		if (ip_addr->preferred_lft != INFINITY_LIFE_TIME) {
+		    memset(&cinfo, 0, sizeof(cinfo));
+			cinfo.ifa_prefered = ip_addr->preferred_lft;
+			cinfo.ifa_valid = INFINITY_LIFE_TIME;
+
+			addattr_l(&req.n, sizeof(req), IFA_CACHEINFO, &cinfo, sizeof(cinfo));
+		}
+	}
 
 	if (IP_IS6(ip_addr)) {
 		if (cmd == IPADDRESS_ADD) {
-			/* A preferred_lft of 0 marks an IPv6 address as deprecated (rfc3484)
-			 * in order to prevent using VRRP VIP as source address in
-			 * healthchecking use cases. */
-			if (ip_addr->preferred_lft != INFINITY_LIFE_TIME) {
-				memset(&cinfo, 0, sizeof(cinfo));
-				cinfo.ifa_prefered = ip_addr->preferred_lft;
-				cinfo.ifa_valid = INFINITY_LIFE_TIME;
-
-				addattr_l(&req.n, sizeof(req), IFA_CACHEINFO, &cinfo, sizeof(cinfo));
-			}
-
 			/* Disable, per VIP, Duplicate Address Detection algorithm (DAD).
 			 * Using the nodad flag has the following benefits:
 			 *
@@ -347,14 +348,14 @@ format_ipaddress(const ip_address_t *ip_addr, char *buf, size_t buf_len)
 	if (ip_addr->track_group)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " track_group %s", ip_addr->track_group->gname);
 
-	if (IP_IS6(ip_addr)) {
-		if (ip_addr->preferred_lft == 0)
-			buf_p += snprintf(buf_p, buf_end - buf_p, " deprecated");
-		else if (ip_addr->preferred_lft == INFINITY_LIFE_TIME)
-			buf_p += snprintf(buf_p, buf_end - buf_p, " preferred_lft forever");
-		else
-			buf_p += snprintf(buf_p, buf_end - buf_p, " preferred_lft %" PRIu32, ip_addr->preferred_lft);
-	}
+
+	if (ip_addr->preferred_lft == 0)
+		buf_p += snprintf(buf_p, buf_end - buf_p, " deprecated");
+	else if (ip_addr->preferred_lft == INFINITY_LIFE_TIME)
+		buf_p += snprintf(buf_p, buf_end - buf_p, " preferred_lft forever");
+	else
+		buf_p += snprintf(buf_p, buf_end - buf_p, " preferred_lft %" PRIu32, ip_addr->preferred_lft);
+
 
 	if (ip_addr->set)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " set");
@@ -855,3 +856,4 @@ set_addrproto(void)
 		create_rttables_addrproto("keepalived", &address_protocol);
 #endif
 }
+
