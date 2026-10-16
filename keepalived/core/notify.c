@@ -392,12 +392,22 @@ notify_fifo_close(notify_fifo_t* global_fifo, notify_fifo_t* fifo)
 	fifo_close(fifo);
 }
 
+/* A script child is in its own process group, but getpgid() can fail,
+ * e.g. if SELinux denies it, and kill(-(-1), sig) would signal init. */
+static pid_t
+child_pgid(pid_t pid)
+{
+	pid_t pgid = getpgid(pid);
+
+	return pgid < 0 ? pid : pgid;
+}
+
 static void
 child_killed_reload(thread_ref_t thread)
 {
 	/* If the child didn't die, then force it */
 	if (thread->type == THREAD_CHILD_TIMEOUT)
-		kill(-getpgid(thread->u.c.pid), SIGKILL);
+		kill(-child_pgid(thread->u.c.pid), SIGKILL);
 }
 
 void
@@ -407,7 +417,7 @@ child_killed_thread(thread_ref_t thread)
 
 	/* If the child didn't die, then force it */
 	if (thread->type == THREAD_CHILD_TIMEOUT)
-		kill(-getpgid(thread->u.c.pid), SIGKILL);
+		kill(-child_pgid(thread->u.c.pid), SIGKILL);
 
 	/* If all children have died, we can now complete the
 	 * termination process */
@@ -424,7 +434,7 @@ script_killall(thread_master_t *m, int signo, bool shutting_down)
 	p_pgid = getpgid(0);
 
 	rb_for_each_entry_cached(thread, &m->child, n) {
-		c_pgid = getpgid(thread->u.c.pid);
+		c_pgid = child_pgid(thread->u.c.pid);
 		if (c_pgid != p_pgid)
 			kill(-c_pgid, signo);
 		else {
