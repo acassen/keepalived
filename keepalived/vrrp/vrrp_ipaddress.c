@@ -157,11 +157,11 @@ netlink_ipaddress(ip_address_t *ip_addr, int cmd)
 	if (cmd == IPADDRESS_ADD) {
 		ifa_flags = ip_addr->flags;
 
-		/* A preferred_lft of 0 marks an IPv6 address as deprecated (rfc3484)
-			 * in order to prevent using VRRP VIP as source address in
-			 * healthchecking use cases. */
+		/* A preferred_lft of 0 marks an IP address as deprecated (rfc6724)
+		 * in order to prevent using VRRP VIP as source address in
+		 * healthchecking use cases. */
 		if (ip_addr->preferred_lft != INFINITY_LIFE_TIME) {
-		    memset(&cinfo, 0, sizeof(cinfo));
+			memset(&cinfo, 0, sizeof(cinfo));
 			cinfo.ifa_prefered = ip_addr->preferred_lft;
 			cinfo.ifa_valid = INFINITY_LIFE_TIME;
 
@@ -348,14 +348,12 @@ format_ipaddress(const ip_address_t *ip_addr, char *buf, size_t buf_len)
 	if (ip_addr->track_group)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " track_group %s", ip_addr->track_group->gname);
 
-
 	if (ip_addr->preferred_lft == 0)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " deprecated");
 	else if (ip_addr->preferred_lft == INFINITY_LIFE_TIME)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " preferred_lft forever");
 	else
 		buf_p += snprintf(buf_p, buf_end - buf_p, " preferred_lft %" PRIu32, ip_addr->preferred_lft);
-
 
 	if (ip_addr->set)
 		buf_p += snprintf(buf_p, buf_end - buf_p, " set");
@@ -699,6 +697,14 @@ alloc_ipaddress(const vector_t *strvec, bool static_addr)
 		}
 	}
 
+	if (!preferred_lft_set) {
+		/* Set the old defaults if preferred_lft not set */
+		if (new->ifa.ifa_prefixlen == (new->ifa.ifa_family == AF_INET6 ? 128 : 32))
+			new->preferred_lft = 0;
+		else
+			new->preferred_lft = INFINITY_LIFE_TIME;
+	}
+
 	if (new->ifa.ifa_family == AF_INET6) {
 		if (new->ifa.ifa_scope) {
 			report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify scope for IPv6 addresses (%s) - ignoring scope", strvec_slot(strvec, addr_idx));
@@ -708,14 +714,6 @@ alloc_ipaddress(const vector_t *strvec, bool static_addr)
 			report_config_error(CONFIG_GENERAL_ERROR, "Cannot specify label for IPv6 addresses (%s) - ignoring label", strvec_slot(strvec, addr_idx));
 			FREE(new->label);
 			new->label = NULL;
-		}
-
-		if (!preferred_lft_set) {
-			/* Set the old defaults if preferred_lft not set */
-			if (new->ifa.ifa_prefixlen == 128)
-				new->preferred_lft = 0;
-			else
-				new->preferred_lft = INFINITY_LIFE_TIME;
 		}
 	}
 
@@ -856,4 +854,3 @@ set_addrproto(void)
 		create_rttables_addrproto("keepalived", &address_protocol);
 #endif
 }
-
