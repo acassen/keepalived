@@ -140,13 +140,27 @@ reset_process_priority(void)
 /* musl's sched_setscheduler() always fails with ENOSYS, see
  * https://git.musl-libc.org/cgit/musl/tree/src/sched/sched_setscheduler.c */
 static int
-set_process_scheduler(int policy, int priority)
+syscall_sched_setscheduler(pid_t pid, int policy, const struct sched_param *param)
 {
-	struct sched_param sp = {
-		.sched_priority = priority
-	};
+	return (int)syscall(SYS_sched_setscheduler, pid, policy, param);
+}
 
-	return (int)syscall(SYS_sched_setscheduler, our_pid, policy, &sp);
+static int test_sched_setscheduler(pid_t, int, const struct sched_param *);
+static int (*working_sched_setscheduler)(pid_t pid, int policy, const struct sched_param *param) = test_sched_setscheduler;
+
+static int
+test_sched_setscheduler(pid_t pid, int policy, const struct sched_param *param)
+{
+	int ret;
+
+	if ((ret = sched_setscheduler(pid, policy, param)) && errno == ENOSYS) {
+		working_sched_setscheduler = syscall_sched_setscheduler;
+		return syscall_sched_setscheduler(pid, policy, param);
+	}
+
+	working_sched_setscheduler = sched_setscheduler;
+
+	return ret;
 }
 
 /* NOTE: This function generates a "stack protector not protecting local variables:
@@ -161,7 +175,11 @@ set_process_priorities(unsigned realtime_priority, int max_realtime_priority, un
 
 	if (realtime_priority) {
 		/* Set realtime priority */
-		if (set_process_scheduler(SCHED_RR | SCHED_RESET_ON_FORK, realtime_priority))
+		struct sched_param sp = {
+			.sched_priority = realtime_priority
+		};
+
+		if (working_sched_setscheduler(our_pid, SCHED_RR | SCHED_RESET_ON_FORK, &sp))
 			log_message(LOG_WARNING, "child process: cannot raise priority");
 		else {
 			cur_rt_priority = realtime_priority;
@@ -199,7 +217,12 @@ void
 reset_priority(void)
 {
 	if (cur_rt_priority) {
-		if (set_process_scheduler(SCHED_OTHER, 0))
+		/* Reset realtime priority */
+		struct sched_param sp = {
+			.sched_priority = 0
+		};
+
+		if (working_sched_setscheduler(our_pid, SCHED_OTHER, &sp))
 			log_message(LOG_WARNING, "child process: cannot reset realtime scheduling");
 		else {
 			cur_rt_priority = 0;
@@ -263,7 +286,8 @@ restore_priority(unsigned realtime_priority, int max_realtime_priority, unsigned
 		/* We are currently using realtime */
 		if (!realtime_priority && max_realtime_priority == -1) {
 			/* Turn off rt_sched and set process_priority */
-			set_process_scheduler(SCHED_OTHER, process_priority);
+			struct sched_param sp = { .sched_priority = process_priority };
+			working_sched_setscheduler(our_pid, SCHED_OTHER, &sp);
 			cur_rt_priority = 0;
 			max_rt_priority = 0;
 		} else {
