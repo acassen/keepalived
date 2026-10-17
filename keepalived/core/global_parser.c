@@ -187,6 +187,21 @@ set_supplementary_groups_handler(const vector_t *strvec)
 	global_data->set_supplementary_groups = res;
 }
 static void
+strict_script_exec_handler(const vector_t *strvec)
+{
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res < 0) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Invalid value '%s' for global strict_script_exec specified", strvec_slot(strvec, 1));
+			return;
+		}
+	}
+
+	global_data->strict_script_exec = res;
+}
+static void
 routerid_handler(const vector_t *strvec)
 {
 	if (vector_size(strvec) < 2) {
@@ -2628,6 +2643,7 @@ init_global_keywords(bool global_active)
 #endif
 	install_keyword("use_symlink_paths", &use_symlink_path_handler);
 	install_keyword("set_supplementary_groups", &set_supplementary_groups_handler);
+	install_keyword("strict_script_exec", &strict_script_exec_handler);
 	install_keyword("router_id", &routerid_handler);
 	install_keyword("notification_email_from", &emailfrom_handler);
 	install_keyword("smtp_server", &smtpserver_handler);

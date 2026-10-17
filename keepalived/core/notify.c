@@ -195,6 +195,7 @@ system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned 
 	pid_t pid;
 	const char *str;
 	int retval;
+	int exec_fail_status;
 	union non_const_args args;
 
 	/* Daemonization to not degrade our scheduling timer */
@@ -246,8 +247,11 @@ system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned 
 					       );
 #endif
 
+	/* Use status 1, since misc_dynamic treats 2-255 as success with a weight */
+	exec_fail_status = global_data->strict_script_exec ? EXIT_FAILURE : 0;
+
 	if (set_script_env(&script->user_id))
-		exit(0);
+		exit(exec_fail_status);
 
 	/* Move us into our own process group, so if the script needs to be killed
 	 * all its child processes will also be killed. */
@@ -267,12 +271,13 @@ system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned 
 
 		/* error */
 		log_message(LOG_ALERT, "Error exec-ing command '%s', error %d: %m", script->path ? script->path : script->args[0], errno);
+		exit(exec_fail_status);
 	} else {
 		retval = system(str = cmd_str(script));
 
 		if (retval == -1) {
 			log_message(LOG_ALERT, "Error exec-ing command: %s", str);
-			exit(0);
+			exit(exec_fail_status);
 		}
 
 		if (WIFEXITED(retval)) {
@@ -281,20 +286,21 @@ system_call_script(thread_master_t *m, thread_func_t func, void * arg, unsigned 
 				log_message(LOG_ALERT, "Couldn't find command: %s", str);
 			}
 			else if (WEXITSTATUS(retval) == 126) {
-				/* couldn't find command */
+				/* couldn't execute command */
 				log_message(LOG_ALERT, "Couldn't execute command: %s", str);
 			}
 			else
 				exit(WEXITSTATUS(retval));
 
-			exit(0);
+			exit(exec_fail_status);
 		}
 
 		if (WIFSIGNALED(retval))
 			kill(our_pid, WTERMSIG(retval));
 	}
 
-	exit(0); /* Script errors aren't server errors */
+	/* The script was killed by a signal that did not terminate us */
+	exit(exec_fail_status);
 }
 
 /* Execute external script/program */
