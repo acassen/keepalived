@@ -148,6 +148,8 @@ syscall_sched_setscheduler(pid_t pid, int policy, const struct sched_param *para
 static int test_sched_setscheduler(pid_t, int, const struct sched_param *);
 static int (*working_sched_setscheduler)(pid_t pid, int policy, const struct sched_param *param) = test_sched_setscheduler;
 
+/* This function is only called once, and it sets woeking_sched_setscheduler to point to the
+ * library sched_scheduler if that works, otherwise to syscall_set_scheduler. */
 static int
 test_sched_setscheduler(pid_t pid, int policy, const struct sched_param *param)
 {
@@ -179,7 +181,7 @@ set_process_priorities(unsigned realtime_priority, int max_realtime_priority, un
 			.sched_priority = realtime_priority
 		};
 
-		if (working_sched_setscheduler(our_pid, SCHED_RR | SCHED_RESET_ON_FORK, &sp))
+		if (working_sched_setscheduler(0, SCHED_RR | SCHED_RESET_ON_FORK, &sp))
 			log_message(LOG_WARNING, "child process: cannot raise priority");
 		else {
 			cur_rt_priority = realtime_priority;
@@ -222,7 +224,7 @@ reset_priority(void)
 			.sched_priority = 0
 		};
 
-		if (working_sched_setscheduler(our_pid, SCHED_OTHER, &sp))
+		if (working_sched_setscheduler(0, SCHED_OTHER, &sp))
 			log_message(LOG_WARNING, "child process: cannot reset realtime scheduling");
 		else {
 			cur_rt_priority = 0;
@@ -287,7 +289,7 @@ restore_priority(unsigned realtime_priority, int max_realtime_priority, unsigned
 		if (!realtime_priority && max_realtime_priority == -1) {
 			/* Turn off rt_sched and set process_priority */
 			struct sched_param sp = { .sched_priority = process_priority };
-			working_sched_setscheduler(our_pid, SCHED_OTHER, &sp);
+			working_sched_setscheduler(0, SCHED_OTHER, &sp);
 			cur_rt_priority = 0;
 			max_rt_priority = 0;
 		} else {
