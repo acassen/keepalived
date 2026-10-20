@@ -212,6 +212,8 @@ AC_ARG_ENABLE(dynamic-linking,
 AC_ARG_ENABLE(iptables,
   [AS_HELP_STRING([--disable-iptables], [compile without iptables support])],
   [], [IPTABLES_SILENT=Yes])
+AC_ARG_ENABLE(xtables-lock,
+  [AS_HELP_STRING([--disable-xtables-lock], [compile without xtables.lock synchronization for iptables updates])])
 AC_ARG_ENABLE(libiptc-dynamic,
   [AS_HELP_STRING([--enable-libiptc-dynamic], [compile with libiptc dynamically linked])])
 AC_ARG_ENABLE(libipset-dynamic,
@@ -560,11 +562,13 @@ AS_IF([test .$enable_vrrp = .no],
     AS_IF([test .$enable_linkbeat != .], [AC_MSG_ERROR([disable-linkbeat requires vrrp])])
     AS_IF([test .$enable_bfd != .], [AC_MSG_ERROR([enable-bfd requires vrrp])])
     AS_IF([test .$enable_iptables != .no], [AC_MSG_ERROR([disable-iptables requires vrrp])])
+    AS_IF([test .$enable_xtables_lock != .], [AC_MSG_ERROR([disable-xtables-lock requires vrrp and iptables])])
     AS_IF([test .$enable_track_process != .], [AC_MSG_ERROR([disable-track-process requires vrrp])])
     AS_IF([test .$enable_network_timestamp != .], [AC_MSG_ERROR([enable-network-timestamp requires vrrp])])
     AS_IF([test .$enable_netlink_timers != .], [AC_MSG_ERROR([enable-netlink-timers requires vrrp])])
   )
 AS_IF([test .$enable_iptables = .no],
+    AS_IF([test .$enable_xtables_lock != .], [AC_MSG_ERROR([disable-xtables-lock requires vrrp and iptables])])
     AS_IF([test .$enable_libipset != .], [AC_MSG_ERROR([disable-libipset requires vrrp and iptables])])
   )
 AS_IF([test .$enable_libipset = .no],
@@ -1893,6 +1897,7 @@ AS_IF([test $ac_cv_have_decl_RTA_ENCAP = yes],
 dnl ----[Check for iptables libraries]----
 USE_IPTABLES=No
 USE_LIBIPSET=No
+USE_XTABLES_LOCK=No
 AS_IF([test .$enable_iptables != .no],
   [
     USE_IPTABLES=Yes
@@ -2048,6 +2053,12 @@ AS_IF([test .$enable_iptables != .no],
     if test $USE_IPTABLES = Yes; then
       AC_DEFINE([_WITH_IPTABLES_], [ 1 ], [Define to 1 if want iptables support])
       add_system_opt([IPTABLES])
+      AS_IF([test .${enable_xtables_lock} != .no],
+        [
+          USE_XTABLES_LOCK=Yes
+          AC_DEFINE([_USE_XTABLES_LOCK_], [ 1 ], [Define to 1 if using xtables.lock synchronization for iptables updates])
+          add_system_opt([XTABLES_LOCK])
+        ])
     fi
   ])
 AM_CONDITIONAL([LIBIPSET], [test $USE_LIBIPSET = Yes])
@@ -3662,6 +3673,7 @@ echo "Use IPv4 devconf         : ${IPV4_DEVCONF}"
 echo "Use iptables             : ${USE_IPTABLES}"
 if test .$USE_IPTABLES = .Yes; then
   echo "Use libipset             : ${USE_LIBIPSET}"
+  echo "Use xtables lock         : ${USE_XTABLES_LOCK}"
 fi
 echo "Use nftables             : ${USE_NFTABLES}"
 echo "init type                : ${INIT_TYPE}"
