@@ -32,6 +32,7 @@
 
 #include "sanitizer.h"
 #include "logger.h"
+#include "process.h"
 
 static const char *sanitizer_log = "/tmp/keepalived-sanitizer";
 
