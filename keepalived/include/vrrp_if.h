@@ -137,6 +137,7 @@ typedef struct _interface {
 	list_head_t		sin6_addr_l;		/* List of extra IPv6 interface addresses - sin_addr_t */
 #endif
 	unsigned		ifi_flags;		/* Kernel flags */
+	bool			configured;		/* Referenced by configuration or created by keepalived */
 	bool			seen_up;		/* True once we have first seen the interface up */
 	thread_ref_t		flags_change_thread;
 	unsigned		up_debounce_timer;
@@ -255,6 +256,7 @@ extern void close_interface_linkbeat(void);
 #endif
 extern list_head_t *get_interface_queue(void) __attribute__ ((const));
 extern void free_interface_queue(void);
+extern void free_unused_interfaces(void);
 extern void free_old_interface_queue(void);
 extern void dump_interface_queue(FILE *, list_head_t *);
 extern void reset_interface_queue(void);

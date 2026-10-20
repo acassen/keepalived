@@ -2114,6 +2114,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 	list_head_t sav_tracking_vrrp;
 	list_head_t sav_e_list;
 	garp_delay_t *sav_garp_delay;
+	bool sav_configured;
 	bool immediate_change = false;
 
 	if (!(h->nlmsg_type == RTM_NEWLINK || h->nlmsg_type == RTM_DELLINK))
@@ -2309,6 +2310,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 			 * it is reasonable to preserve them.
 			 * If what is created is a vmac, we could end up in a complete mess. */
 			sav_garp_delay = ifp->garp_delay;
+			sav_configured = ifp->configured;
 			list_copy(&sav_tracking_vrrp, &ifp->tracking_vrrp);
 			old_mtu = ifp->mtu;
 			if_extra_ipaddress_free_list(&ifp->sin_addr_l);
@@ -2327,6 +2329,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 			INIT_LIST_HEAD(&ifp->sin6_addr_l);
 			list_copy(&ifp->tracking_vrrp, &sav_tracking_vrrp);
 			ifp->garp_delay = sav_garp_delay;
+			ifp->configured = sav_configured;
 
 			if (!netlink_if_link_populate(ifp, tb, ifi))
 				return -1;
@@ -2353,6 +2356,7 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 
 	/* Update flags. Flags == 0 means interface deleted. */
 	update_interface_flags(ifp, (h->nlmsg_type == RTM_DELLINK) ? 0 : ifi->ifi_flags, immediate_change);
+	free_unused_interfaces();
 
 	return 0;
 }

@@ -199,8 +199,13 @@ if_get_by_ifname(const char *ifname, if_lookup_t create)
 	interface_t *ifp;
 
 	list_for_each_entry(ifp, &if_queue, e_list) {
-		if (!strcmp(ifp->ifname, ifname))
-			return create == IF_CREATE_NOT_EXIST ? NULL : ifp;
+		if (!strcmp(ifp->ifname, ifname)) {
+			if (create == IF_CREATE_NOT_EXIST)
+				return NULL;
+			if (create != IF_CREATE_NETLINK)
+				ifp->configured = true;
+			return ifp;
+		}
 	}
 
 	if (create == IF_NO_CREATE ||
@@ -214,6 +219,7 @@ if_get_by_ifname(const char *ifname, if_lookup_t create)
 		return NULL;
 
 	strcpy_safe(ifp->ifname, ifname);
+	ifp->configured = create != IF_CREATE_NETLINK;
 #ifdef _HAVE_VRRP_VMAC_
 	ifp->base_ifp = ifp;
 	ifp->if_type = IF_TYPE_STANDARD;
@@ -531,6 +537,57 @@ free_if(interface_t *ifp)
 	if_extra_ipaddress_free_list(&ifp->sin_addr_l);
 	if_extra_ipaddress_free_list(&ifp->sin6_addr_l);
 	FREE(ifp);
+}
+
+/* Configuration keeps interfaces by name across deletion and recreation. */
+void
+free_unused_interfaces(void)
+{
+	interface_t *ifp, *tmp;
+#ifdef _HAVE_VRRP_VMAC_
+	interface_t *other;
+#endif
+	bool in_use, freed;
+
+	/* A deleted child may hold the last reference to a deleted parent. */
+	do {
+		freed = false;
+		list_for_each_entry_safe(ifp, tmp, &if_queue, e_list) {
+			if (ifp->ifindex || ifp->configured || ifp->garp_delay ||
+			    ifp->flags_change_thread || !list_empty(&ifp->tracking_vrrp))
+				continue;
+#ifdef _WITH_LINKBEAT_
+			if (ifp->linkbeat_use_polling)
+				continue;
+#endif
+#ifdef _HAVE_VRRP_VMAC_
+			if (ifp->is_ours)
+				continue;
+#endif
+
+			in_use = false;
+#ifdef _HAVE_VRRP_VMAC_
+			list_for_each_entry(other, &if_queue, e_list) {
+				if (other == ifp)
+					continue;
+				if (other->base_ifp == ifp
+#ifdef _HAVE_VRF_
+				    || other->vrf_master_ifp == ifp
+#endif
+				   ) {
+					in_use = true;
+					break;
+				}
+			}
+#endif
+			if (in_use)
+				continue;
+
+			list_del_init(&ifp->e_list);
+			free_if(ifp);
+			freed = true;
+		}
+	} while (freed);
 }
 
 static void
