@@ -1076,7 +1076,6 @@ set_uid_gid(const char *username, const char *groupname, user_id_t *user_id)
 {
 	uid_t uid;
 	gid_t gid;
-	gid_t user_gid;	// The gid of the user
 	struct passwd pwd;
 	struct passwd *pwd_p;
 	struct group grp;
@@ -1104,7 +1103,6 @@ set_uid_gid(const char *username, const char *groupname, user_id_t *user_id)
 
 	uid = pwd.pw_uid;
 	gid = pwd.pw_gid;
-	user_gid = gid;
 
 	/* If groupname starts with a : then we will need to set the supplementary groups */
 	if (groupname && groupname[0] == ':') {
@@ -1133,17 +1131,26 @@ set_uid_gid(const char *username, const char *groupname, user_id_t *user_id)
 	user_id->sup_grp = NULL;
 
 	if (set_sup_grps) {
-		getgrouplist(username, user_gid, NULL, &user_id->num_sup_grp);
+		/* -1 is not a valid gid, since -1 has special meaning to setreuid() etc. */
+		getgrouplist(username, -1, NULL, &user_id->num_sup_grp);
 
 		sup_grp = MALLOC(user_id->num_sup_grp * sizeof(gid_t));
 
-		if (getgrouplist(username, user_gid, sup_grp, &user_id->num_sup_grp) == -1) {
+		if (getgrouplist(username, -1, sup_grp, &user_id->num_sup_grp) == -1) {
 			log_message(LOG_INFO, "get supplementary groups for %s returned -1", username);
 
 			FREE(sup_grp);
 			user_id->num_sup_grp = 0;
-		} else
+		} else {
 			user_id->sup_grp = sup_grp;
+			/* Remove -1 from the list. It is almost certainly the first entry. */
+			for (int i = 0; i < user_id->num_sup_grp; i++) {
+				if (sup_grp[i] == (gid_t)-1) {
+					sup_grp[i] = sup_grp[--user_id->num_sup_grp];
+					break;
+				}
+			}
+		}
 	}
 
 	user_id->uid = uid;
