@@ -283,7 +283,7 @@ possibly following any cleanup actions needed.
     # By default, keepalived clears the supplementary groups of a process
     # running a script. This option changes the default to setting the
     # supplementary groups of the user executing the script.
-    \fBset_supplementary_groups
+    \fBset_supplementary_groups\fR
 
     # The startup and shutdown scripts are run once, when keepalived starts
     # before any child processes are run, and when keepalived stops after
