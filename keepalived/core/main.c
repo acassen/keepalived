@@ -323,6 +323,7 @@ void
 free_parent_mallocs_exit(void)
 {
 	FREE_CONST_PTR(config_id);
+	free_our_creds();
 
 #ifdef _REPRODUCIBLE_BUILD_
 	FREE_CONST_PTR(config_opts);
@@ -2506,8 +2507,6 @@ keepalived_main(int argc, char **argv)
 	/* Is there a TMPDIR override? */
 	set_tmp_dir();
 
-	set_our_uid_gid();
-
 	/* Save command line options in case need to log them later */
 	save_cmd_line_options(argc, argv);
 
@@ -2542,6 +2541,8 @@ keepalived_main(int argc, char **argv)
 #ifdef _MEM_CHECK_
 	mem_log_init(PACKAGE_NAME, "Parent process");
 #endif
+
+	set_our_creds();
 
 	/* Some functionality depends on kernel version, so get the version here */
 	if (uname(&uname_buf))
@@ -2806,6 +2807,7 @@ keepalived_main(int argc, char **argv)
 			/* Parent process */
 			closelog();
 			FREE_CONST_PTR(config_id);
+			free_our_creds();
 			FREE_PTR(orig_core_dump_pattern);
 			close_std_fd();
 			exit(0);
