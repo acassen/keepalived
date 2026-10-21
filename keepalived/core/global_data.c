@@ -664,6 +664,7 @@ dump_global_data(FILE *fp, data_t * data)
 #endif
 	conf_write(fp, " %s symlinks in script paths", data->use_symlinks ? "Keep" : "Replace");
 	conf_write(fp, " %set supplementary groups for all scripts", data->set_supplementary_groups ? "S" : "Don't s");
+	conf_write(fp, " %s script exec failures as script failures", data->strict_script_exec ? "Treat" : "Don't treat");
 	if (data->router_id)
 		conf_write(fp, " Router ID = %s", data->router_id);
 	if (data->smtp_server.ss_family) {
