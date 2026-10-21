@@ -113,7 +113,6 @@ static char const * (*child_finder_name)(pid_t);
 /* Function forward references */
 #ifdef _WITH_SNMP_
 static void snmp_epoll_reset(thread_master_t *);
-static void snmp_epoll_update(thread_master_t *, bool);
 #endif
 
 
@@ -1725,21 +1724,6 @@ snmp_read_thread(thread_ref_t thread)
 	}
 }
 
-void
-snmp_timeout_thread(thread_ref_t thread)
-{
-	/* A timeout or alarm can close a socket and reopen it with the same fd. */
-	snmp_epoll_update(thread->master, false);
-
-	snmp_timeout();
-	run_alarms();
-	netsnmp_check_outstanding_agent_requests();
-
-	thread->master->snmp_timer_thread = thread_add_timer(thread->master, snmp_timeout_thread, thread->arg, TIMER_NEVER);
-
-	snmp_epoll_info(thread->master);
-}
-
 // See https://vincent.bernat.im/en/blog/2012-snmp-event-loop
 void
 snmp_epoll_info(thread_master_t *m)
@@ -1873,6 +1857,21 @@ snmp_epoll_update(thread_master_t *m, bool reset)
 		fdsetsize = 0;
 
 	m->snmp_fdsetsize = fdsetsize;
+}
+
+void
+snmp_timeout_thread(thread_ref_t thread)
+{
+	/* A timeout or alarm can close a socket and reopen it with the same fd. */
+	snmp_epoll_update(thread->master, false);
+
+	snmp_timeout();
+	run_alarms();
+	netsnmp_check_outstanding_agent_requests();
+
+	thread->master->snmp_timer_thread = thread_add_timer(thread->master, snmp_timeout_thread, thread->arg, TIMER_NEVER);
+
+	snmp_epoll_info(thread->master);
 }
 
 static void
