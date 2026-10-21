@@ -208,6 +208,12 @@ global_defs {
     # To keep symlinks in pathnames, specify use_syslink_paths.
     use_symlink_paths [<BOOL>]
 
+    # Treat a script that cannot be executed (for example if it cannot be
+    # found, or its user/group cannot be set), or whose shell is killed by a
+    # signal, as exiting with status 1 rather than 0. This affects vrrp_script,
+    # MISC_CHECK and the reload_check_config config test.
+    strict_script_exec [<BOOL>]
+
     # The startup and shutdown scripts are run once, when keepalived starts
     # before any child processes are run, and when keepalived stops after
     # all child processes have terminated, respectively.
