@@ -211,7 +211,7 @@ gratuitous_arp_init(void)
 		return true;
 
 	/* Create the socket descriptor */
-	garp_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, htons(ETH_P_ARP));
+	garp_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
 
 	if (garp_fd < 0) {
 		log_message(LOG_INFO, "Error %d while registering gratuitous ARP shared channel", errno);
