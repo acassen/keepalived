@@ -713,18 +713,30 @@ dump_global_data(FILE *fp, data_t * data)
 		conf_write(fp, " config save directory = %s", data->config_directory);
 	if (data->data_use_instance)
 		conf_write(fp, " Use instance name in data dumps");
-	if (data->startup_script)
+	if (data->startup_script) {
 		conf_write(fp, " Startup script = %s, uid:gid %u:%u, timeout %u",
 			    cmd_str(data->startup_script),
 			    data->startup_script->user_id.uid,
 			    data->startup_script->user_id.gid,
 			    data->startup_script_timeout);
-	if (data->shutdown_script)
+		if (data->startup_script->user_id.num_sup_grp) {
+			conf_write(fp, "   Supplementary groups:");
+			for (i = 0; i < data->startup_script->user_id.num_sup_grp; i++)
+				conf_write(fp, "     %u", data->startup_script->user_id.sup_grp[i]);
+		}
+	}
+	if (data->shutdown_script) {
 		conf_write(fp, " Shutdown script = %s, uid:gid %u:%u timeout %u",
 			    cmd_str(data->shutdown_script),
 			    data->shutdown_script->user_id.uid,
 			    data->shutdown_script->user_id.gid,
 			    data->shutdown_script_timeout);
+		if (data->shutdown_script->user_id.num_sup_grp) {
+			conf_write(fp, "   Supplementary groups:");
+			for (i = 0; i < data->shutdown_script->user_id.num_sup_grp; i++)
+				conf_write(fp, "     %u", data->shutdown_script->user_id.sup_grp[i]);
+		}
+	}
 #ifdef _WITH_VRRP_
 	conf_write(fp, " Dynamic interfaces = %s", data->dynamic_interfaces ? "true" : "false");
 	if (data->dynamic_interfaces)
