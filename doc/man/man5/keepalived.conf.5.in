@@ -80,12 +80,22 @@ weight to/from the priority of that vrrp instance.
 if they exit with a non-zero status.
 
 By default the scripts will be executed by user keepalived_script if that user
-exists, or if not by root, but for each script the user/group under which it is
-to be executed can be specified. If the groupname is preceeded by a ':' character,
+exists, or if not by the user under which keepalived is running (usually root),
+but for each script the user/group under which it is to be executed can be
+specified. If the groupname is preceded by a ':' character,
 then the supplementary groups of the user executing the script will be set
 for the process; if ':' is specified with no groupname, then the supplementary
 groups will be specified as above, and the primary group will be the primary
 group of the user executing the script.
+
+If keepalived cannot set the supplementary groups (e.g. it runs as a non-root
+user without the CAP_SETGID capability), scripts run with keepalived's own
+supplementary groups instead. A script is disabled if this would give it any
+group, other than its primary group, that it would not otherwise get. If
+keepalived lacks some groups that the script would otherwise get, the script
+runs without them, and a warning is logged. By default, scripts get no
+supplementary groups, so they are only run if keepalived has no supplementary
+groups apart from its primary group.
 
 There are significant security implications if scripts are executed with root
 privileges, especially if the scripts themselves are modifiable or replaceable
@@ -270,9 +280,9 @@ possibly following any cleanup actions needed.
     # To keep symlinks in pathnames, specify use_syslink_paths.
     \fBuse_symlink_paths \fR[<BOOL>]
 
-    # By default, keepalived does not set the supplementary groups of a
-    # process running a script. This option changes the default to setting
-    # the supplementary groups for a script.
+    # By default, keepalived clears the supplementary groups of a process
+    # running a script. This option changes the default to setting the
+    # supplementary groups of the user executing the script.
     \fBset_supplementary_groups
 
     # The startup and shutdown scripts are run once, when keepalived starts
@@ -629,6 +639,15 @@ possibly following any cleanup actions needed.
 
     # Set the BFD child process priority
     \fBbfd_priority \fR<-20 to 19>
+
+    # The following options lock the vrrp, checker and bfd processes in
+    # memory.
+    # --
+    # RLIMIT_MEMLOCK must allow for the process to grow, since later mappings
+    # are charged against it; a process that reaches the limit fails an
+    # allocation and exits. The limit is not enforced for a process with
+    # CAP_IPC_LOCK, so this normally only matters where capabilities are
+    # reduced, such as in a container.
 
     # Set the vrrp child process non swappable
     \fBvrrp_no_swap\fR
