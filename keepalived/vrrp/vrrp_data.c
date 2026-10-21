@@ -303,6 +303,7 @@ static void
 dump_vscript(FILE *fp, const vrrp_script_t *vscript)
 {
 	const char *str;
+	int i;
 
 	conf_write(fp, " VRRP Script = %s", vscript->sname);
 	conf_write(fp, "   Command = %s", cmd_str(&vscript->script));
@@ -335,6 +336,11 @@ dump_vscript(FILE *fp, const vrrp_script_t *vscript)
 	conf_write(fp, "   Init state = %s", str);
 	conf_write(fp, "   Status = %s", vscript->result >= vscript->rise ? "GOOD" : "BAD");
 	conf_write(fp, "   Script uid:gid = %u:%u", vscript->script.user_id.uid, vscript->script.user_id.gid);
+	if (vscript->script.user_id.num_sup_grp) {
+		conf_write(fp, "     Supplementary groups:");
+		for (i = 0; i < vscript->script.user_id.num_sup_grp; i++)
+			conf_write(fp, "       %u", vscript->script.user_id.sup_grp[i]);
+	}
 	conf_write(fp, "   VRRP instances :");
 	dump_tracking_obj_list(fp, &vscript->tracking_vrrp, dump_tracking_vrrp);
 	conf_write(fp, "   State = %s",

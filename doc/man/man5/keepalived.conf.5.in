@@ -283,7 +283,7 @@ possibly following any cleanup actions needed.
     # By default, keepalived clears the supplementary groups of a process
     # running a script. This option changes the default to setting the
     # supplementary groups of the user executing the script.
-    \fBset_supplementary_groups
+    \fBset_supplementary_groups\fR
 
     # Treat a script that cannot be executed (for example if it cannot be
     # found, or its user/group cannot be set), or whose shell is killed by a
