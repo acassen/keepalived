@@ -539,57 +539,6 @@ free_if(interface_t *ifp)
 	FREE(ifp);
 }
 
-/* Configuration keeps interfaces by name across deletion and recreation. */
-void
-free_unused_interfaces(void)
-{
-	interface_t *ifp, *tmp;
-#ifdef _HAVE_VRRP_VMAC_
-	interface_t *other;
-#endif
-	bool in_use, freed;
-
-	/* A deleted child may hold the last reference to a deleted parent. */
-	do {
-		freed = false;
-		list_for_each_entry_safe(ifp, tmp, &if_queue, e_list) {
-			if (ifp->ifindex || ifp->configured || ifp->garp_delay ||
-			    ifp->flags_change_thread || !list_empty(&ifp->tracking_vrrp))
-				continue;
-#ifdef _WITH_LINKBEAT_
-			if (ifp->linkbeat_use_polling)
-				continue;
-#endif
-#ifdef _HAVE_VRRP_VMAC_
-			if (ifp->is_ours)
-				continue;
-#endif
-
-			in_use = false;
-#ifdef _HAVE_VRRP_VMAC_
-			list_for_each_entry(other, &if_queue, e_list) {
-				if (other == ifp)
-					continue;
-				if (other->base_ifp == ifp
-#ifdef _HAVE_VRF_
-				    || other->vrf_master_ifp == ifp
-#endif
-				   ) {
-					in_use = true;
-					break;
-				}
-			}
-#endif
-			if (in_use)
-				continue;
-
-			list_del_init(&ifp->e_list);
-			free_if(ifp);
-			freed = true;
-		}
-	} while (freed);
-}
-
 static void
 dump_if(FILE *fp, const interface_t *ifp)
 {
@@ -617,6 +566,7 @@ dump_if(FILE *fp, const interface_t *ifp)
 		return;
 	}
 
+	conf_write(fp, "   %ssed by config", ifp->configured ? "U" : "Not u");
 	conf_write(fp, "   IPv4 address = %s",
 			ifp->sin_addr.s_addr ? inet_ntop2(ifp->sin_addr.s_addr) : "(none)");
 	if (!list_empty(&ifp->sin_addr_l)) {
@@ -1480,7 +1430,7 @@ interface_down(interface_t *ifp)
 	}
 }
 
-void
+interface_t *
 cleanup_lost_interface(interface_t *ifp)
 {
 	tracking_obj_t *top;
@@ -1600,6 +1550,15 @@ cleanup_lost_interface(interface_t *ifp)
 		}
 	}
 #endif
+	if (!ifp->configured) {
+		if (ifp->flags_change_thread)
+			thread_cancel(ifp->flags_change_thread);
+		list_del_init(&ifp->e_list);
+		free_if(ifp);
+		return NULL;
+	}
+
+	return ifp;
 }
 
 static void

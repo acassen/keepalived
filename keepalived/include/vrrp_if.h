@@ -256,7 +256,6 @@ extern void close_interface_linkbeat(void);
 #endif
 extern list_head_t *get_interface_queue(void) __attribute__ ((const));
 extern void free_interface_queue(void);
-extern void free_unused_interfaces(void);
 extern void free_old_interface_queue(void);
 extern void dump_interface_queue(FILE *, list_head_t *);
 extern void reset_interface_queue(void);
@@ -273,7 +272,7 @@ extern int if_setsockopt_rcvbuf(int *, int);
 extern int if_setsockopt_no_receive(int *);
 extern void interface_up(interface_t *);
 extern void interface_down(interface_t *);
-extern void cleanup_lost_interface(interface_t *);
+extern interface_t *cleanup_lost_interface(interface_t *);
 extern void recreate_vmac_thread(thread_ref_t);
 void update_mtu(interface_t *);
 extern void update_added_interface(interface_t *);

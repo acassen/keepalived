@@ -2164,7 +2164,10 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 				ifp->ifindex = 0;
 			} else
 #endif
-				cleanup_lost_interface(ifp);
+				ifp = cleanup_lost_interface(ifp);
+
+			if (!ifp)
+				return 0;
 
 			ifp->seen_up = false;
 
@@ -2239,11 +2242,11 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 					ifp->ifindex = 0;
 				} else
 #endif
-					cleanup_lost_interface(ifp);
+					ifp = cleanup_lost_interface(ifp);
 
 #ifdef _HAVE_VRRP_VMAC_
 				/* If this was one of our vmacs, create it again */
-				if (ifp->is_ours
+				if (ifp && ifp->is_ours
 #ifndef _ONE_PROCESS_DEBUG_
 				    && prog_type == PROG_TYPE_VRRP
 #endif
@@ -2356,7 +2359,6 @@ netlink_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlms
 
 	/* Update flags. Flags == 0 means interface deleted. */
 	update_interface_flags(ifp, (h->nlmsg_type == RTM_DELLINK) ? 0 : ifi->ifi_flags, immediate_change);
-	free_unused_interfaces();
 
 	return 0;
 }
