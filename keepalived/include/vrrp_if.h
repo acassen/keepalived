@@ -137,6 +137,7 @@ typedef struct _interface {
 	list_head_t		sin6_addr_l;		/* List of extra IPv6 interface addresses - sin_addr_t */
 #endif
 	unsigned		ifi_flags;		/* Kernel flags */
+	bool			configured;		/* Referenced by configuration or created by keepalived */
 	bool			seen_up;		/* True once we have first seen the interface up */
 	thread_ref_t		flags_change_thread;
 	unsigned		up_debounce_timer;
@@ -271,7 +272,7 @@ extern int if_setsockopt_rcvbuf(int *, int);
 extern int if_setsockopt_no_receive(int *);
 extern void interface_up(interface_t *);
 extern void interface_down(interface_t *);
-extern void cleanup_lost_interface(interface_t *);
+extern interface_t *cleanup_lost_interface(interface_t *);
 extern void recreate_vmac_thread(thread_ref_t);
 void update_mtu(interface_t *);
 extern void update_added_interface(interface_t *);
