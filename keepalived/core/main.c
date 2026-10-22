@@ -543,7 +543,7 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 		start_check_child();
 		have_child = true;
 		num_reloading++;
-	} else
+	} else if (checkers_pidfile.fd != -1)
 		pidfile_rm(&checkers_pidfile);
 #endif
 #ifdef _WITH_VRRP_
@@ -552,7 +552,7 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 		start_vrrp_child();
 		have_child = true;
 		num_reloading++;
-	} else
+	} else if (vrrp_pidfile.fd != -1)
 		pidfile_rm(&vrrp_pidfile);
 #endif
 #ifdef _WITH_BFD_
@@ -561,7 +561,7 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 		start_bfd_child();
 		have_child = true;
 		num_reloading++;
-	} else
+	} else if (bfd_pidfile.fd != -1)
 		pidfile_rm(&bfd_pidfile);
 #endif
 
@@ -2450,6 +2450,7 @@ keepalived_main(int argc, char **argv)
 	int exit_code = KEEPALIVED_EXIT_OK;
 	magic_t magic;
 	unsigned script_flags;
+	unsigned long running_mode;
 	struct rusage usage;
 	struct rusage child_usage;
 #ifdef OLD_DEFAULT_CONFIG_FILE
@@ -2787,8 +2788,23 @@ keepalived_main(int argc, char **argv)
 		remove_reload_file();
 #endif
 
-		/* Check if keepalived is already running */
-		if (keepalived_running(daemon_mode)) {
+		/* Check if keepalived is already running. Only the pid files of
+		 * the processes that will actually be started are locked; a
+		 * child started later by a reload creates its own pid file. */
+		running_mode = 0;
+#ifdef _WITH_VRRP_
+		if (running_vrrp())
+			__set_bit(DAEMON_VRRP, &running_mode);
+#endif
+#ifdef _WITH_LVS_
+		if (running_checker())
+			__set_bit(DAEMON_CHECKERS, &running_mode);
+#endif
+#ifdef _WITH_BFD_
+		if (running_bfd())
+			__set_bit(DAEMON_BFD, &running_mode);
+#endif
+		if (keepalived_running(running_mode)) {
 			log_message(LOG_INFO, "daemon is already running");
 			report_stopped = false;
 			goto end;
