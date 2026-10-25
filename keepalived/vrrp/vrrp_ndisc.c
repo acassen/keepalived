@@ -312,7 +312,7 @@ ndisc_init(void)
 		return true;
 
 	/* Create the socket descriptor */
-	ndisc_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, htons(ETH_P_IPV6));
+	ndisc_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
 
 	if (ndisc_fd < 0) {
 		log_message(LOG_INFO, "Error %d while registering gratuitous NDISC shared channel", errno);
@@ -321,9 +321,6 @@ ndisc_init(void)
 
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
 		log_message(LOG_INFO, "Registering gratuitous NDISC shared channel");
-
-	/* We don't want to receive any data on this socket */
-	if_setsockopt_no_receive(&ndisc_fd);
 
 	return true;
 }
