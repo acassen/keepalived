@@ -180,6 +180,7 @@ create_pidfile(pidfile_t *pidf)
 			umask(umask_val);
 
 		if (pidf->fd == -1) {
+			log_message(LOG_INFO, "Unable to open pid file %s - %s", pidf->path, strerror(error));
 			errno = error;
 			return true;
 		}
