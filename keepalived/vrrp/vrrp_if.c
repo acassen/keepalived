@@ -199,8 +199,13 @@ if_get_by_ifname(const char *ifname, if_lookup_t create)
 	interface_t *ifp;
 
 	list_for_each_entry(ifp, &if_queue, e_list) {
-		if (!strcmp(ifp->ifname, ifname))
-			return create == IF_CREATE_NOT_EXIST ? NULL : ifp;
+		if (!strcmp(ifp->ifname, ifname)) {
+			if (create == IF_CREATE_NOT_EXIST)
+				return NULL;
+			if (create != IF_CREATE_NETLINK)
+				ifp->configured = true;
+			return ifp;
+		}
 	}
 
 	if (create == IF_NO_CREATE ||
@@ -214,6 +219,7 @@ if_get_by_ifname(const char *ifname, if_lookup_t create)
 		return NULL;
 
 	strcpy_safe(ifp->ifname, ifname);
+	ifp->configured = create != IF_CREATE_NETLINK;
 #ifdef _HAVE_VRRP_VMAC_
 	ifp->base_ifp = ifp;
 	ifp->if_type = IF_TYPE_STANDARD;
@@ -560,6 +566,7 @@ dump_if(FILE *fp, const interface_t *ifp)
 		return;
 	}
 
+	conf_write(fp, "   %ssed by config", ifp->configured ? "U" : "Not u");
 	conf_write(fp, "   IPv4 address = %s",
 			ifp->sin_addr.s_addr ? inet_ntop2(ifp->sin_addr.s_addr) : "(none)");
 	if (!list_empty(&ifp->sin_addr_l)) {
@@ -1423,7 +1430,7 @@ interface_down(interface_t *ifp)
 	}
 }
 
-void
+interface_t *
 cleanup_lost_interface(interface_t *ifp)
 {
 	tracking_obj_t *top;
@@ -1543,6 +1550,15 @@ cleanup_lost_interface(interface_t *ifp)
 		}
 	}
 #endif
+	if (!ifp->configured) {
+		if (ifp->flags_change_thread)
+			thread_cancel(ifp->flags_change_thread);
+		list_del_init(&ifp->e_list);
+		free_if(ifp);
+		return NULL;
+	}
+
+	return ifp;
 }
 
 static void
