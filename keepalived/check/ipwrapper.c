@@ -308,14 +308,19 @@ clear_vsg_rs_counts(virtual_server_t *vs)
 	virtual_server_group_entry_t *vsg_entry;
 	real_server_t *rs;
 
+	/* Only the real servers in the IPVS table have been counted */
 	list_for_each_entry(vsg_entry, &vs->vsg->addr_range, e_list) {
-		list_for_each_entry(rs, &vs->rs, e_list)
-			unset_vsge_alive(vsg_entry, vs);
+		list_for_each_entry(rs, &vs->rs, e_list) {
+			if (rs->set)
+				unset_vsge_alive(vsg_entry, vs);
+		}
 	}
 
 	list_for_each_entry(vsg_entry, &vs->vsg->vfwmark, e_list) {
-		list_for_each_entry(rs, &vs->rs, e_list)
-			unset_vsge_alive(vsg_entry, vs);
+		list_for_each_entry(rs, &vs->rs, e_list) {
+			if (rs->set)
+				unset_vsge_alive(vsg_entry, vs);
+		}
 	}
 }
 
