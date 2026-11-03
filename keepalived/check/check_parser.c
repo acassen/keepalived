@@ -931,14 +931,47 @@ vs_weight_handler(const vector_t *strvec)
 	current_vs->weight = weight;
 }
 
+/* Install the real_server keyword, and the keywords and checkers of a
+ * real_server block, at the current configuration level */
+static void
+install_rs_keywords(void)
+{
+	vpp_t check_ptr;
+
+	install_keyword("real_server", &rs_handler);
+	check_ptr = install_sublevel(VPP &current_rs);
+	install_keyword("weight", &rs_weight_handler);
+	install_keyword("lvs_method", &rs_forwarding_handler);
+	install_keyword("uthreshold", &uthreshold_handler);
+	install_keyword("lthreshold", &lthreshold_handler);
+	install_keyword("inhibit_on_failure", &rs_inhibit_handler);
+	install_keyword_quoted("notify_up", &notify_up_handler);
+	install_keyword_quoted("notify_down", &notify_down_handler);
+	install_keyword("alpha", &rs_alpha_handler);
+	install_keyword("retry", &rs_retry_handler);
+	install_keyword("delay_before_retry", &rs_delay_before_retry_handler);
+	install_keyword("warmup", &rs_warmup_handler);
+	install_keyword("connect_timeout", &rs_co_timeout_handler);
+	install_keyword("delay_loop", &rs_delay_handler);
+	install_keyword("smtp_alert", &rs_smtp_alert_handler);
+	install_keyword("virtualhost", &rs_virtualhost_handler);
+#ifdef _WITH_SNMP_CHECKER_
+	install_keyword("snmp_name", &rs_snmp_name_handler);
+#endif
+
+	install_level_end_handler(&rs_end_handler);
+
+	/* Checkers mapping */
+	install_checkers_keyword();
+	install_sublevel_end(check_ptr);
+}
+
 #ifdef _WITH_SANITIZE_UNDEFINED_
 __attribute__((no_sanitize("null")))
 #endif
 void
 init_check_keywords(bool active)
 {
-	vpp_t check_ptr;
-
 	/* SSL mapping */
 	install_keyword_root("SSL", &ssl_handler, active, VPP &check_data->ssl);	// Causes sanitizer error: member access within null pointer of type 'struct check_data_t'
 	install_keyword("password", &sslpass_handler);
@@ -997,32 +1030,7 @@ init_check_keywords(bool active)
 	install_keyword("sorry_server", &ssvr_handler);
 	install_keyword("sorry_server_inhibit", &ssvri_handler);
 	install_keyword("sorry_server_lvs_method", &ss_forwarding_handler);
-	install_keyword("real_server", &rs_handler);
-	check_ptr = install_sublevel(VPP &current_rs);
-	install_keyword("weight", &rs_weight_handler);
-	install_keyword("lvs_method", &rs_forwarding_handler);
-	install_keyword("uthreshold", &uthreshold_handler);
-	install_keyword("lthreshold", &lthreshold_handler);
-	install_keyword("inhibit_on_failure", &rs_inhibit_handler);
-	install_keyword_quoted("notify_up", &notify_up_handler);
-	install_keyword_quoted("notify_down", &notify_down_handler);
-	install_keyword("alpha", &rs_alpha_handler);
-	install_keyword("retry", &rs_retry_handler);
-	install_keyword("delay_before_retry", &rs_delay_before_retry_handler);
-	install_keyword("warmup", &rs_warmup_handler);
-	install_keyword("connect_timeout", &rs_co_timeout_handler);
-	install_keyword("delay_loop", &rs_delay_handler);
-	install_keyword("smtp_alert", &rs_smtp_alert_handler);
-	install_keyword("virtualhost", &rs_virtualhost_handler);
-#ifdef _WITH_SNMP_CHECKER_
-	install_keyword("snmp_name", &rs_snmp_name_handler);
-#endif
-
-	install_level_end_handler(&rs_end_handler);
-
-	/* Checkers mapping */
-	install_checkers_keyword();
-	install_sublevel_end(check_ptr);
+	install_rs_keywords();
 }
 
 const vector_t *
