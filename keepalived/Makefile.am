@@ -80,8 +80,17 @@ failover_pool_test_LDFLAGS = $(AM_LDFLAGS) \
 			  -Wl,--wrap=ipvs_update_dest -Wl,--wrap=ipvs_del_dest \
 			  -Wl,--wrap=notify_exec
 
-TESTS			= $(check_PROGRAMS)
+# The configuration tests are run from the build directory
+check_SCRIPTS		= failover-config-test
+failover-config-test: $(top_srcdir)/test/failover-config-test.sh
+	@echo '#!/bin/sh' >$@
+	@echo 'exec "$(abs_top_srcdir)/test/failover-config-test.sh" "$(abs_builddir)/keepalived"' >>$@
+	@chmod +x $@
+
+TESTS			= $(check_PROGRAMS) $(check_SCRIPTS)
 endif
+
+CLEANFILES		= failover-config-test
 
 MOSTLYCLEANFILES	=
 
