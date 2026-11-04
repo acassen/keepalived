@@ -34,6 +34,7 @@
 #include <arpa/inet.h>
 
 #include "ipvswrapper.h"
+#include "ipwrapper.h"
 #include "global_data.h"
 #include "utils.h"
 #include "logger.h"
@@ -661,13 +662,14 @@ ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 
 	/* Process realserver queue. Only the real servers that are in the
 	 * IPVS table are replicated; an alive real server that has been
-	 * removed because the sorry server is in use must not be added,
-	 * otherwise it would be left at weight 0 when it is re-added. */
+	 * removed because the sorry server or another pool is in use must
+	 * not be added, otherwise it would be left at weight 0 when it is
+	 * re-added. */
 	list_for_each_entry(rs, &vs->rs, e_list) {
 		if (rs->reloaded && rs->set) {
 			/* Prepare the IPVS drule */
 			ipvs_set_drule(IP_VS_SO_SET_ADDDEST, &drule, rs);
-			drule.user.weight = (!rs->alive || (vs->s_svr && vs->s_svr->alive)) ? 0 : real_weight(rs->effective_weight);
+			drule.user.weight = (!rs->alive || !rs_pool_active(vs, rs)) ? 0 : real_weight(rs->effective_weight);
 
 			if (rs->forwarding_method != IP_VS_CONN_F_MASQ)
 				drule.user.port = inet_sockaddrport(&vsge->addr);

@@ -37,6 +37,7 @@
 #include "smtp.h"
 #include "check_daemon.h"
 #include "track_file.h"
+#include "decimal_chars.h"
 #ifdef _WITH_NFTABLES_
 #include "check_nftables.h"
 #include "check_data.h"
@@ -84,19 +85,61 @@ vsge_iseq(const virtual_server_group_entry_t *vsge_a, const virtual_server_group
 	return true;
 }
 
-/* Returns the sum of all alive RS weight in a virtual server. */
+/* Returns the sum of all alive RS weight in a pool of a virtual server.
+ * The primary pool is NULL. Since the weight of a real server defaults
+ * to 1, this is the number of alive real servers unless weights are
+ * configured. */
 static unsigned long __attribute__ ((pure))
-weigh_live_realservers(virtual_server_t *vs)
+weigh_live_realservers(virtual_server_t *vs, const failover_pool_t *pool)
 {
 	real_server_t *rs;
 	long count = 0;
 
 	list_for_each_entry(rs, &vs->rs, e_list) {
-		if (ISALIVE(rs))
+		if (rs->pool == pool && ISALIVE(rs))
 			count += real_weight(rs->effective_weight);
 	}
 	return count;
 }
+
+static bool __attribute__ ((pure))
+pool_has_alive_rs(virtual_server_t *vs, const failover_pool_t *pool)
+{
+	real_server_t *rs;
+
+	list_for_each_entry(rs, &vs->rs, e_list) {
+		if (rs->pool == pool && ISALIVE(rs))
+			return true;
+	}
+
+	return false;
+}
+
+static unsigned __attribute__ ((pure))
+pool_priority(const failover_pool_t *pool)
+{
+	return pool ? pool->priority : 0;
+}
+
+static failover_pool_t * __attribute__ ((pure))
+find_failover_pool(virtual_server_t *vs, unsigned priority)
+{
+	failover_pool_t *pool;
+
+	list_for_each_entry(pool, &vs->failover_pools, e_list) {
+		if (pool->priority == priority)
+			return pool;
+	}
+
+	return NULL;
+}
+
+/* Set while clear_diff_services() is migrating the state of the old
+ * configuration to the new one. Migrating the checkers can bring real
+ * servers up while the alive state of the other real servers has not
+ * yet been copied, so quorum and pool changes are deferred until
+ * init_services() runs update_quorum_state() on the migrated state. */
+static bool migrating_diff;
 
 static void
 notify_fifo_vs(virtual_server_t *vs)
@@ -117,6 +160,35 @@ notify_fifo_vs(virtual_server_t *vs)
 		return;
 
 	snprintf(line, size, "VS %s %s\n", vs_str, state);
+
+	if (global_data->notify_fifo.fd != -1)
+		if (write(global_data->notify_fifo.fd, line, size) == -1) { /* empty */ }
+
+	if (global_data->lvs_notify_fifo.fd != -1)
+		if (write(global_data->lvs_notify_fifo.fd, line, size) == -1) { /* empty */ }
+
+	FREE(line);
+}
+
+static void
+notify_fifo_pool(virtual_server_t *vs, failover_pool_t *pool)
+{
+	const char *state = pool->quorum_state_up ? "UP" : "DOWN";
+	size_t size;
+	char *line;
+	const char *vs_str;
+
+	if (global_data->notify_fifo.fd == -1 &&
+	    global_data->lvs_notify_fifo.fd == -1)
+		return;
+
+	vs_str = FMT_VS(vs);
+	size = 5 + TYPE_MAX_CHRS(pool->priority) + 1 + strlen(vs_str) + 1 + strlen(state) + 1 + 1;
+	line = MALLOC(size);
+	if (!line)
+		return;
+
+	size = (size_t)snprintf(line, size, "POOL %u %s %s\n", pool->priority, vs_str, state);
 
 	if (global_data->notify_fifo.fd != -1)
 		if (write(global_data->notify_fifo.fd, line, size) == -1) { /* empty */ }
@@ -200,6 +272,46 @@ do_vs_notifies(virtual_server_t* vs, bool init, long threshold, long weight_sum,
 }
 
 static void
+do_pool_notifies(virtual_server_t* vs, failover_pool_t *pool, bool init, long threshold, long weight_sum, bool stopping)
+{
+	notify_script_t *notify_script = pool->quorum_state_up ? pool->notify_quorum_up : pool->notify_quorum_down;
+	char message[80];
+	char subject[32];
+
+	/* Only send notifies when stopping if omega set */
+	if (stopping && !vs->omega)
+		return;
+
+	if (notify_script) {
+		if (stopping)
+			system_call_script(master, child_killed_thread, NULL, TIMER_HZ, notify_script);
+		else
+			notify_exec(notify_script);
+	}
+
+	notify_fifo_pool(vs, pool);
+
+	if (vs->smtp_alert) {
+		if (stopping)
+			snprintf(message, sizeof(message), "=> Failover pool %u shutting down <=", pool->priority);
+		else
+			snprintf(message, sizeof(message), "=> Failover pool %u %s %u+%u=%ld <= %ld <=",
+				    pool->priority,
+				    pool->quorum_state_up ?
+						   init ? "starting with quorum up" :
+							  "gained quorum" :
+						   init ? "starting with quorum down" :
+							  "lost quorum",
+				    pool->quorum,
+				    pool->hysteresis,
+				    threshold,
+				    weight_sum);
+		snprintf(subject, sizeof(subject), "POOL %u %s", pool->priority, pool->quorum_state_up ? "UP" : "DOWN");
+		smtp_alert(SMTP_MSG_VS, vs, subject, message);
+	}
+}
+
+static void
 do_rs_notifies(virtual_server_t* vs, real_server_t* rs, bool stopping)
 {
 	notify_script_t *notify_script = rs->alive ? rs->notify_up : rs->notify_down;
@@ -225,6 +337,7 @@ do_rs_notifies(virtual_server_t* vs, real_server_t* rs, bool stopping)
 static void
 update_vs_notifies(virtual_server_t *vs, bool stopping)
 {
+	failover_pool_t *pool;
 	long threshold = vs->quorum - vs->hysteresis;
 	long weight_sum;
 
@@ -232,12 +345,22 @@ update_vs_notifies(virtual_server_t *vs, bool stopping)
 	 * we don't push in a sorry server then, hence the regression
 	 * is intended.
 	 */
-	weight_sum = weigh_live_realservers(vs);
+	weight_sum = weigh_live_realservers(vs, NULL);
 	if (stopping ||
 	    (vs->quorum_state_up &&
 	     (!weight_sum || weight_sum < threshold))) {
 		vs->quorum_state_up = false;
 		do_vs_notifies(vs, false, threshold, weight_sum, stopping);
+	}
+
+	list_for_each_entry(pool, &vs->failover_pools, e_list) {
+		threshold = pool->quorum - pool->hysteresis;
+		weight_sum = weigh_live_realservers(vs, pool);
+		if (pool->quorum_state_up &&
+		    (stopping || !weight_sum || weight_sum < threshold)) {
+			pool->quorum_state_up = false;
+			do_pool_notifies(vs, pool, false, threshold, weight_sum, stopping);
+		}
 	}
 }
 
@@ -438,10 +561,20 @@ init_service_rs(virtual_server_t *vs)
 		/* In alpha mode, be pessimistic (or realistic?) and don't
 		 * add real servers into the VS pool unless inhibit_on_failure.
 		 * They will get there later upon healthchecks recovery (if ever).
+		 * The real servers of a pool that is not in use are only added,
+		 * with weight 0, if inhibit_on_failure is set.
 		 */
 		if ((!rs->num_failed_checkers && !ISALIVE(rs)) ||
 		    (rs->inhibit && !rs->set)) {
-			ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs);
+			if (rs->num_failed_checkers || rs_pool_active(vs, rs))
+				ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs);
+			else if (rs->inhibit && !rs->set) {
+				/* ipvs_cmd() adds an inhibited real server with
+				 * failed checkers with weight 0 */
+				rs->num_failed_checkers = 1;
+				ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs);
+				rs->num_failed_checkers = 0;
+			}
 			if (!rs->num_failed_checkers) {
 				SET_ALIVE(rs);
 				if (global_data->rs_init_notifies)
@@ -486,19 +619,33 @@ sync_service_vsg(virtual_server_t *vs)
 	sync_service_vsg_entry(vs, &vsg->vfwmark);
 }
 
-/* add or remove _alive_ real servers from a virtual server */
+/* add or remove the _alive_ real servers of a pool from a virtual server */
 static void
-perform_quorum_state(virtual_server_t *vs, bool add)
+perform_pool_state(virtual_server_t *vs, const failover_pool_t *pool, bool add)
 {
 	real_server_t *rs;
 
-	log_message(LOG_INFO, "%s the pool for VS %s"
-			    , add?"Adding alive servers to":"Removing alive servers from"
-			    , FMT_VS(vs));
+	if (pool)
+		log_message(LOG_INFO, "%s failover pool %u %s VS %s"
+				    , add?"Adding alive servers of":"Removing alive servers of"
+				    , pool->priority
+				    , add?"to":"from"
+				    , FMT_VS(vs));
+	else
+		log_message(LOG_INFO, "%s the pool for VS %s"
+				    , add?"Adding alive servers to":"Removing alive servers from"
+				    , FMT_VS(vs));
 	list_for_each_entry(rs, &vs->rs, e_list) {
+		if (rs->pool != pool)
+			continue;
 		if (!ISALIVE(rs)) /* We only handle alive servers */
 			continue;
-// ??? The following seems unnecessary
+		/* Nothing to do if already added (an inhibited server is
+		 * updated to its weight) or removed */
+		if (add ? rs->set && !rs->inhibit : !rs->set)
+			continue;
+		/* ipvs_cmd() uses the alive state to determine if the
+		 * entries of a virtual server group need updating */
 		if (add)
 			rs->alive = false;
 		ipvs_cmd(add?LVS_CMD_ADD_DEST:LVS_CMD_DEL_DEST, vs, rs);
@@ -506,22 +653,210 @@ perform_quorum_state(virtual_server_t *vs, bool add)
 	}
 }
 
+static void
+activate_sorry_server(virtual_server_t *vs)
+{
+	log_message(LOG_INFO, "%s sorry server %s to VS %s"
+			    , (vs->s_svr->inhibit ? "Enabling" : "Adding")
+			    , FMT_RS(vs->s_svr, vs)
+			    , FMT_VS(vs));
+
+	/* the sorry server is now up in the pool, we flag it alive */
+	ipvs_cmd(LVS_CMD_ADD_DEST, vs, vs->s_svr);
+	vs->s_svr->alive = true;
+}
+
+static void
+deactivate_sorry_server(virtual_server_t *vs)
+{
+	log_message(LOG_INFO, "%s sorry server %s from VS %s"
+			    , (vs->s_svr->inhibit ? "Disabling" : "Removing")
+			    , FMT_RS(vs->s_svr, vs)
+			    , FMT_VS(vs));
+
+	ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
+	vs->s_svr->alive = false;
+}
+
+/* The pool to use is the highest priority pool that has quorum. If no
+ * pool has quorum the sorry server is used, and returns NULL. If there
+ * is no sorry server either, the highest priority pool with any alive
+ * real servers is used; without failover pools that is always the
+ * primary pool, which is the behaviour without failover pools. */
+static bool
+select_pool(virtual_server_t *vs, failover_pool_t **selected)
+{
+	failover_pool_t *pool;
+
+	*selected = NULL;
+
+	if (vs->quorum_state_up)
+		return true;
+
+	list_for_each_entry(pool, &vs->failover_pools, e_list) {
+		if (pool->quorum_state_up) {
+			*selected = pool;
+			return true;
+		}
+	}
+
+	if (vs->s_svr)
+		return false;
+
+	if (pool_has_alive_rs(vs, NULL))
+		return true;
+
+	list_for_each_entry(pool, &vs->failover_pools, e_list) {
+		if (pool_has_alive_rs(vs, pool)) {
+			*selected = pool;
+			return true;
+		}
+	}
+
+	return true;
+}
+
+static void
+log_pool_switch(virtual_server_t *vs, const failover_pool_t *pool)
+{
+	if (pool)
+		log_message(LOG_INFO, "Switching VS %s to failover pool %u", FMT_VS(vs), pool->priority);
+	else
+		log_message(LOG_INFO, "Switching VS %s to the primary pool", FMT_VS(vs));
+}
+
+/* Make the IPVS table use the selected pool, or the sorry server */
+static void
+update_active_pool(virtual_server_t *vs)
+{
+	failover_pool_t *pool;
+	const failover_pool_t *old_pool = vs->active_pool;
+	bool use_sorry_server = !select_pool(vs, &pool);
+
+	if (vs->s_svr && ISALIVE(vs->s_svr)) {
+		if (use_sorry_server)
+			return;
+
+		/* Removing sorry server since we don't need it anymore */
+		deactivate_sorry_server(vs);
+
+		/* Adding back alive real servers */
+		vs->active_pool = pool;
+		if (pool)
+			log_pool_switch(vs, pool);
+		perform_pool_state(vs, pool, true);
+
+		return;
+	}
+
+	if (use_sorry_server) {
+		/* Remove remaining alive real servers */
+		perform_pool_state(vs, old_pool, false);
+		vs->active_pool = NULL;
+
+		activate_sorry_server(vs);
+
+		return;
+	}
+
+	if (pool == old_pool)
+		return;
+
+	/* Add the alive real servers of the new pool before removing
+	 * those of the old pool, so that there are always real servers
+	 * in the IPVS table */
+	log_pool_switch(vs, pool);
+	vs->active_pool = pool;
+	perform_pool_state(vs, pool, true);
+	perform_pool_state(vs, old_pool, false);
+}
+
 void
 set_quorum_states(void)
 {
 	virtual_server_t *vs;
+	failover_pool_t *pool;
 
 	list_for_each_entry(vs, &check_data->vs, e_list) {
-		vs->quorum_state_up = (weigh_live_realservers(vs) >= vs->quorum + vs->hysteresis);
+		vs->quorum_state_up = (weigh_live_realservers(vs, NULL) >= vs->quorum + vs->hysteresis);
+
+		list_for_each_entry(pool, &vs->failover_pools, e_list)
+			pool->quorum_state_up = (weigh_live_realservers(vs, pool) >= pool->quorum + pool->hysteresis);
 	}
 }
 
-/* set quorum state depending on current weight of real servers */
+/* set quorum state of a failover pool depending on current weight of its
+ * real servers. Returns true if the quorum state has changed. */
+static bool
+update_pool_quorum_state(virtual_server_t *vs, failover_pool_t *pool)
+{
+	long weight_sum = weigh_live_realservers(vs, pool);
+	long threshold;
+
+	threshold = pool->quorum + (pool->quorum_state_up ? -1 : 1) * pool->hysteresis;
+
+	if (!pool->quorum_state_up &&
+	    weight_sum >= threshold) {
+		pool->quorum_state_up = true;
+		log_message(LOG_INFO, "Gained quorum %u+%u=%ld <= %ld for failover pool %u of VS %s"
+				    , pool->quorum
+				    , pool->hysteresis
+				    , threshold
+				    , weight_sum
+				    , pool->priority
+				    , FMT_VS(vs));
+	} else if (pool->quorum_state_up &&
+		   (!weight_sum || weight_sum < threshold)) {
+		pool->quorum_state_up = false;
+		log_message(LOG_INFO, "Lost quorum %u-%u=%ld > %ld for failover pool %u of VS %s"
+				    , pool->quorum
+				    , pool->hysteresis
+				    , threshold
+				    , weight_sum
+				    , pool->priority
+				    , FMT_VS(vs));
+	} else
+		return false;
+
+	return true;
+}
+
+/* Notify the quorum state changes of the failover pools, once the IPVS
+ * table has been updated */
+static void
+notify_pool_quorum_states(virtual_server_t *vs, const bool *changed, bool init)
+{
+	failover_pool_t *pool;
+	long threshold;
+	unsigned i = 0;
+
+	list_for_each_entry(pool, &vs->failover_pools, e_list) {
+		if (!changed[i++])
+			continue;
+
+		/* The threshold that was crossed */
+		threshold = pool->quorum + (pool->quorum_state_up ? 1 : -1) * pool->hysteresis;
+		do_pool_notifies(vs, pool, init, threshold, weigh_live_realservers(vs, pool), false);
+	}
+}
+
+/* set quorum state depending on current weight of real servers, and
+ * use the pool, or sorry server, that is then required */
 static void
 update_quorum_state(virtual_server_t * vs, bool init)
 {
-	long weight_sum = weigh_live_realservers(vs);
+	long weight_sum = weigh_live_realservers(vs, NULL);
 	long threshold;
+	failover_pool_t *pool;
+	bool pool_quorum_up = false;
+	bool pool_changed[FAILOVER_POOL_PRIORITY_MAX];
+	unsigned i = 0;
+
+	list_for_each_entry(pool, &vs->failover_pools, e_list) {
+		pool_changed[i++] = update_pool_quorum_state(vs, pool);
+		if (pool->quorum_state_up)
+			pool_quorum_up = true;
+	}
 
 	threshold = vs->quorum + (vs->quorum_state_up ? -1 : 1) * vs->hysteresis;
 
@@ -535,30 +870,18 @@ update_quorum_state(virtual_server_t * vs, bool init)
 				    , threshold
 				    , weight_sum
 				    , FMT_VS(vs));
-		if (vs->s_svr && ISALIVE(vs->s_svr)) {
-			/* Removing sorry server since we don't need it anymore */
-			log_message(LOG_INFO, "%s sorry server %s from VS %s"
-					    , (vs->s_svr->inhibit ? "Disabling" : "Removing")
-					    , FMT_RS(vs->s_svr, vs)
-					    , FMT_VS(vs));
 
-			ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
-			vs->s_svr->alive = false;
-
-			/* Adding back alive real servers */
-			perform_quorum_state(vs, true);
-		}
+		/* Remove the sorry server or failover pool if in use */
+		update_active_pool(vs);
 
 		do_vs_notifies(vs, init, threshold, weight_sum, false);
-
-		return;
 	}
 	else if ((vs->quorum_state_up &&
 		  (!weight_sum || weight_sum < threshold)) ||
-		 (init && !vs->quorum_state_up &&
+		 (init && !vs->quorum_state_up && !pool_quorum_up &&
 		  vs->s_svr && !ISALIVE(vs->s_svr))) {
 		/* We have just lost quorum for the VS, we need to consider
-		 * VS notify_down and sorry_server cases
+		 * VS notify_down, failover pool and sorry_server cases
 		 *   or
 		 * We are starting up and need to add the sorry server
 		 */
@@ -571,22 +894,17 @@ update_quorum_state(virtual_server_t * vs, bool init)
 				    , weight_sum
 				    , FMT_VS(vs));
 
-		if (vs->s_svr && !ISALIVE(vs->s_svr)) {
-			log_message(LOG_INFO, "%s sorry server %s to VS %s"
-					    , (vs->s_svr->inhibit ? "Enabling" : "Adding")
-					    , FMT_RS(vs->s_svr, vs)
-					    , FMT_VS(vs));
-
-			/* Remove remaining alive real servers */
-			perform_quorum_state(vs, false);
-
-			/* the sorry server is now up in the pool, we flag it alive */
-			ipvs_cmd(LVS_CMD_ADD_DEST, vs, vs->s_svr);
-			vs->s_svr->alive = true;
-		}
+		/* Use a failover pool or the sorry server if there is one */
+		update_active_pool(vs);
 
 		do_vs_notifies(vs, init, threshold, weight_sum, false);
 	}
+	else {
+		/* A failover pool may have gained or lost quorum */
+		update_active_pool(vs);
+	}
+
+	notify_pool_quorum_states(vs, pool_changed, init);
 }
 
 /* manipulate add/remove rs according to alive state */
@@ -614,8 +932,8 @@ perform_svr_state(bool alive, checker_t *checker)
 			    , (rs->inhibit) ? "of" : alive ? "to" : "from"
 			    , FMT_VS(vs));
 
-	/* Change only if we have quorum or no sorry server */
-	if (vs->quorum_state_up || !vs->s_svr || !ISALIVE(vs->s_svr)) {
+	/* Change only if the real server's pool is in use */
+	if (rs_pool_active(vs, rs)) {
 		if (ipvs_cmd(alive ? LVS_CMD_ADD_DEST : LVS_CMD_DEL_DEST, vs, rs))
 			return false;
 	}
@@ -624,7 +942,8 @@ perform_svr_state(bool alive, checker_t *checker)
 
 	/* We may have changed quorum state. If the quorum wasn't up
 	 * but is now up, this is where the rs is added. */
-	update_quorum_state(vs, false);
+	if (!migrating_diff)
+		update_quorum_state(vs, false);
 
 	return true;
 }
@@ -716,12 +1035,10 @@ update_svr_wgt(int64_t weight, virtual_server_t * vs, real_server_t * rs
 				    , FMT_VS(vs));
 		/*
 		 * Have weight change take effect now only if rs is in
-		 * the pool and alive and the quorum is met (or if
-		 * there is no sorry server). If not, it will take
-		 * effect later when it becomes alive.
+		 * the pool and alive and its pool is in use. If not,
+		 * it will take effect later when it becomes alive.
 		 */
-		if (rs->set && ISALIVE(rs) &&
-		    (vs->quorum_state_up || !vs->s_svr || !ISALIVE(vs->s_svr)))
+		if (rs->set && ISALIVE(rs) && rs_pool_active(vs, rs))
 			ipvs_cmd(LVS_CMD_EDIT_DEST, vs, rs);
 		if (update_quorum)
 			update_quorum_state(vs, false);
@@ -873,7 +1190,8 @@ handle_vsg(int family, virtual_server_t *vs)
 		}
 
 		list_for_each_entry(rs, &vs->rs, e_list) {
-			if (!rs->num_failed_checkers || rs->inhibit)
+			if ((!rs->num_failed_checkers || rs->inhibit) &&
+			    rs_pool_active(vs, rs))
 				ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs);
 		}
 
@@ -1054,6 +1372,20 @@ clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs)
 		new_rs->peffective_weight = rs->effective_weight;
 		new_rs->reloaded = true;
 
+		/* If the real server has moved to a different pool, and
+		 * whether its pool is in use has changed, add it to or
+		 * remove it from use. */
+		if (rs->alive &&
+		    pool_priority(rs->pool) != pool_priority(new_rs->pool) &&
+		    rs_pool_active(old_vs, rs) != rs_pool_active(new_vs, new_rs)) {
+			if (rs_pool_active(new_vs, new_rs)) {
+				new_rs->alive = false;
+				ipvs_cmd(LVS_CMD_ADD_DEST, new_vs, new_rs);
+				new_rs->alive = true;
+			} else
+				ipvs_cmd(LVS_CMD_DEL_DEST, new_vs, new_rs);
+		}
+
 		/*
 		 * We must migrate the state of the old checkers.
 		 * If we do not, the new RS is in a state where it’s reported
@@ -1123,8 +1455,38 @@ clear_diff_s_srv(virtual_server_t *old_vs, virtual_server_t *new_vs)
 			new_ss->set = false;
 
 		if (reinstate_alive_rs)
-			perform_quorum_state(new_vs, true);
+			perform_pool_state(new_vs, new_vs->active_pool, true);
 	}
+}
+
+/* Copy the failover pool states of the old vs, and identify the pool
+ * that is in use. Returns true if the pool that was in use no longer
+ * exists, in which case the primary pool is used, and its alive real
+ * servers need to be added once they have been migrated. */
+static bool
+migrate_failover_pools(virtual_server_t *old_vs, virtual_server_t *new_vs)
+{
+	failover_pool_t *old_pool, *new_pool;
+
+	list_for_each_entry(new_pool, &new_vs->failover_pools, e_list) {
+		old_pool = find_failover_pool(old_vs, new_pool->priority);
+		if (old_pool)
+			new_pool->quorum_state_up = old_pool->quorum_state_up;
+	}
+
+	if (!old_vs->active_pool)
+		return false;
+
+	new_vs->active_pool = find_failover_pool(new_vs, old_vs->active_pool->priority);
+	if (new_vs->active_pool)
+		return false;
+
+	log_message(LOG_INFO, "Failover pool %u of VS %s no longer exists"
+			    , old_vs->active_pool->priority
+			    , FMT_VS(old_vs));
+	log_pool_switch(new_vs, NULL);
+
+	return true;
 }
 
 /* When reloading configuration, remove negative diff entries
@@ -1133,6 +1495,9 @@ void
 clear_diff_services(void)
 {
 	virtual_server_t *vs, *new_vs;
+	bool reinstate_primary_rs;
+
+	migrating_diff = true;
 
 	/* Remove diff entries from previous IPVS rules */
 	list_for_each_entry(vs, &old_check_data->vs, e_list) {
@@ -1156,6 +1521,7 @@ clear_diff_services(void)
 		/* copy status fields from old VS */
 		new_vs->alive = vs->alive;
 		new_vs->quorum_state_up = vs->quorum_state_up;
+		reinstate_primary_rs = migrate_failover_pools(vs, new_vs);
 		new_vs->reloaded = true;
 		if (using_ha_suspend)
 			new_vs->ha_suspend_addr_count = vs->ha_suspend_addr_count;
@@ -1175,10 +1541,14 @@ clear_diff_services(void)
 
 		vs->omega = true;
 		clear_diff_rs(vs, new_vs);
+		if (reinstate_primary_rs)
+			perform_pool_state(new_vs, NULL, true);
 		clear_diff_s_srv(vs, new_vs);
 
 		update_alive_counts(vs, new_vs);
 	}
+
+	migrating_diff = false;
 }
 
 /* This is only called during a reload. Any new real server with
