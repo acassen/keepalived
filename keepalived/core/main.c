@@ -2652,7 +2652,7 @@ keepalived_main(int argc, char **argv)
 	   depending on whether we forked or not. */
 	if (!check_conf_file(conf_file)) {
 		if (__test_bit(CONFIG_TEST_BIT, &debug))
-			config_test_exit();
+			exit(KEEPALIVED_CHK_EXIT_CONFIG);
 
 		exit_code = KEEPALIVED_EXIT_NO_CONFIG;
 		goto end;
