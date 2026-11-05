@@ -1049,10 +1049,10 @@ start_validate_reload_conf_child(void)
 	script.args = argv;
 	script.num_args = argc;
 	script.flags = SC_EXECABLE;
-	script.user_id.uid = 0;
-	script.user_id.gid = 0;
-	script.user_id.num_sup_grp = 0;
-	script.user_id.sup_grp = NULL;
+	script.user_id.uid = our_uid;
+	script.user_id.gid = our_gid;
+	script.user_id.num_sup_grp = our_num_sup_grp;
+	script.user_id.sup_grp = our_sup_grp;
 
 	if (truncate(global_data->reload_check_config, 0) && errno != ENOENT) {
 		/* The file exists, but truncate failed. It might be a character

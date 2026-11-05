@@ -81,6 +81,12 @@ typedef struct _notify_fifo {
 	notify_script_t *script; /* Script to run to process FIFO */
 } notify_fifo_t;
 
+/* Our uid/gid and supplementary groups */
+extern uid_t our_uid;
+extern gid_t our_gid;
+extern gid_t *our_sup_grp;
+extern int our_num_sup_grp;
+
 /* Script security enabled */
 extern bool script_security;
 
