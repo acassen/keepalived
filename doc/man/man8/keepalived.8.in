@@ -293,14 +293,14 @@ if unable to malloc memory
 2
 if cannot initialise subsystems
 .TP
-3
+4
 if running with --config-test and configuration cannot be run
 .TP
-4
+5
 if running with --config-test and there are configuration errors but keepalived
 will run after modifying the configuration
 .TP
-5
+6
 if running with --config-test and script security hasn't been enabled but scripts
 are configured.
 .SH NAMESPACES
