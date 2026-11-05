@@ -54,6 +54,7 @@ static const char *lvs_schedulers[] =
 
 virtual_server_t *current_vs;
 real_server_t *current_rs;
+static failover_pool_t *current_pool;
 virtual_server_group_t *current_vsg;
 
 
@@ -160,15 +161,25 @@ vs_handler(const vector_t *strvec)
 		return;
 
 	current_vs = alloc_vs(strvec_slot(strvec, 1), vector_size(strvec) >= 3 ? strvec_slot(strvec, 2) : NULL);
+	current_pool = NULL;
 }
 static void
 vs_end_handler(void)
 {
 	real_server_t *rs;
 	bool mixed_af;
+	bool have_primary_rs = false;
 
-	if (list_empty(&current_vs->rs)) {
-		report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s has no real servers - ignoring", FMT_VS(current_vs));
+	list_for_each_entry(rs, &current_vs->rs, e_list) {
+		if (!rs->pool) {
+			have_primary_rs = true;
+			break;
+		}
+	}
+
+	if (!have_primary_rs) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s has no real servers%s - ignoring", FMT_VS(current_vs),
+				list_empty(&current_vs->rs) ? "" : " other than in failover pools");
 		free_vs(current_vs);
 		return;
 	}
@@ -655,6 +666,8 @@ static void
 rs_handler(const vector_t *strvec)
 {
 	current_rs = alloc_rs(strvec_slot(strvec, 1), vector_size(strvec) >= 3 ? strvec_slot(strvec, 2) : NULL);
+	if (current_rs)
+		current_rs->pool = current_pool;
 }
 
 static void
@@ -877,23 +890,30 @@ omega_handler(__attribute__((unused)) const vector_t *strvec)
 {
 	current_vs->omega = true;
 }
+/* quorum_up, quorum_down, quorum and hysteresis apply to the primary
+ * pool at the virtual_server level, and to the failover pool inside a
+ * failover_pool block */
 static void
 quorum_up_handler(const vector_t *strvec)
 {
-	if (current_vs->notify_quorum_up) {
+	notify_script_t **script = current_pool ? &current_pool->notify_quorum_up : &current_vs->notify_quorum_up;
+
+	if (*script) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) quorum_up script already specified - ignoring %s", current_vs->vsgname, strvec_slot(strvec,1));
 		return;
 	}
-	current_vs->notify_quorum_up = set_check_notify_script(strvec, "quorum");
+	*script = set_check_notify_script(strvec, "quorum");
 }
 static void
 quorum_down_handler(const vector_t *strvec)
 {
-	if (current_vs->notify_quorum_down) {
+	notify_script_t **script = current_pool ? &current_pool->notify_quorum_down : &current_vs->notify_quorum_down;
+
+	if (*script) {
 		report_config_error(CONFIG_GENERAL_ERROR, "(%s) quorum_down script already specified - ignoring %s", current_vs->vsgname, strvec_slot(strvec,1));
 		return;
 	}
-	current_vs->notify_quorum_down = set_check_notify_script(strvec, "quorum");
+	*script = set_check_notify_script(strvec, "quorum");
 }
 static void
 quorum_handler(const vector_t *strvec)
@@ -905,7 +925,10 @@ quorum_handler(const vector_t *strvec)
 		quorum = 1;
 	}
 
-	current_vs->quorum = quorum;
+	if (current_pool)
+		current_pool->quorum = quorum;
+	else
+		current_vs->quorum = quorum;
 }
 static void
 hysteresis_handler(const vector_t *strvec)
@@ -917,7 +940,10 @@ hysteresis_handler(const vector_t *strvec)
 		return;
 	}
 
-	current_vs->hysteresis = hysteresis;
+	if (current_pool)
+		current_pool->hysteresis = hysteresis;
+	else
+		current_vs->hysteresis = hysteresis;
 }
 static void
 vs_weight_handler(const vector_t *strvec)
@@ -929,6 +955,84 @@ vs_weight_handler(const vector_t *strvec)
 		return;
 	}
 	current_vs->weight = weight;
+}
+
+static void
+failover_pool_handler(const vector_t *strvec)
+{
+	unsigned priority;
+	failover_pool_t *pool;
+
+	if (vector_size(strvec) < 2 ||
+	    !read_unsigned_strvec(strvec, 1, &priority, 1, FAILOVER_POOL_PRIORITY_MAX, false)) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: failover_pool priority %s must be in [1, %u] - skipping",
+				FMT_VS(current_vs), vector_size(strvec) >= 2 ? strvec_slot(strvec, 1) : "(none)", FAILOVER_POOL_PRIORITY_MAX);
+		skip_block(true);
+		return;
+	}
+
+	/* Keep the pools in priority order */
+	list_for_each_entry(pool, &current_vs->failover_pools, e_list) {
+		if (pool->priority == priority) {
+			report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: failover_pool %u is duplicated - skipping", FMT_VS(current_vs), priority);
+			skip_block(true);
+			return;
+		}
+		if (pool->priority > priority)
+			break;
+	}
+
+	current_pool = alloc_failover_pool(priority);
+	list_add_tail(&current_pool->e_list, &pool->e_list);
+}
+
+static void
+failover_pool_end_handler(void)
+{
+	real_server_t *rs;
+
+	list_for_each_entry(rs, &current_vs->rs, e_list) {
+		if (rs->pool == current_pool)
+			return;
+	}
+
+	report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: failover_pool %u has no real servers - ignoring", FMT_VS(current_vs), current_pool->priority);
+	free_failover_pool(current_pool);
+}
+
+/* Install the real_server keyword, and the keywords and checkers of a
+ * real_server block, at the current configuration level */
+static void
+install_rs_keywords(void)
+{
+	vpp_t check_ptr;
+
+	install_keyword("real_server", &rs_handler);
+	check_ptr = install_sublevel(VPP &current_rs);
+	install_keyword("weight", &rs_weight_handler);
+	install_keyword("lvs_method", &rs_forwarding_handler);
+	install_keyword("uthreshold", &uthreshold_handler);
+	install_keyword("lthreshold", &lthreshold_handler);
+	install_keyword("inhibit_on_failure", &rs_inhibit_handler);
+	install_keyword_quoted("notify_up", &notify_up_handler);
+	install_keyword_quoted("notify_down", &notify_down_handler);
+	install_keyword("alpha", &rs_alpha_handler);
+	install_keyword("retry", &rs_retry_handler);
+	install_keyword("delay_before_retry", &rs_delay_before_retry_handler);
+	install_keyword("warmup", &rs_warmup_handler);
+	install_keyword("connect_timeout", &rs_co_timeout_handler);
+	install_keyword("delay_loop", &rs_delay_handler);
+	install_keyword("smtp_alert", &rs_smtp_alert_handler);
+	install_keyword("virtualhost", &rs_virtualhost_handler);
+#ifdef _WITH_SNMP_CHECKER_
+	install_keyword("snmp_name", &rs_snmp_name_handler);
+#endif
+
+	install_level_end_handler(&rs_end_handler);
+
+	/* Checkers mapping */
+	install_checkers_keyword();
+	install_sublevel_end(check_ptr);
 }
 
 #ifdef _WITH_SANITIZE_UNDEFINED_
@@ -997,31 +1101,17 @@ init_check_keywords(bool active)
 	install_keyword("sorry_server", &ssvr_handler);
 	install_keyword("sorry_server_inhibit", &ssvri_handler);
 	install_keyword("sorry_server_lvs_method", &ss_forwarding_handler);
-	install_keyword("real_server", &rs_handler);
-	check_ptr = install_sublevel(VPP &current_rs);
-	install_keyword("weight", &rs_weight_handler);
-	install_keyword("lvs_method", &rs_forwarding_handler);
-	install_keyword("uthreshold", &uthreshold_handler);
-	install_keyword("lthreshold", &lthreshold_handler);
-	install_keyword("inhibit_on_failure", &rs_inhibit_handler);
-	install_keyword_quoted("notify_up", &notify_up_handler);
-	install_keyword_quoted("notify_down", &notify_down_handler);
-	install_keyword("alpha", &rs_alpha_handler);
-	install_keyword("retry", &rs_retry_handler);
-	install_keyword("delay_before_retry", &rs_delay_before_retry_handler);
-	install_keyword("warmup", &rs_warmup_handler);
-	install_keyword("connect_timeout", &rs_co_timeout_handler);
-	install_keyword("delay_loop", &rs_delay_handler);
-	install_keyword("smtp_alert", &rs_smtp_alert_handler);
-	install_keyword("virtualhost", &rs_virtualhost_handler);
-#ifdef _WITH_SNMP_CHECKER_
-	install_keyword("snmp_name", &rs_snmp_name_handler);
-#endif
+	install_rs_keywords();
 
-	install_level_end_handler(&rs_end_handler);
-
-	/* Checkers mapping */
-	install_checkers_keyword();
+	/* Failover pool mapping */
+	install_keyword("failover_pool", &failover_pool_handler);
+	check_ptr = install_sublevel(VPP &current_pool);
+	install_keyword_quoted("quorum_up", &quorum_up_handler);
+	install_keyword_quoted("quorum_down", &quorum_down_handler);
+	install_keyword("quorum", &quorum_handler);
+	install_keyword("hysteresis", &hysteresis_handler);
+	install_level_end_handler(&failover_pool_end_handler);
+	install_rs_keywords();
 	install_sublevel_end(check_ptr);
 }
 

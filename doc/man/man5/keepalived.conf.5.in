@@ -70,7 +70,8 @@ resolution of timer is micro-seconds.
 There are three classes of scripts can be configured to be executed.
 
 (a) Notify scripts that are run when a vrrp instance or vrrp group
-changes state, or a virtual server quorum changes between up and down.
+changes state, or the quorum of a virtual server or of one of its
+failover pools changes between up and down.
 
 (b) vrrp tracking scripts that will cause vrrp instances to go down if they exit
 a non-zero exist status, or if a weight is specified will add or subtract the
@@ -799,7 +800,10 @@ possibly following any cleanup actions needed.
     # The string written will be a line of the form:
     # VS [192.168.201.15]:tcp:80 {UP|DOWN}
     # RS [1.2.3.4]:tcp:80 [192.168.201.15]:tcp:80 {UP|DOWN}
-    # and will be terminated with a new line character.
+    # POOL 1 [192.168.201.15]:tcp:80 {UP|DOWN}
+    # and will be terminated with a new line character. A POOL line is
+    # written when the failover pool with that priority gains or loses
+    # quorum.
     \fBlvs_notify_fifo \fRFIFO_NAME [username [groupname]]
 
     # script to be run by keepalived to process healthchecher notify events
@@ -2468,6 +2472,11 @@ The syntax for virtual_server is :
     # Minimum total weight of all live servers in
     # the pool necessary to operate VS with no
     # quality regression. Defaults to 1.
+    # The pool here is the real servers that are not in a
+    # failover_pool (see below). The weight of a real server
+    # defaults to 1 (or the virtual server's weight), so unless
+    # weights are configured, the quorum is the number of live
+    # real servers.
     \fBquorum \fR<INTEGER>
 
     # Tolerate this much weight units compared to the
@@ -2491,6 +2500,9 @@ The syntax for virtual_server is :
     #  If a sorry server is configured, all real servers will
     #  be brought down when the quorum is not achieved and be
     #  replaced with the sorry server.
+    #  If failover pools are configured, the sorry server is
+    #  only used when none of them has achieved its quorum
+    #  either, i.e. it acts as the lowest priority pool.
     \fBsorry_server \fR<IPADDR> [<PORT>]
     # applies inhibit_on_failure behaviour to the sorry_server
     # It is very unlikely that you want to use this, since if you
@@ -2809,6 +2821,47 @@ The syntax for virtual_server is :
 
             # The weight multiplier to apply to the value read from the file
             \fBweight\fR <-2147483647..2147483647> [reverse]
+        }
+    }
+
+    # A failover pool of real servers, used instead of the real
+    # servers above when they do not achieve the quorum.
+    #
+    # The real servers above form the primary pool. Each failover
+    # pool has a priority from 1 to 255, a lower number being a
+    # higher priority. The pool in the LVS topology is the
+    # highest priority pool that has achieved its quorum, the
+    # primary pool being the highest priority of all. If no pool
+    # has achieved its quorum, the sorry server is used if there
+    # is one; otherwise the highest priority pool with any live
+    # real servers is used.
+    #
+    # Each pool's quorum is measured against that pool's own live
+    # real servers, by weight as for the primary pool, so without
+    # weights it is the number of live real servers. The real
+    # servers of every pool are health checked all the time, and
+    # those of a pool that is not in the LVS topology are only in
+    # it, with weight 0, if inhibit_on_failure is set.
+    #
+    # A real server may only be in one pool, and cannot be the
+    # sorry server.
+    \fBfailover_pool \fR<INTEGER: 1-255> {
+        # The minimum total weight of the pool's live real servers
+        # for the pool to be used. Defaults to 1.
+        \fBquorum \fR<INTEGER>
+
+        # As for the virtual server. Defaults to 0.
+        \fBhysteresis \fR<INTEGER>
+
+        # Scripts to execute when the pool's quorum is gained or
+        # lost; this is whether or not the pool is in use.
+        \fBquorum_up \fR<STRING>|<QUOTED-STRING> [username [:][groupname]]
+        \fBquorum_down \fR<STRING>|<QUOTED-STRING> [username [:][groupname]]
+
+        # one entry for each realserver of the pool, with the
+        # same options and checkers as above
+        \fBreal_server \fR<IPADDR> [<PORT>] {
+            ...
         }
     }
 }
