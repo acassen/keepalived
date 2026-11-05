@@ -420,6 +420,12 @@ get_config_status(void)
 	return config_err;
 }
 
+config_err_t __attribute__ ((pure))
+set_config_status(config_err_t err)
+{
+	return config_err = err;
+}
+
 static void __attribute__ ((noreturn))
 null_strvec(const vector_t *strvec, size_t index)
 {

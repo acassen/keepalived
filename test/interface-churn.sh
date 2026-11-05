@@ -24,6 +24,14 @@ cleanup()
 		[ "$status" -eq 0 ] || cat "$work/log" >&2
 	fi
 	rm -rf "$work"
+	date +%S.%N
+	for name in ka0 tracked0 route0 ka_new ka_old ka_base ka_mac ka_member ka_vrf; do
+		ip link delete "$name" 2>/dev/null || true
+	done
+	for ((i=0; i<100; i++)); do
+		ip link del "ka_t$i" 2>/dev/null || true
+	done
+	date +%S.%N
 	exit "$status"
 }
 trap cleanup EXIT
@@ -55,7 +63,9 @@ vrrp_instance VI_1 {
 	}
 }
 CONF
-"$binary" -n -l -G -R -f "$work/config" -p "$work/parent.pid" \
+EXTRA_FLAGS=
+"$binary" -h 2>&1 | grep -q no-mem-check && EXTRA_FLAGS="--no-mem-check"
+"$binary" -n -l -G -R $EXTRA_FLAGS -f "$work/config" -p "$work/parent.pid" \
 	-r "$work/vrrp.pid" >"$work/log" 2>&1 &
 pid=$!
 for ((i=0; i<100; i++)); do
