@@ -985,10 +985,85 @@ reload_check_child_thread(thread_ref_t thread)
 		report_child_status(thread->u.c.status, thread->u.c.pid, "reload_check");
 }
 
+static int
+call_self(thread_master_t *m, const char * const *argv)
+{
+	pid_t pid;
+	union non_const_args args;
+
+	/* Daemonization to not degrade our scheduling timer */
+#ifdef ENABLE_LOG_TO_FILE
+	if (log_file_name)
+		flush_log_file();
+#endif
+
+	pid = fork();
+
+	if (pid < 0) {
+		/* fork error */
+		log_message(LOG_INFO, "Failed fork process");
+		return -1;
+	}
+
+	if (pid) {
+		/* parent process */
+		thread_add_child(m, reload_check_child_thread, NULL, pid, 5 * TIMER_HZ);
+#ifdef _SCRIPT_DEBUG_
+		if (do_script_debug)
+			log_message(LOG_INFO, "Running config_check pid %d", pid);
+#endif
+
+		return 0;
+	}
+
+	/* Child process */
+	our_pid = getpid();
+	reset_process_priorities();
+
+#ifdef _MEM_CHECK_
+	skip_mem_dump();
+#endif
+
+#ifdef HAVE_CLOSE_RANGE
+	 /* We don't want anything past stderr here. This is belt
+	  * and braces really, since all file descriptors should
+	  * have FD_CLOEXEC set. CLOSE_RANGE_CLOEXEC uses fewer
+	  * kernel resources than CLOSE_RANGE_UNSHARE. */
+	close_range(STDERR_FILENO + 1, ~0U,
+#if HAVE_DECL_CLOSE_RANGE_CLOEXEC
+			    CLOSE_RANGE_CLOEXEC
+#else
+			    CLOSE_RANGE_UNSHARE
+#endif
+					       );
+#endif
+
+	signal_handler_script();
+	set_std_fd(false);
+
+	/* Move us into our own process group, since handle_child_timeout()
+	 * signals the process group if the config check needs to be killed. */
+	setpgid(0, 0);
+
+	/* Defence in depth: drop loader and field-splitting overrides before exec. */
+	unsetenv("IFS");
+	unsetenv("LD_PRELOAD");
+	unsetenv("LD_LIBRARY_PATH");
+
+	/* If keepalived dies, we want the config check to die */
+	prctl(PR_SET_PDEATHSIG, SIGTERM);
+
+	args.args = argv;	/* Note: we are casting away constness, since execve parameter type is wrong */
+	execve(args.args[0], args.execve_args, environ);
+
+	/* error */
+	log_message(LOG_ALERT, "Error exec-ing '%s' for config check, error %d: %m", argv[0], errno);
+	exit(EXIT_FAILURE);
+}
+
 static void
 start_validate_reload_conf_child(void)
 {
-	notify_script_t script = { .path = NULL };
 	int i;
 	int ret;
 	int argc;
@@ -1046,14 +1121,6 @@ start_validate_reload_conf_child(void)
 
 	argv[argc] = NULL;
 
-	script.args = argv;
-	script.num_args = argc;
-	script.flags = SC_EXECABLE;
-	script.user_id.uid = 0;
-	script.user_id.gid = 0;
-	script.user_id.num_sup_grp = 0;
-	script.user_id.sup_grp = NULL;
-
 	if (truncate(global_data->reload_check_config, 0) && errno != ENOENT) {
 		/* The file exists, but truncate failed. It might be a character
 		 * device like /dev/null. truncate() returns EINVAL in this case. */
@@ -1064,9 +1131,8 @@ start_validate_reload_conf_child(void)
 
 	create_reload_file();
 
-	/* Execute the script in a child process. Parent returns, child doesn't */
-	ret = system_call_script(master, reload_check_child_thread,
-				  NULL, 5 * TIMER_HZ, &script);
+	/* Execute in a child process. Parent returns, child doesn't */
+	ret = call_self(master, argv);
 
 	if (ret)
 		log_message(LOG_INFO, "Could not run config-test");
