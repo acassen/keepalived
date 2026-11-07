@@ -1005,7 +1005,7 @@ start_validate_reload_conf_child(void)
 	ret = readlink("/proc/self/exe", exe_buf, sizeof(exe_buf));
 	if (ret == -1) {
 		/* How can this happen? What can we do? */
-		log_message(LOG_INFO, "readlink(\"/proc/self/exe\" failed - errno %d - config-test aborted", errno);
+		log_message(LOG_INFO, "readlink(\"/proc/self/exe\") failed - errno %d - config-test aborted", errno);
 		return;
 	} else if (ret == sizeof(exe_buf))
 		strcpy(exe_buf, "/proc/self/exe");
