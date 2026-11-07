@@ -171,6 +171,7 @@ const char *snmp_socket;				/* Socket to use for SNMP agent */
 static const char *syslog_ident;			/* syslog ident if not default */
 bool use_pid_dir;					/* Put pid files in /run/keepalived or @localstatedir@/run/keepalived */
 bool children_started;					/* Set once children have been run first time */
+static char *executable_full_path;			/* Full path name of our executable */
 
 unsigned os_major;					/* Kernel version */
 unsigned os_minor;
@@ -316,6 +317,8 @@ free_parent_mallocs_startup(bool am_child)
 
 		free_notify_script(&global_data->startup_script);
 		free_notify_script(&global_data->shutdown_script);
+
+		FREE_PTR(executable_full_path);
 	}
 }
 
@@ -1054,7 +1057,7 @@ call_self(thread_master_t *m, const char * const *argv)
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
 	args.args = argv;	/* Note: we are casting away constness, since execve parameter type is wrong */
-	execve(args.args[0], args.execve_args, environ);
+	execve("/proc/self/exe", args.execve_args, environ);
 
 	/* error */
 	log_message(LOG_ALERT, "Error exec-ing '%s' for config check, error %d: %m", argv[0], errno);
@@ -1072,32 +1075,16 @@ start_validate_reload_conf_child(void)
 	char *config_test_str;
 	char *config_fd_str = NULL;
 	int fd;
-	int len;
-	char exe_buf[128];
 	struct stat sb;
-
-	exe_buf[sizeof(exe_buf) - 1] = '\0';
-	ret = readlink("/proc/self/exe", exe_buf, sizeof(exe_buf));
-	if (ret == -1) {
-		/* How can this happen? What can we do? */
-		log_message(LOG_INFO, "readlink(\"/proc/self/exe\") failed - errno %d - config-test aborted", errno);
-		return;
-	} else if (ret == sizeof(exe_buf))
-		strcpy(exe_buf, "/proc/self/exe");
-	else {
-		exe_buf[ret] = '\0';
-		len = strlen(exe_buf);
-		/* If keepalived has been recompiled, the original file will
-		 * be marked as deleted, but we can use the new one. */
-		if (len > 10 && !strcmp(exe_buf + len - 10, " (deleted)"))
-			exe_buf[len - 10] = '\0';
-	}
 
 	/* Inherits the original parameters and adds new parameters "--config-test and --config-fd" */
 	sav_argv = get_cmd_line_options(&argc);
 	argv = MALLOC((argc + 3) * sizeof(char *));
 
-	argv[0] = exe_buf;
+	/* If we were executed with a relative path name, and then have done chdir("/"),
+	 * the relative path will probably no longer work, so we need to use the absolute
+	 * path name. */
+	argv[0] = executable_full_path;
 
 	/* copy old parameters */
 	for (i = 1; i < argc; i++)
@@ -2513,9 +2500,13 @@ keepalived_main(int argc, char **argv)
 	bool report_stopped = true;
 	struct utsname uname_buf;
 	char *end;
+	size_t len;
+	char *cwd;
+	char *p;
 	int exit_code = KEEPALIVED_EXIT_OK;
 	magic_t magic;
 	unsigned script_flags;
+	char *tmp_full_path = NULL;
 	struct rusage usage;
 	struct rusage child_usage;
 #ifdef OLD_DEFAULT_CONFIG_FILE
@@ -2663,6 +2654,32 @@ keepalived_main(int argc, char **argv)
 #ifdef DO_STACKSIZE
 	get_stacksize(false);
 #endif
+
+	/* Save executable file name for argv[0] for execing ourself
+	 * for config checks. If we are a process doing a config check,
+	 * it is possible that the executable file may no longer exist,
+	 * but we will have been exec'd using /proc/self/exe. */
+	if (argv[0][0] == '/')
+		executable_full_path = STRDUP(argv[0]);
+	else if ((tmp_full_path = realpath("/proc/self/exe", NULL))) {
+		/* It is possible that our executable has been renamed on the same filesystem,
+		 * in which case tmp_full_path will be the new name. However this is extremely
+		 * unlikely; it requires the rename to have happened between us starting to run
+		 * and now. If that is a concern, then remove this if block, and use the getcwd()
+		 * option below. */
+		len = strlen(tmp_full_path);
+		if (len > 10 && !strcmp(tmp_full_path + len - 10, " (deleted)"))
+			tmp_full_path[len - 10] = '\0';
+		executable_full_path = STRDUP(tmp_full_path);
+		free(tmp_full_path);
+	} else {
+		cwd = getcwd(NULL, 0);
+		executable_full_path = MALLOC(strlen(cwd) + 1 + strlen(argv[0]) + 1);
+		p = stpcpy(executable_full_path, cwd);
+		free(cwd);
+		*p++ = '/';
+		stpcpy(p, argv[0]);
+	}
 
 #ifdef _REPRODUCIBLE_BUILD_
 	/* We want to use our MALLOC functions */
@@ -3002,6 +3019,8 @@ end:
 	free_parent_mallocs_startup(false);
 	free_parent_mallocs_exit();
 	free_global_data(&global_data);
+
+	FREE_PTR(executable_full_path);
 
 #ifdef DO_STACKSIZE
 	get_stacksize(true);
