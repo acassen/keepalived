@@ -2651,10 +2651,8 @@ keepalived_main(int argc, char **argv)
 	   absolute file names, the behaviour will be different
 	   depending on whether we forked or not. */
 	if (!check_conf_file(conf_file)) {
-		if (__test_bit(CONFIG_TEST_BIT, &debug)) {
-			set_config_status(CONFIG_FILE_NOT_FOUND);
+		if (__test_bit(CONFIG_TEST_BIT, &debug))
 			config_test_exit();
-		}
 
 		exit_code = KEEPALIVED_EXIT_NO_CONFIG;
 		goto end;

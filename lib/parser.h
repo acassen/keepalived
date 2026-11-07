@@ -129,7 +129,6 @@ extern void report_config_error(config_err_t, const char *format, ...)
 extern void use_disk_copy_for_config(const char *);
 extern void clear_config_status(void);
 extern config_err_t get_config_status(void) __attribute__ ((pure));
-extern config_err_t set_config_status(config_err_t);
 extern bool read_int(const char *, int *, int, int, bool);
 extern bool read_unsigned(const char *, unsigned *, unsigned, unsigned, bool);
 extern bool read_unsigned64(const char *, uint64_t *, uint64_t, uint64_t, bool);

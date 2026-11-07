@@ -420,12 +420,6 @@ get_config_status(void)
 	return config_err;
 }
 
-config_err_t __attribute__ ((pure))
-set_config_status(config_err_t err)
-{
-	return config_err = err;
-}
-
 static void __attribute__ ((noreturn))
 null_strvec(const vector_t *strvec, size_t index)
 {
@@ -1857,33 +1851,40 @@ check_conf_file(const char *conf_file)
 	unsigned num_matches = 0;
 
 	if (!open_and_check_glob(&globbuf, conf_file, INCLUDE))
-		return false;
+		ret = false;
+	else {
+		for (i = 0; i < globbuf.gl_pathc; i++) {
+			if (!check_glob_file(globbuf.gl_pathv[i])) {
+				ret = false;
+				continue;
+			}
 
-	for (i = 0; i < globbuf.gl_pathc; i++) {
-		if (!check_glob_file(globbuf.gl_pathv[i])) {
-			ret = false;
-			continue;
+			if (access(globbuf.gl_pathv[i], R_OK)) {
+				report_config_error(CONFIG_FILE_NOT_FOUND, "Unable to read configuration file %s", globbuf.gl_pathv[i]);
+				ret = false;
+				break;
+			}
+
+			num_matches++;
 		}
 
-		if (access(globbuf.gl_pathv[i], R_OK)) {
-			report_config_error(CONFIG_FILE_NOT_FOUND, "Unable to read configuration file %s", globbuf.gl_pathv[i]);
-			ret = false;
-			break;
+		if (ret) {
+			if (num_matches > 1)
+				report_config_error(CONFIG_MULTIPLE_FILES, "WARNING, multiple configuration file matches of %s, starting with %s", conf_file, globbuf.gl_pathv[0]);
+			else if (num_matches == 0) {
+				report_config_error(CONFIG_FILE_NOT_FOUND, "Unable to find configuration file %s", conf_file);
+				ret = false;
+			}
 		}
 
-		num_matches++;
+		globfree(&globbuf);
 	}
 
-	if (ret) {
-		if (num_matches > 1)
-			report_config_error(CONFIG_MULTIPLE_FILES, "WARNING, multiple configuration file matches of %s, starting with %s", conf_file, globbuf.gl_pathv[0]);
-		else if (num_matches == 0) {
-			report_config_error(CONFIG_FILE_NOT_FOUND, "Unable to find configuration file %s", conf_file);
-			ret = false;
-		}
+	if (!ret) {
+		if (__test_bit(CONFIG_TEST_BIT, &debug) &&
+		    (config_err < CONFIG_FILE_NOT_FOUND))
+			config_err = CONFIG_FILE_NOT_FOUND;
 	}
-
-	globfree(&globbuf);
 
 	return ret;
 }
