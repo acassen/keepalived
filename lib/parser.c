@@ -2765,26 +2765,10 @@ read_line(char *buf, size_t size)
 						file->file_name = STRDUP(buf + 2);
 						file->current_file_name = file->file_name;
 						list_head_add(&file->e_list, &include_stack);
-						if (strchr(file->current_file_name, '/')) {
-							/* If the filename contains a directory element, change to that directory. */
-							file->curdir_fd = open(".", O_RDONLY | O_DIRECTORY | O_PATH | O_CLOEXEC);
-
-							char *confpath = STRDUP(buf + 2);
-							dirname(confpath);
-							if (chdir(confpath) < 0)
-								log_message(LOG_INFO, "chdir(%s) error (%s)", confpath, strerror(errno));
-							FREE(confpath);
-						} else
-							file->curdir_fd = -1;
 
 						buf[0] = '\0';
 						continue;
 					} else if (buf[0] == '!') {
-						if (file->curdir_fd != -1) {
-							if (fchdir(file->curdir_fd))
-								log_message(LOG_INFO, "Failed to restore previous directory after include");
-							close(file->curdir_fd);
-						}
 						file = list_first_entry(&include_stack, include_file_t, e_list);
 						FREE_CONST_PTR(file->current_file_name);
 
