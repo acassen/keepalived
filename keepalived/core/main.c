@@ -979,7 +979,10 @@ reload_check_child_thread(thread_ref_t thread)
 
 	if (WIFEXITED(thread->u.c.status)) {
 		if (WEXITSTATUS(thread->u.c.status)) {
-			log_message(LOG_INFO, "New config failed validation, see %s for details", global_data->reload_check_config);
+			if (strcmp(global_data->reload_check_config, "/dev/null"))
+				log_message(LOG_INFO, "New config failed validation, see %s for details", global_data->reload_check_config);
+			else
+				log_message(LOG_INFO, "New config failed validation");
 			return;
 		}
 
