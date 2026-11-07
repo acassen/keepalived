@@ -2740,9 +2740,9 @@ keepalived_main(int argc, char **argv)
 		 * a fully qualified path so that the path can be used at a reload after
 		 * we have cwd'd to /. We can't use realpath() because the path may use
 		 * glob patterns. */
-		char *cwd = MALLOC(PATH_MAX);
 		size_t cwd_len;
 
+		cwd = MALLOC(PATH_MAX);
 		if (getcwd(cwd, PATH_MAX)) {
 			cwd_len = strlen(cwd);
 			conf_file_full_path = MALLOC(cwd_len + 1 + strlen(conf_file) + 1);
