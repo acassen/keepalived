@@ -2461,8 +2461,9 @@ config_save_dir_handler(const vector_t *strvec)
 static void
 reload_check_config_handler(const vector_t *strvec)
 {
+	FREE_CONST_PTR(global_data->reload_check_config);
+
 	if (vector_size(strvec) >= 2) {
-		FREE_CONST_PTR(global_data->reload_check_config);
 		global_data->reload_check_config = set_value(strvec);
 
 		/* Check file can be written */

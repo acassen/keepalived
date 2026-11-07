@@ -420,12 +420,6 @@ get_config_status(void)
 	return config_err;
 }
 
-config_err_t __attribute__ ((pure))
-set_config_status(config_err_t err)
-{
-	return config_err = err;
-}
-
 static void __attribute__ ((noreturn))
 null_strvec(const vector_t *strvec, size_t index)
 {
@@ -1857,33 +1851,40 @@ check_conf_file(const char *conf_file)
 	unsigned num_matches = 0;
 
 	if (!open_and_check_glob(&globbuf, conf_file, INCLUDE))
-		return false;
+		ret = false;
+	else {
+		for (i = 0; i < globbuf.gl_pathc; i++) {
+			if (!check_glob_file(globbuf.gl_pathv[i])) {
+				ret = false;
+				continue;
+			}
 
-	for (i = 0; i < globbuf.gl_pathc; i++) {
-		if (!check_glob_file(globbuf.gl_pathv[i])) {
-			ret = false;
-			continue;
+			if (access(globbuf.gl_pathv[i], R_OK)) {
+				report_config_error(CONFIG_FILE_NOT_FOUND, "Unable to read configuration file %s", globbuf.gl_pathv[i]);
+				ret = false;
+				break;
+			}
+
+			num_matches++;
 		}
 
-		if (access(globbuf.gl_pathv[i], R_OK)) {
-			report_config_error(CONFIG_FILE_NOT_FOUND, "Unable to read configuration file %s", globbuf.gl_pathv[i]);
-			ret = false;
-			break;
+		if (ret) {
+			if (num_matches > 1)
+				report_config_error(CONFIG_MULTIPLE_FILES, "WARNING, multiple configuration file matches of %s, starting with %s", conf_file, globbuf.gl_pathv[0]);
+			else if (num_matches == 0) {
+				report_config_error(CONFIG_FILE_NOT_FOUND, "Unable to find configuration file %s", conf_file);
+				ret = false;
+			}
 		}
 
-		num_matches++;
+		globfree(&globbuf);
 	}
 
-	if (ret) {
-		if (num_matches > 1)
-			report_config_error(CONFIG_MULTIPLE_FILES, "WARNING, multiple configuration file matches of %s, starting with %s", conf_file, globbuf.gl_pathv[0]);
-		else if (num_matches == 0) {
-			report_config_error(CONFIG_FILE_NOT_FOUND, "Unable to find configuration file %s", conf_file);
-			ret = false;
-		}
+	if (!ret) {
+		if (__test_bit(CONFIG_TEST_BIT, &debug) &&
+		    (config_err < CONFIG_FILE_NOT_FOUND))
+			config_err = CONFIG_FILE_NOT_FOUND;
 	}
-
-	globfree(&globbuf);
 
 	return ret;
 }
@@ -2764,26 +2765,10 @@ read_line(char *buf, size_t size)
 						file->file_name = STRDUP(buf + 2);
 						file->current_file_name = file->file_name;
 						list_head_add(&file->e_list, &include_stack);
-						if (strchr(file->current_file_name, '/')) {
-							/* If the filename contains a directory element, change to that directory. */
-							file->curdir_fd = open(".", O_RDONLY | O_DIRECTORY | O_PATH | O_CLOEXEC);
-
-							char *confpath = STRDUP(buf + 2);
-							dirname(confpath);
-							if (chdir(confpath) < 0)
-								log_message(LOG_INFO, "chdir(%s) error (%s)", confpath, strerror(errno));
-							FREE(confpath);
-						} else
-							file->curdir_fd = -1;
 
 						buf[0] = '\0';
 						continue;
 					} else if (buf[0] == '!') {
-						if (file->curdir_fd != -1) {
-							if (fchdir(file->curdir_fd))
-								log_message(LOG_INFO, "Failed to restore previous directory after include");
-							close(file->curdir_fd);
-						}
 						file = list_first_entry(&include_stack, include_file_t, e_list);
 						FREE_CONST_PTR(file->current_file_name);
 

@@ -149,6 +149,7 @@ static const struct child_term children_term[] = {
 /* global var */
 const char *version_string = VERSION_STRING;		/* keepalived version */
 const char *conf_file;					/* Configuration file */
+static char *conf_file_full_path;			/* Needed for reload if conf_file is relative path name */
 bool reload;						/* Set during a reload */
 struct pidfile main_pidfile = { .fd = -1 };		/* overrule default pidfile */
 #ifdef _WITH_LVS_
@@ -171,6 +172,7 @@ const char *snmp_socket;				/* Socket to use for SNMP agent */
 static const char *syslog_ident;			/* syslog ident if not default */
 bool use_pid_dir;					/* Put pid files in /run/keepalived or @localstatedir@/run/keepalived */
 bool children_started;					/* Set once children have been run first time */
+static char *executable_full_path;			/* Full path name of our executable */
 
 unsigned os_major;					/* Kernel version */
 unsigned os_minor;
@@ -316,6 +318,9 @@ free_parent_mallocs_startup(bool am_child)
 
 		free_notify_script(&global_data->startup_script);
 		free_notify_script(&global_data->shutdown_script);
+
+		FREE_PTR(executable_full_path);
+		FREE_PTR(conf_file_full_path);
 	}
 }
 
@@ -477,7 +482,7 @@ read_config_file(bool write_config_copy)
 	write_config_copy = false;
 #endif
 
-	init_data(conf_file, global_init_keywords, write_config_copy);
+	init_data(conf_file_full_path ? conf_file_full_path : conf_file, global_init_keywords, write_config_copy);
 	notify_resource_release();
 
 #ifndef _ONE_PROCESS_DEBUG_
@@ -976,19 +981,99 @@ reload_check_child_thread(thread_ref_t thread)
 
 	if (WIFEXITED(thread->u.c.status)) {
 		if (WEXITSTATUS(thread->u.c.status)) {
-			log_message(LOG_INFO, "New config failed validation, see %s for details", global_data->reload_check_config);
+			if (strcmp(global_data->reload_check_config, "/dev/null"))
+				log_message(LOG_INFO, "New config failed validation, see %s for details", global_data->reload_check_config);
+			else
+				log_message(LOG_INFO, "New config failed validation");
 			return;
 		}
 
 		do_reload();
-	} else
+	} else {
 		report_child_status(thread->u.c.status, thread->u.c.pid, "reload_check");
+		log_message(LOG_INFO, "Unable to start reload due to above problem");
+	}
+}
+
+static int
+call_self(thread_master_t *m, const char * const *argv)
+{
+	pid_t pid;
+	union non_const_args args;
+
+	/* Daemonization to not degrade our scheduling timer */
+#ifdef ENABLE_LOG_TO_FILE
+	if (log_file_name)
+		flush_log_file();
+#endif
+
+	pid = fork();
+
+	if (pid < 0) {
+		/* fork error */
+		log_message(LOG_INFO, "Failed fork process");
+		return -1;
+	}
+
+	if (pid) {
+		/* parent process */
+		thread_add_child(m, reload_check_child_thread, NULL, pid, 5 * TIMER_HZ);
+#ifdef _SCRIPT_DEBUG_
+		if (do_script_debug)
+			log_message(LOG_INFO, "Running config_check pid %d", pid);
+#endif
+
+		return 0;
+	}
+
+	/* Child process */
+	our_pid = getpid();
+	reset_process_priorities();
+
+#ifdef _MEM_CHECK_
+	skip_mem_dump();
+#endif
+
+#ifdef HAVE_CLOSE_RANGE
+	 /* We don't want anything past stderr here. This is belt
+	  * and braces really, since all file descriptors should
+	  * have FD_CLOEXEC set. CLOSE_RANGE_CLOEXEC uses fewer
+	  * kernel resources than CLOSE_RANGE_UNSHARE. */
+	close_range(STDERR_FILENO + 1, ~0U,
+#if HAVE_DECL_CLOSE_RANGE_CLOEXEC
+			    CLOSE_RANGE_CLOEXEC
+#else
+			    CLOSE_RANGE_UNSHARE
+#endif
+					       );
+#endif
+
+	signal_handler_script();
+	set_std_fd(false);
+
+	/* Move us into our own process group, since handle_child_timeout()
+	 * signals the process group if the config check needs to be killed. */
+	setpgid(0, 0);
+
+	/* Defence in depth: drop loader and field-splitting overrides before exec. */
+	unsetenv("IFS");
+	unsetenv("LD_PRELOAD");
+	unsetenv("LD_LIBRARY_PATH");
+
+	/* If keepalived dies, we want the config check to die */
+	prctl(PR_SET_PDEATHSIG, SIGTERM);
+
+	args.args = argv;	/* Note: we are casting away constness, since execve parameter type is wrong */
+	execve("/proc/self/exe", args.execve_args, environ);
+
+	/* error */
+	log_message(LOG_ALERT, "Error exec-ing '%s' for config check, error %d: %m", argv[0], errno);
+	exit(EXIT_FAILURE);
 }
 
 static void
 start_validate_reload_conf_child(void)
 {
-	notify_script_t script = { .path = NULL };
 	int i;
 	int ret;
 	int argc;
@@ -997,36 +1082,24 @@ start_validate_reload_conf_child(void)
 	char *config_test_str;
 	char *config_fd_str = NULL;
 	int fd;
-	int len;
-	char exe_buf[128];
 	struct stat sb;
-
-	exe_buf[sizeof(exe_buf) - 1] = '\0';
-	ret = readlink("/proc/self/exe", exe_buf, sizeof(exe_buf));
-	if (ret == -1) {
-		/* How can this happen? What can we do? */
-		log_message(LOG_INFO, "readlink(\"/proc/self/exe\" failed - errno %d - config-test aborted", errno);
-		return;
-	} else if (ret == sizeof(exe_buf))
-		strcpy(exe_buf, "/proc/self/exe");
-	else {
-		exe_buf[ret] = '\0';
-		len = strlen(exe_buf);
-		/* If keepalived has been recompiled, the original file will
-		 * be marked as deleted, but we can use the new one. */
-		if (len > 10 && !strcmp(exe_buf + len - 10, " (deleted)"))
-			exe_buf[len - 10] = '\0';
-	}
 
 	/* Inherits the original parameters and adds new parameters "--config-test and --config-fd" */
 	sav_argv = get_cmd_line_options(&argc);
 	argv = MALLOC((argc + 3) * sizeof(char *));
 
-	argv[0] = exe_buf;
+	/* If we were executed with a relative path name, and then have done chdir("/"),
+	 * the relative path will probably no longer work, so we need to use the absolute
+	 * path name. */
+	argv[0] = executable_full_path;
 
 	/* copy old parameters */
-	for (i = 1; i < argc; i++)
-		argv[i] = sav_argv[i];
+	for (i = 1; i < argc; i++) {
+		if (sav_argv[i] == conf_file)
+			argv[i] = conf_file_full_path;
+		else
+			argv[i] = sav_argv[i];
+	}
 
 	/* add --config-test */
 	config_test_str = MALLOC(14 + strlen(global_data->reload_check_config) + 1);
@@ -1046,14 +1119,6 @@ start_validate_reload_conf_child(void)
 
 	argv[argc] = NULL;
 
-	script.args = argv;
-	script.num_args = argc;
-	script.flags = SC_EXECABLE;
-	script.user_id.uid = 0;
-	script.user_id.gid = 0;
-	script.user_id.num_sup_grp = 0;
-	script.user_id.sup_grp = NULL;
-
 	if (truncate(global_data->reload_check_config, 0) && errno != ENOENT) {
 		/* The file exists, but truncate failed. It might be a character
 		 * device like /dev/null. truncate() returns EINVAL in this case. */
@@ -1064,9 +1129,8 @@ start_validate_reload_conf_child(void)
 
 	create_reload_file();
 
-	/* Execute the script in a child process. Parent returns, child doesn't */
-	ret = system_call_script(master, reload_check_child_thread,
-				  NULL, 5 * TIMER_HZ, &script);
+	/* Execute in a child process. Parent returns, child doesn't */
+	ret = call_self(master, argv);
 
 	if (ret)
 		log_message(LOG_INFO, "Could not run config-test");
@@ -2447,9 +2511,13 @@ keepalived_main(int argc, char **argv)
 	bool report_stopped = true;
 	struct utsname uname_buf;
 	char *end;
+	size_t len;
+	char *cwd;
+	char *p;
 	int exit_code = KEEPALIVED_EXIT_OK;
 	magic_t magic;
 	unsigned script_flags;
+	char *tmp_full_path = NULL;
 	struct rusage usage;
 	struct rusage child_usage;
 #ifdef OLD_DEFAULT_CONFIG_FILE
@@ -2598,6 +2666,32 @@ keepalived_main(int argc, char **argv)
 	get_stacksize(false);
 #endif
 
+	/* Save executable file name for argv[0] for execing ourself
+	 * for config checks. If we are a process doing a config check,
+	 * it is possible that the executable file may no longer exist,
+	 * but we will have been exec'd using /proc/self/exe. */
+	if (argv[0][0] == '/')
+		executable_full_path = STRDUP(argv[0]);
+	else if ((tmp_full_path = realpath("/proc/self/exe", NULL))) {
+		/* It is possible that our executable has been renamed on the same filesystem,
+		 * in which case tmp_full_path will be the new name. However this is extremely
+		 * unlikely; it requires the rename to have happened between us starting to run
+		 * and now. If that is a concern, then remove this if block, and use the getcwd()
+		 * option below. */
+		len = strlen(tmp_full_path);
+		if (len > 10 && !strcmp(tmp_full_path + len - 10, " (deleted)"))
+			tmp_full_path[len - 10] = '\0';
+		executable_full_path = STRDUP(tmp_full_path);
+		free(tmp_full_path);
+	} else {
+		cwd = getcwd(NULL, 0);
+		executable_full_path = MALLOC(strlen(cwd) + 1 + strlen(argv[0]) + 1);
+		p = stpcpy(executable_full_path, cwd);
+		free(cwd);
+		*p++ = '/';
+		stpcpy(p, argv[0]);
+	}
+
 #ifdef _REPRODUCIBLE_BUILD_
 	/* We want to use our MALLOC functions */
 	char *new_config_opts_str = STRDUP(config_opts);
@@ -2641,6 +2735,25 @@ keepalived_main(int argc, char **argv)
 					OLD_DEFAULT_CONFIG_FILE, DEFAULT_CONFIG_FILE);
 		}
 #endif
+	} else if (conf_file[0] != '/') {
+		/* In case the config file is specifed as a relative path, construct
+		 * a fully qualified path so that the path can be used at a reload after
+		 * we have cwd'd to /. We can't use realpath() because the path may use
+		 * glob patterns. */
+		size_t cwd_len;
+
+		cwd = MALLOC(PATH_MAX);
+		if (getcwd(cwd, PATH_MAX)) {
+			cwd_len = strlen(cwd);
+			conf_file_full_path = MALLOC(cwd_len + 1 + strlen(conf_file) + 1);
+			memcpy(conf_file_full_path, cwd, cwd_len);
+			if (cwd_len && cwd[cwd_len - 1] != '/')
+				conf_file_full_path[cwd_len++] = '/';
+			strcpy(conf_file_full_path + cwd_len, conf_file);
+		} else
+			log_message(LOG_INFO, "Unable to get current working directory for relative config file");
+
+		FREE(cwd);
 	}
 
 	/* Check we can read the configuration file(s).
@@ -2651,10 +2764,8 @@ keepalived_main(int argc, char **argv)
 	   absolute file names, the behaviour will be different
 	   depending on whether we forked or not. */
 	if (!check_conf_file(conf_file)) {
-		if (__test_bit(CONFIG_TEST_BIT, &debug)) {
-			set_config_status(CONFIG_FILE_NOT_FOUND);
+		if (__test_bit(CONFIG_TEST_BIT, &debug))
 			config_test_exit();
-		}
 
 		exit_code = KEEPALIVED_EXIT_NO_CONFIG;
 		goto end;
@@ -2938,6 +3049,9 @@ end:
 	free_parent_mallocs_startup(false);
 	free_parent_mallocs_exit();
 	free_global_data(&global_data);
+
+	FREE_PTR(executable_full_path);
+	FREE_PTR(conf_file_full_path);
 
 #ifdef DO_STACKSIZE
 	get_stacksize(true);

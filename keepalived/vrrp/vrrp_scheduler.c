@@ -701,7 +701,7 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init, vrrp_fault_fl_t resolved_flag)
 	 * at the same time
 	 */
 #ifdef _FAULT_FLAGS_CHECK_
-	if (!__test_bit(resolved_flag, &vrrp->flags_if_fault))
+	if (resolved_flag != VRRP_FAULT_FL_TRACKER && !__test_bit(resolved_flag, &vrrp->flags_if_fault))
 		log_message(LOG_INFO, "(%s) BUG - try_up_instance flag %u not set in 0x%lx, leaving_init %d", vrrp->iname, resolved_flag, vrrp->flags_if_fault, leaving_init);
 
 	if (!__test_bit(VRRP_FAULT_FL_TRACKER, &vrrp->flags_if_fault) != !vrrp->num_track_fault)
