@@ -984,8 +984,10 @@ reload_check_child_thread(thread_ref_t thread)
 		}
 
 		do_reload();
-	} else
+	} else {
 		report_child_status(thread->u.c.status, thread->u.c.pid, "reload_check");
+		log_message(LOG_INFO, "Unable to start reload due to above problem");
+	}
 }
 
 static int
