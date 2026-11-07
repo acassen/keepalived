@@ -149,6 +149,7 @@ static const struct child_term children_term[] = {
 /* global var */
 const char *version_string = VERSION_STRING;		/* keepalived version */
 const char *conf_file;					/* Configuration file */
+static char *conf_file_full_path;			/* Needed for reload if conf_file is relative path name */
 bool reload;						/* Set during a reload */
 struct pidfile main_pidfile = { .fd = -1 };		/* overrule default pidfile */
 #ifdef _WITH_LVS_
@@ -319,6 +320,7 @@ free_parent_mallocs_startup(bool am_child)
 		free_notify_script(&global_data->shutdown_script);
 
 		FREE_PTR(executable_full_path);
+		FREE_PTR(conf_file_full_path);
 	}
 }
 
@@ -480,7 +482,7 @@ read_config_file(bool write_config_copy)
 	write_config_copy = false;
 #endif
 
-	init_data(conf_file, global_init_keywords, write_config_copy);
+	init_data(conf_file_full_path ? conf_file_full_path : conf_file, global_init_keywords, write_config_copy);
 	notify_resource_release();
 
 #ifndef _ONE_PROCESS_DEBUG_
@@ -1092,8 +1094,12 @@ start_validate_reload_conf_child(void)
 	argv[0] = executable_full_path;
 
 	/* copy old parameters */
-	for (i = 1; i < argc; i++)
-		argv[i] = sav_argv[i];
+	for (i = 1; i < argc; i++) {
+		if (sav_argv[i] == conf_file)
+			argv[i] = conf_file_full_path;
+		else
+			argv[i] = sav_argv[i];
+	}
 
 	/* add --config-test */
 	config_test_str = MALLOC(14 + strlen(global_data->reload_check_config) + 1);
@@ -2729,6 +2735,25 @@ keepalived_main(int argc, char **argv)
 					OLD_DEFAULT_CONFIG_FILE, DEFAULT_CONFIG_FILE);
 		}
 #endif
+	} else if (conf_file[0] != '/') {
+		/* In case the config file is specifed as a relative path, construct
+		 * a fully qualified path so that the path can be used at a reload after
+		 * we have cwd'd to /. We can't use realpath() because the path may use
+		 * glob patterns. */
+		char *cwd = MALLOC(PATH_MAX);
+		size_t cwd_len;
+
+		if (getcwd(cwd, PATH_MAX)) {
+			cwd_len = strlen(cwd);
+			conf_file_full_path = MALLOC(cwd_len + 1 + strlen(conf_file) + 1);
+			memcpy(conf_file_full_path, cwd, cwd_len);
+			if (cwd_len && cwd[cwd_len - 1] != '/')
+				conf_file_full_path[cwd_len++] = '/';
+			strcpy(conf_file_full_path + cwd_len, conf_file);
+		} else
+			log_message(LOG_INFO, "Unable to get current working directory for relative config file");
+
+		FREE(cwd);
 	}
 
 	/* Check we can read the configuration file(s).
@@ -3026,6 +3051,7 @@ end:
 	free_global_data(&global_data);
 
 	FREE_PTR(executable_full_path);
+	FREE_PTR(conf_file_full_path);
 
 #ifdef DO_STACKSIZE
 	get_stacksize(true);
