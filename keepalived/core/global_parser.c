@@ -1851,8 +1851,38 @@ instance_handler(const vector_t *strvec)
 static void
 use_pid_dir_handler(const vector_t *strvec)
 {
+	size_t dir_len;
+	const char *dir;
+	char *new_dir;
+
 	if (!strvec)
 		return;
+
+	if (vector_size(strvec) >= 2) {
+		dir = strvec_slot(strvec, 1);
+		if (dir[0] != '/') {
+			report_config_error(CONFIG_GENERAL_ERROR, "pid_dir must be an absolute path name");
+			return;
+		}
+	} else
+		dir = NULL;
+
+	if (pid_dir) {
+		FREE_CONST_PTR(pid_dir);
+		pid_dir = NULL;
+	}
+
+	if (dir) {
+		/* We want to ensure pid_dir ends with '/' for make_pidfile_name() */
+		dir_len = strlen(dir);
+		new_dir = MALLOC(dir_len + (dir[dir_len - 1] != '/' ? 1 : 0) + 1);
+		strcpy(new_dir, dir);
+		if (dir[dir_len - 1] != '/') {
+			new_dir[dir_len] = '/';
+			new_dir[dir_len + 1] = '\0';
+		}
+		pid_dir = new_dir;
+	}
 
 	use_pid_dir = true;
 }

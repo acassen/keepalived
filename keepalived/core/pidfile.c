@@ -39,6 +39,7 @@
 #include "utils.h"
 #include "memory.h"
 #include "process.h"
+#include "global_data.h"
 
 const char *pid_directory = KEEPALIVED_PID_DIR;
 
@@ -77,48 +78,50 @@ remove_pid_dir(void)
 }
 
 char *
-make_pidfile_name(const char* start, const char* instance, const char* extn)
+make_pidfile_name(const char* fname, const char* extn)
 {
 	size_t len;
 	char *name;
+	char *ptr;
+	const char *dir;
 
-	len = strlen(start) + 1;
-	if (instance)
-		len += strlen(instance) + 1;
+	dir = !use_pid_dir && !global_data->instance_name ? RUNSTATEDIR "/" : pid_dir ? pid_dir : KEEPALIVED_PID_DIR;
+
+	len = strlen(dir) + strlen(fname) + 1;
+	if (global_data->instance_name)
+		len += strlen(global_data->instance_name) + 1;
 	if (extn)
 		len += strlen(extn);
 
 	name = MALLOC(len);
 	if (!name) {
-		log_message(LOG_INFO, "Unable to make pidfile name for %s", start);
+		log_message(LOG_INFO, "Unable to make pidfile name for %s%s", dir, fname);
 		return NULL;
 	}
 
-	strcpy(name, start);
-	if (instance) {
-		strcat(name, "_");
-		strcat(name, instance);
+	ptr = stpcpy(name, dir);
+	ptr = stpcpy(ptr, fname);
+	if (global_data->instance_name) {
+		*ptr++ = '_';
+		ptr = stpcpy(ptr, global_data->instance_name);
 	}
 	if (extn)
-		strcat(name, extn);
+		stpcpy(ptr, extn);
 
 	return name;
 }
 
 void
-pidfile_close(pidfile_t *pidf, bool free_path)
+pidfile_close(pidfile_t *pidf)
 {
+	FREE_CONST_PTR(pidf->path);
+	pidf->path = NULL;
+
 	if (pidf->fd == -1)
 		return;
 
 	close(pidf->fd);
 	pidf->fd = -1;
-
-	if (free_path && pidf->free_path) {
-		FREE_CONST_PTR(pidf->path);
-		pidf->path = NULL;
-		pidf->free_path = false;
-	}
 }
 
 /* Remove the running daemon pidfile */
@@ -127,7 +130,7 @@ pidfile_rm(pidfile_t *pidf)
 {
 	unlink(pidf->path);
 	if (pidf->fd != -1)
-		pidfile_close(pidf, true);
+		pidfile_close(pidf);
 }
 
 void
@@ -135,23 +138,21 @@ close_other_pidfiles(void)
 {
 #ifndef _ONE_PROCESS_DEBUG_
 	if (prog_type != PROG_TYPE_PARENT)
-#endif
-		pidfile_close(&main_pidfile, true);
+		pidfile_close(&main_pidfile);
 
-#ifndef _ONE_PROCESS_DEBUG_
 #ifdef _WITH_VRRP_
 	if (prog_type != PROG_TYPE_VRRP)
-		pidfile_close(&vrrp_pidfile, true);
+		pidfile_close(&vrrp_pidfile);
 #endif
 
 #ifdef _WITH_LVS_
 	if (prog_type != PROG_TYPE_CHECKER)
-		pidfile_close(&checkers_pidfile, true);
+		pidfile_close(&checkers_pidfile);
 #endif
 
 #ifdef _WITH_BFD_
 	if (prog_type != PROG_TYPE_BFD)
-		pidfile_close(&bfd_pidfile, true);
+		pidfile_close(&bfd_pidfile);
 #endif
 #endif
 }

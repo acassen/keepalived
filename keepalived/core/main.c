@@ -170,7 +170,9 @@ bool snmp_option;					/* Enable SNMP support */
 const char *snmp_socket;				/* Socket to use for SNMP agent */
 #endif
 static const char *syslog_ident;			/* syslog ident if not default */
-bool use_pid_dir;					/* Put pid files in /run/keepalived or @localstatedir@/run/keepalived */
+bool use_pid_dir;					/* Put pid files in /run/keepalived or @localstatedir@/run/keepalived,
+							   or specified directory. */
+const char *pid_dir;					/* Directory for PID files */
 bool children_started;					/* Set once children have been run first time */
 static char *executable_full_path;			/* Full path name of our executable */
 
@@ -501,17 +503,17 @@ stop_keepalived(void)
 
 #ifdef _WITH_VRRP_
 	if (vrrp_pidfile.fd != -1)
-		pidfile_close(&vrrp_pidfile, true);
+		pidfile_close(&vrrp_pidfile);
 #endif
 
 #ifdef _WITH_LVS_
 	if (checkers_pidfile.fd != -1)
-		pidfile_close(&checkers_pidfile, true);
+		pidfile_close(&checkers_pidfile);
 #endif
 
 #ifdef _WITH_BFD_
 	if (bfd_pidfile.fd != -1)
-		pidfile_close(&bfd_pidfile, true);
+		pidfile_close(&bfd_pidfile);
 #endif
 
 	pidfile_rm(&main_pidfile);
@@ -2851,56 +2853,20 @@ keepalived_main(int argc, char **argv)
 	}
 
 	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
-		if (global_data->instance_name) {
-			if (!main_pidfile.path && (main_pidfile.path = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-				main_pidfile.free_path = true;
+		if (!main_pidfile.path)
+			main_pidfile.path = make_pidfile_name(KEEPALIVED_PID_FILE, PID_EXTENSION);
 #ifdef _WITH_LVS_
-			if (!checkers_pidfile.path && (checkers_pidfile.path = make_pidfile_name(KEEPALIVED_PID_DIR CHECKERS_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-				checkers_pidfile.free_path = true;
+		if (!checkers_pidfile.path)
+			checkers_pidfile.path = make_pidfile_name(CHECKERS_PID_FILE, PID_EXTENSION);
 #endif
 #ifdef _WITH_VRRP_
-			if (!vrrp_pidfile.path && (vrrp_pidfile.path = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-				vrrp_pidfile.free_path = true;
+		if (!vrrp_pidfile.path)
+			vrrp_pidfile.path = make_pidfile_name(VRRP_PID_FILE, PID_EXTENSION);
 #endif
 #ifdef _WITH_BFD_
-			if (!bfd_pidfile.path && (bfd_pidfile.path = make_pidfile_name(KEEPALIVED_PID_DIR BFD_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-				bfd_pidfile.free_path = true;
+		if (!bfd_pidfile.path)
+			bfd_pidfile.path = make_pidfile_name(BFD_PID_FILE, PID_EXTENSION);
 #endif
-		}
-
-		if (use_pid_dir) {
-			if (!main_pidfile.path)
-				main_pidfile.path = KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
-#ifdef _WITH_LVS_
-			if (!checkers_pidfile.path)
-				checkers_pidfile.path = KEEPALIVED_PID_DIR CHECKERS_PID_FILE PID_EXTENSION;
-#endif
-#ifdef _WITH_VRRP_
-			if (!vrrp_pidfile.path)
-				vrrp_pidfile.path = KEEPALIVED_PID_DIR VRRP_PID_FILE PID_EXTENSION;
-#endif
-#ifdef _WITH_BFD_
-			if (!bfd_pidfile.path)
-				bfd_pidfile.path = KEEPALIVED_PID_DIR BFD_PID_FILE PID_EXTENSION;
-#endif
-		}
-		else
-		{
-			if (!main_pidfile.path)
-				main_pidfile.path = RUNSTATEDIR "/" KEEPALIVED_PID_FILE PID_EXTENSION;
-#ifdef _WITH_LVS_
-			if (!checkers_pidfile.path)
-				checkers_pidfile.path = RUNSTATEDIR "/" CHECKERS_PID_FILE PID_EXTENSION;
-#endif
-#ifdef _WITH_VRRP_
-			if (!vrrp_pidfile.path)
-				vrrp_pidfile.path = RUNSTATEDIR "/" VRRP_PID_FILE PID_EXTENSION;
-#endif
-#ifdef _WITH_BFD_
-			if (!bfd_pidfile.path)
-				bfd_pidfile.path = RUNSTATEDIR "/" BFD_PID_FILE PID_EXTENSION;
-#endif
-		}
 
 #ifndef _ONE_PROCESS_DEBUG_
 		/* We have set the namespaces, so we can do this now */
