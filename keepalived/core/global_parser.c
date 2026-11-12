@@ -1171,7 +1171,7 @@ check_valid_ipset_name(const vector_t *strvec, unsigned entry, const char *log_n
 static void
 vrrp_ipsets_handler(const vector_t *strvec)
 {
-	size_t len;
+	char *p;
 	char set_name[IPSET_MAXNAMELEN];
 	unsigned sn0, sn1;
 	const char **set_names[] = {
@@ -1210,9 +1210,9 @@ vrrp_ipsets_handler(const vector_t *strvec)
 		global_data->vrrp_ipset_address6 = STRDUP(strvec_slot(strvec,2));
 	} else {
 		/* No second set specified, copy first name and add "6" */
-		strcpy_safe(set_name, global_data->vrrp_ipset_address);
+		p = stpcpy_safe(set_name, global_data->vrrp_ipset_address);
 		set_name[IPSET_MAXNAMELEN - 2] = '\0';
-		strcat(set_name, "6");
+		stpcpy(p, "6");
 		global_data->vrrp_ipset_address6 = STRDUP(set_name);
 	}
 
@@ -1222,12 +1222,12 @@ vrrp_ipsets_handler(const vector_t *strvec)
 		global_data->vrrp_ipset_address_iface6 = STRDUP(strvec_slot(strvec,3));
 	} else {
 		/* No third set specified, copy second name and add "_if6" */
-		strcpy_safe(set_name, global_data->vrrp_ipset_address6);
-		len = strlen(set_name);
-		if (set_name[len-1] == '6')
-			set_name[--len] = '\0';
-		set_name[IPSET_MAXNAMELEN - 5] = '\0';
-		strcat(set_name, "_if6");
+		p = stpcpy_safe(set_name, global_data->vrrp_ipset_address6);
+		if (p[-1] == '6')
+			*--p = '\0';
+		if (p > set_name + sizeof(set_name) - 5)
+			p = set_name + sizeof(set_name) - 5;
+		p = stpcpy(p, "_if6");
 		global_data->vrrp_ipset_address_iface6 = STRDUP(set_name);
 	}
 
@@ -1237,9 +1237,10 @@ vrrp_ipsets_handler(const vector_t *strvec)
 		global_data->vrrp_ipset_igmp = STRDUP(strvec_slot(strvec,4));
 	} else {
 		/* No second set specified, copy first name and add "_igmp" */
-		strcpy_safe(set_name, global_data->vrrp_ipset_address);
-		set_name[sizeof(set_name) - 6] = '\0';
-		strcat(set_name, "_igmp");
+		p = stpcpy_safe(set_name, global_data->vrrp_ipset_address);
+		if (p > set_name + sizeof(set_name) - 6)
+			p = set_name + sizeof(set_name) - 6;
+		stpcpy(p, "_igmp");
 		global_data->vrrp_ipset_igmp = STRDUP(set_name);
 	}
 
@@ -1249,9 +1250,10 @@ vrrp_ipsets_handler(const vector_t *strvec)
 		global_data->vrrp_ipset_mld = STRDUP(strvec_slot(strvec,5));
 	} else {
 		/* No second set specified, copy first name and add "_mld" */
-		strcpy_safe(set_name, global_data->vrrp_ipset_address);
-		set_name[sizeof(set_name) - 5] = '\0';
-		strcat(set_name, "_mld");
+		p = stpcpy_safe(set_name, global_data->vrrp_ipset_address);
+		if (p > set_name + sizeof(set_name) - 5)
+			p = set_name + sizeof(set_name) - 5;
+		stpcpy(p, "_mld");
 		global_data->vrrp_ipset_mld = STRDUP(set_name);
 	}
 
@@ -1262,9 +1264,10 @@ vrrp_ipsets_handler(const vector_t *strvec)
 		global_data->vrrp_ipset_vmac_nd = STRDUP(strvec_slot(strvec,6));
 	} else {
 		/* No second set specified, copy first name and add "_nd" */
-		strcpy_safe(set_name, global_data->vrrp_ipset_address);
-		set_name[sizeof(set_name) - 5] = '\0';
-		strcat(set_name, "_nd");
+		p = stpcpy_safe(set_name, global_data->vrrp_ipset_address);
+		if (p > set_name + sizeof(set_name) - 4)
+			p = set_name + sizeof(set_name) - 4;
+		stpcpy(p, "_nd");
 		global_data->vrrp_ipset_vmac_nd = STRDUP(set_name);
 	}
 #endif
@@ -1518,6 +1521,7 @@ static void
 notify_fifo_script(const vector_t *strvec, const char *type, notify_fifo_t *fifo)
 {
 	char *id_str;
+	char *p;
 
 	if (vector_size(strvec) < 2) {
 		report_config_error(CONFIG_GENERAL_ERROR, "No %snotify_fifo_script specified", type);
@@ -1530,8 +1534,8 @@ notify_fifo_script(const vector_t *strvec, const char *type, notify_fifo_t *fifo
 	}
 
 	id_str = MALLOC(strlen(type) + strlen("notify_fifo") + 1);
-	strcpy(id_str, type);
-	strcat(id_str, "notify_fifo");
+	p = stpcpy(id_str, type);
+	stpcpy(p, "notify_fifo");
 	fifo->script = notify_script_init(1, id_str);
 
 	FREE(id_str);

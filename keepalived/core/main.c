@@ -342,6 +342,7 @@ make_syslog_ident(const char* name)
 {
 	size_t ident_len = strlen(name) + 1;
 	char *ident;
+	char *p;
 
 	if (global_data->network_namespace)
 		ident_len += strlen(global_data->network_namespace) + 1;
@@ -359,14 +360,14 @@ make_syslog_ident(const char* name)
 	if (!ident)
 		return NULL;
 
-	strcpy(ident, name);
+	p = stpcpy(ident, name);
 	if (global_data->network_namespace) {
-		strcat(ident, "_");
-		strcat(ident, global_data->network_namespace);
+		*p++ = '_';
+		stpcpy(p, global_data->network_namespace);
 	}
 	if (global_data->instance_name) {
-		strcat(ident, "_");
-		strcat(ident, global_data->instance_name);
+		*p++ = '_';
+		stpcpy(p, global_data->instance_name);
 	}
 
 	return ident;
@@ -1092,6 +1093,7 @@ start_validate_reload_conf_child(void)
 	char *config_fd_str = NULL;
 	int fd;
 	struct stat sb;
+	char *p;
 
 	/* Inherits the original parameters and adds new parameters "--config-test and --config-fd" */
 	sav_argv = get_cmd_line_options(&argc);
@@ -1112,8 +1114,8 @@ start_validate_reload_conf_child(void)
 
 	/* add --config-test */
 	config_test_str = MALLOC(14 + strlen(global_data->reload_check_config) + 1);
-	strcpy(config_test_str, "--config-test=");
-	strcat(config_test_str, global_data->reload_check_config);
+	p = stpcpy(config_test_str, "--config-test=");
+	stpcpy(p, global_data->reload_check_config);
 	argv[argc++] = config_test_str;
 
 	/* add --config-fd */
@@ -2554,9 +2556,10 @@ keepalived_main(int argc, char **argv)
 		/* Look for the config-opts file in same location as executable */
 		const char *suffix = ".config-opts";
 		char *file = malloc(strlen(argv[0]) + strlen(suffix) + 1);
+		char *p;
 
-		strcpy(file, argv[0]);
-		strcat(file, suffix);
+		p = stpcpy(file, argv[0]);
+		stpcpy(p, suffix);
 
 		config_opts_read = read_config_opts(file);
 		free(file);

@@ -313,6 +313,7 @@ make_file_name(const char *name, const char *prog, const char *namespace, const 
 	const char *dir_end;
 	size_t len;
 	char *file_name;
+	char *p;
 
 	if (!name)
 		return NULL;
@@ -334,27 +335,27 @@ make_file_name(const char *name, const char *prog, const char *namespace, const 
 	extn_start = strrchr(dir_end ? dir_end : name, '.');
 
 	if (name[0] != '/') {
-		strcpy(file_name, tmp_dir);
-		strcat(file_name, "/");
+		p = stpcpy(file_name, tmp_dir);
+		*p++ = '/';
 	} else
-		file_name[0] = '\0';
+		p = file_name;
 
-	strncat(file_name, name, extn_start ? (size_t)(extn_start - name) : len);
+	p = stpncpy(p, name, extn_start ? (size_t)(extn_start - name) : len);
 
 	if (prog) {
-		strcat(file_name, "_");
-		strcat(file_name, prog);
+		*p++ = '_';
+		p = stpcpy(p, prog);
 	}
 	if (namespace) {
-		strcat(file_name, "_");
-		strcat(file_name, namespace);
+		*p++ = '_';
+		p = stpcpy(p, namespace);
 	}
 	if (instance) {
-		strcat(file_name, "_");
-		strcat(file_name, instance);
+		*p++ = '_';
+		p = stpcpy(p, instance);
 	}
 	if (extn_start)
-		strcat(file_name, extn_start);
+		stpcpy(p, extn_start);
 
 	return file_name;
 }
@@ -1142,6 +1143,7 @@ fopen_safe(const char *path, const char *mode)
 #endif
 	int sav_errno;
 	char file_tmp_name[PATH_MAX];
+	char *p;
 
 	if (mode[0] == 'r')
 		return fopen(path, mode);
@@ -1166,11 +1168,10 @@ fopen_safe(const char *path, const char *mode)
 		 * the requested filename is atomic, and so there is no window when someone else could create
 		 * another file of the same name.
 		 */
-		strcpy_safe(file_tmp_name, path);
-		if (strlen(path) + 6 < sizeof(file_tmp_name))
-			strcat(file_tmp_name, "XXXXXX");
-		else
-			strcpy(file_tmp_name + sizeof(file_tmp_name) - 6 - 1, "XXXXXX");
+		p = stpcpy_safe(file_tmp_name, path);
+		if (p + 6 >= file_tmp_name + sizeof(file_tmp_name))
+			p = file_tmp_name + sizeof(file_tmp_name) - 6 - 1;
+		stpcpy(p, "XXXXXX");
 		fd = mkostemp(file_tmp_name, O_CLOEXEC);
 	} else {
 		/* Only allow append mode if debugging features requiring append are enabled. Since we

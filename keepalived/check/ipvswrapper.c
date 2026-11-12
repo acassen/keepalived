@@ -124,44 +124,40 @@ ipvs_set_timeouts(const ipvs_timeout_t *timeouts)
 		log_message(LOG_INFO, "Failed to set ipvs timeouts");
 }
 
-static size_t
+static char *
 format_srule(char *buf, const ipvs_service_t *srule)
 {
-	char *bufp = buf;
-
 	if (srule->user.fwmark)
-		return sprintf(buf, "Fwm %" PRIu32 "%s", srule->user.fwmark, srule->af == AF_INET6 ? " inet6" : "");
+		return buf + sprintf(buf, "Fwm %" PRIu32 "%s", srule->user.fwmark, srule->af == AF_INET6 ? " inet6" : "");
 
-	inet_ntop(srule->af, srule->af == AF_INET ? (const void *)&srule->nf_addr.ip : (const void *)&srule->nf_addr.in6, bufp, INET6_ADDRSTRLEN);
-	bufp += strlen(bufp);
-	*bufp++ = ':';
+	inet_ntop(srule->af, srule->af == AF_INET ? (const void *)&srule->nf_addr.ip : (const void *)&srule->nf_addr.in6, buf, INET6_ADDRSTRLEN);
+	buf += strlen(buf);
+	*buf++ = ':';
 	if (srule->user.protocol == IPPROTO_TCP)
-		bufp = stpcpy(bufp, "tcp");
+		buf = stpcpy(buf, "tcp");
 	else if (srule->user.protocol == IPPROTO_UDP)
-		bufp = stpcpy(bufp, "udp");
+		buf = stpcpy(buf, "udp");
 	else if (srule->user.protocol == IPPROTO_SCTP)
-		bufp = stpcpy(bufp, "sctp");
+		buf = stpcpy(buf, "sctp");
 	else
-		bufp += sprintf(bufp, "%d", srule->user.protocol);
-	bufp += sprintf(bufp, ":%d", ntohs(srule->user.port));
+		buf += sprintf(buf, "%d", srule->user.protocol);
+	buf += sprintf(buf, ":%d", ntohs(srule->user.port));
 
-	return (bufp - buf);
+	return buf;
 }
 
-static size_t
+static char *
 format_drule(char *buf, const ipvs_dest_t *drule)
 {
-	char *bufp = buf;
+	*buf++ = ' ';
+	*buf++ = '-';
+	*buf++ = '>';
+	*buf++ = ' ';
+	inet_ntop(drule->af, drule->af == AF_INET ? (const void *)&drule->nf_addr.ip : (const void *)&drule->nf_addr.in6, buf, INET6_ADDRSTRLEN);
+	buf += strlen(buf);
+	buf += sprintf(buf, ":%d", ntohs(drule->user.port));
 
-	*bufp++ = ' ';
-	*bufp++ = '-';
-	*bufp++ = '>';
-	*bufp++ = ' ';
-	inet_ntop(drule->af, drule->af == AF_INET ? (const void *)&drule->nf_addr.ip : (const void *)&drule->nf_addr.in6, bufp, INET6_ADDRSTRLEN);
-	bufp += strlen(bufp);
-	bufp += sprintf(bufp, ":%d", ntohs(drule->user.port));
-
-	return (bufp - buf);
+	return buf;
 }
 
 /* Send user rules to IPVS module */
@@ -218,6 +214,7 @@ ipvs_talk(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, ipvs_daemon_t *dae
 		result = 0;
 	else if (result) {
 		char buf[2 + INET6_ADDRSTRLEN + 2 + TYPE_MAX_CHRS(srule->user.protocol) + TYPE_MAX_CHRS(srule->user.port) + 4 + INET6_ADDRSTRLEN + 1 + TYPE_MAX_CHRS(drule->user.port) + 1 + 1];	/* " (" + IPv6 + ":sctp:" + port + " -> " + IPV6 + ":" + port + ")" */
+		char *p = buf;
 
 		if (errno == EEXIST &&
 			(cmd == IP_VS_SO_SET_ADD || cmd == IP_VS_SO_SET_ADDDEST))
@@ -226,16 +223,17 @@ ipvs_talk(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, ipvs_daemon_t *dae
 			(cmd == IP_VS_SO_SET_DEL || cmd == IP_VS_SO_SET_DELDEST))
 			result = 0;
 
-		buf[0] = ' ';
-		buf[1] = '(';
+		*p++ = ' ';
+		*p++ = '(';
 		if (cmd == IP_VS_SO_SET_ADD || cmd == IP_VS_SO_SET_DEL || cmd == IP_VS_SO_SET_EDIT)
-			format_srule(buf + 2, srule);
-		else if (cmd == IP_VS_SO_SET_ADDDEST || cmd == IP_VS_SO_SET_DELDEST || cmd == IP_VS_SO_SET_EDITDEST)
-			format_drule(buf + 2 + format_srule(buf + 2, srule), drule);
-		else
+			p = format_srule(p, srule);
+		else if (cmd == IP_VS_SO_SET_ADDDEST || cmd == IP_VS_SO_SET_DELDEST || cmd == IP_VS_SO_SET_EDITDEST) {
+			p = format_srule(p, srule);
+			p = format_drule(p, drule);
+		} else
 			buf[0] = '\0';
 		if (buf[0])
-			strcat(buf, ")");
+			stpcpy(p, ")");
 
 		log_message(LOG_INFO, "IPVS cmd %s(%d) error: %s(%d)%s", ipvs_cmd_str(cmd), cmd, ipvs_strerror(errno), errno, buf);
 	}

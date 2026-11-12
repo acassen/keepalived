@@ -368,6 +368,7 @@ vrrp_print_json(void)
 	FILE *fp;
 	const char *filename;
 	char file_tmp_name[PATH_MAX];
+	char *p;
 
 	if (list_empty(&vrrp_data->vrrp))
 		return;
@@ -375,11 +376,10 @@ vrrp_print_json(void)
 	filename = make_tmp_filename("keepalived.json");
 
 	/* write to a temporary file and rename it afterwards to avoid dealing with filesystem locks */
-	strcpy_safe(file_tmp_name, filename);
-	if (strlen(file_tmp_name) + 6 < sizeof(file_tmp_name))
-		strcat(file_tmp_name, "XXXXXX");
-	else
-		strcpy(file_tmp_name + sizeof(file_tmp_name) - 6 - 1, "XXXXXX");
+	p = stpcpy_safe(file_tmp_name, filename);
+	if (p > file_tmp_name + sizeof(file_tmp_name) - 6 - 1)
+		p = file_tmp_name + sizeof(file_tmp_name) - 6 - 1;
+	stpcpy(p, "XXXXXX");
 
 	fd = mkostemp(file_tmp_name, O_CLOEXEC);
 	if (fd == -1)
