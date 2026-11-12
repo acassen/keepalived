@@ -167,6 +167,10 @@ create_pidfile(pidfile_t *pidf)
 	struct flock fl = { .l_type = F_WRLCK, .l_whence = SEEK_SET, .l_start = 0, .l_len = 0 };
 #endif
 
+	/* Have we already got the PID file open and locked? */
+	if (pidf->fd != -1)
+		return false;
+
 	for (;;) {
 		/* We want to create the file with permissions rw-r--r-- */
 		if (umask_val & (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))
@@ -237,22 +241,37 @@ create_pidfile(pidfile_t *pidf)
 
 /* Return parent process daemon state */
 bool
-keepalived_running(unsigned long mode)
+keepalived_running(void)
 {
-	if (create_pidfile(&main_pidfile))
+	if (create_pidfile(&main_pidfile)) {
+		log_message(LOG_INFO, "Unable to acquire lock of main pidfile");
 		return true;
+	}
+
 #ifdef _WITH_VRRP_
-	if (__test_bit(DAEMON_VRRP, &mode) && create_pidfile(&vrrp_pidfile))
+	if (running_vrrp() &&
+	    create_pidfile(&vrrp_pidfile)) {
+		log_message(LOG_INFO, "Unable to acquire lock of VRRP pidfile");
 		return true;
+	}
 #endif
+
 #ifdef _WITH_LVS_
-	if (__test_bit(DAEMON_CHECKERS, &mode) && create_pidfile(&checkers_pidfile))
+	if (running_checker() &&
+	    create_pidfile(&checkers_pidfile)) {
+		log_message(LOG_INFO, "Unable to acquire lock of checkers pidfile");
 		return true;
+	}
 #endif
+
 #ifdef _WITH_BFD_
-	if (__test_bit(DAEMON_BFD, &mode) && create_pidfile(&bfd_pidfile))
+	if (running_bfd() &&
+	    create_pidfile(&bfd_pidfile)) {
+		log_message(LOG_INFO, "Unable to acquire lock of BFD pidfile");
 		return true;
+	}
 #endif
+
 	return false;
 }
 
@@ -277,6 +296,9 @@ pidfile_write(pidfile_t *pidf)
 			if (pidf->fd != -1)
 				close(pidf->fd);
 			create_pidfile(pidf);
+
+			if (pidf->fd == -1)
+				return false;
 		} else {
 			if (pidf->fd == -1 ||
 			    fstat(pidf->fd, &fstatb) ||
@@ -289,7 +311,7 @@ pidfile_write(pidfile_t *pidf)
 
 				/* There is a window where the pid file could be deleted between us closing it and re-opening it,
 				 * so allow for creating the pidfile again. */
-				while ((pidf->fd = open(pidf->path, O_NOFOLLOW | O_CREAT | O_WRONLY | O_NONBLOCK | O_CLOEXEC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1 && errno == EINTR);
+				create_pidfile(pidf);
 
 				if (pidf->fd == -1)
 					return false;

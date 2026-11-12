@@ -3262,7 +3262,7 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 
 	(*init_keywords) ();
 
-	/* Add out standard definitions */
+	/* Add our standard definitions */
 	set_std_definitions();
 
 #ifdef _DUMP_KEYWORDS_

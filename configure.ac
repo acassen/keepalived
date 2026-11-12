@@ -665,6 +665,9 @@ AC_DEFINE_UNQUOTED(DBUS_DATADIR,"$DBUS_DATADIR", [Directory for installing DBUS 
 
 dnl We want /run to be the default runstatedir, not ${localstatedir}/run which defaults to /usr/local/var/run
 dnl We want to know if --runstatedir or equivalent was specified
+dnl To see what abbreviations configure will accept, search the generated configure file for
+dnl --runstatedir and see what shortenings are permitted.
+dnl Currently --runstatedir can be shortened to as short as --r or -runstatedir, with or without an '='.
 echo "$ac_configure_args" | grep -q "'--r"
 RUNSTATEDIR_SPECIFIED=$?
 AS_IF([test $RUNSTATEDIR_SPECIFIED -eq 1],

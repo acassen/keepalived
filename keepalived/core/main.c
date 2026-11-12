@@ -375,8 +375,8 @@ bool __attribute__ ((pure))
 running_vrrp(void)
 {
 	return (__test_bit(DAEMON_VRRP, &daemon_mode) &&
-	    (global_data->have_vrrp_config ||
-	     __test_bit(RUN_ALL_CHILDREN, &daemon_mode)));
+		(global_data->have_vrrp_config ||
+		 __test_bit(RUN_ALL_CHILDREN, &daemon_mode)));
 }
 #endif
 
@@ -385,18 +385,18 @@ bool __attribute__ ((pure))
 running_checker(void)
 {
 	return (__test_bit(DAEMON_CHECKERS, &daemon_mode) &&
-	    (global_data->have_checker_config ||
-	     __test_bit(RUN_ALL_CHILDREN, &daemon_mode)));
+		(global_data->have_checker_config ||
+		 __test_bit(RUN_ALL_CHILDREN, &daemon_mode)));
 }
 #endif
 
 #ifdef _WITH_BFD_
-static bool __attribute__ ((pure))
+bool __attribute__ ((pure))
 running_bfd(void)
 {
 	return (__test_bit(DAEMON_BFD, &daemon_mode) &&
-	    (global_data->have_bfd_config ||
-	     __test_bit(RUN_ALL_CHILDREN, &daemon_mode)));
+		(global_data->have_bfd_config ||
+		 __test_bit(RUN_ALL_CHILDREN, &daemon_mode)));
 }
 #endif
 
@@ -500,17 +500,17 @@ stop_keepalived(void)
 	thread_destroy_master(master);
 
 #ifdef _WITH_VRRP_
-	if (__test_bit(DAEMON_VRRP, &daemon_mode))
+	if (vrrp_pidfile.fd != -1)
 		pidfile_close(&vrrp_pidfile, true);
 #endif
 
 #ifdef _WITH_LVS_
-	if (__test_bit(DAEMON_CHECKERS, &daemon_mode))
+	if (checkers_pidfile.fd != -1)
 		pidfile_close(&checkers_pidfile, true);
 #endif
 
 #ifdef _WITH_BFD_
-	if (__test_bit(DAEMON_BFD, &daemon_mode))
+	if (bfd_pidfile.fd != -1)
 		pidfile_close(&bfd_pidfile, true);
 #endif
 
@@ -548,8 +548,7 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 		start_check_child();
 		have_child = true;
 		num_reloading++;
-	} else
-		pidfile_rm(&checkers_pidfile);
+	}
 #endif
 #ifdef _WITH_VRRP_
 	/* start vrrp child */
@@ -557,8 +556,7 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 		start_vrrp_child();
 		have_child = true;
 		num_reloading++;
-	} else
-		pidfile_rm(&vrrp_pidfile);
+	}
 #endif
 #ifdef _WITH_BFD_
 	/* start bfd child */
@@ -566,8 +564,7 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 		start_bfd_child();
 		have_child = true;
 		num_reloading++;
-	} else
-		pidfile_rm(&bfd_pidfile);
+	}
 #endif
 
 	children_started = true;
@@ -782,6 +779,16 @@ static bool reload_config(void)
 	read_config_file(!old_global_data->reload_check_config);
 
 	init_global_data(global_data, old_global_data, false);
+
+	/* Create and lock pid files for any new children */
+	if (keepalived_running()) {
+		log_message(LOG_INFO, "Unable to create/lock pid file of new process - aborting reload");
+
+		free_global_data(&global_data);
+		global_data = old_global_data;
+
+		return false;
+	}
 
 	if (override_namespace) {
 		FREE_CONST_PTR(global_data->network_namespace);
@@ -2901,7 +2908,7 @@ keepalived_main(int argc, char **argv)
 #endif
 
 		/* Check if keepalived is already running */
-		if (keepalived_running(daemon_mode)) {
+		if (keepalived_running()) {
 			log_message(LOG_INFO, "daemon is already running");
 			report_stopped = false;
 			goto end;

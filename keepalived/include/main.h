@@ -95,6 +95,9 @@ extern bool running_vrrp(void) __attribute__ ((pure));
 #ifdef _WITH_LVS_
 extern bool running_checker(void) __attribute__ ((pure));
 #endif
+#ifdef _WITH_BFD_
+extern bool running_bfd(void) __attribute__ ((pure));
+#endif
 extern void reinitialise_global_vars(void);
 extern void start_reload(thread_ref_t);
 

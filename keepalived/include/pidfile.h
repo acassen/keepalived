@@ -61,6 +61,6 @@ extern void pidfile_close(pidfile_t *, bool);
 extern bool pidfile_write(pidfile_t *);
 extern void pidfile_rm(pidfile_t *);
 extern void close_other_pidfiles(void);
-extern bool keepalived_running(unsigned long);
+extern bool keepalived_running(void);
 
 #endif
