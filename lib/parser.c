@@ -577,6 +577,11 @@ read_decimal_unsigned_long_func(const char *param, unsigned long *res, unsigned 
 		return false;
 	}
 
+	if (param_len >= sizeof(updated_param)) {
+		report_config_error(CONFIG_INVALID_NUMBER, "%s number is too large '%s'", warn, param);
+		return false;
+	}
+
 	/* Make sure we don't have too many decimal places */
 	dp = strchr(param, '.');
 	num_dp = dp ? param_len - (dp - param) - 1 : 0;
