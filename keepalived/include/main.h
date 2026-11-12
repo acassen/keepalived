@@ -79,6 +79,7 @@ extern bool snmp_option;		/* Enable SNMP support */
 extern const char *snmp_socket;		/* Socket to use for SNMP agent */
 #endif
 extern bool use_pid_dir;		/* pid files in /run/keepalived */
+extern const char *pid_dir;		/* Directory for PID files */
 extern bool children_started;		/* Set once children have been run first time */
 extern unsigned os_major;		/* Kernel version */
 extern unsigned os_minor;
@@ -94,6 +95,9 @@ extern bool running_vrrp(void) __attribute__ ((pure));
 #endif
 #ifdef _WITH_LVS_
 extern bool running_checker(void) __attribute__ ((pure));
+#endif
+#ifdef _WITH_BFD_
+extern bool running_bfd(void) __attribute__ ((pure));
 #endif
 extern void reinitialise_global_vars(void);
 extern void start_reload(thread_ref_t);

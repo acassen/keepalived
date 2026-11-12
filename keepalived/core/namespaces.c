@@ -203,6 +203,7 @@ static void
 set_run_mount(const char *net_namespace)
 {
 	bool error;
+	char *p;
 
 	/* /run/keepalived/NAMESPACE */
 	mount_dirname = MALLOC(strlen(KEEPALIVED_PID_DIR) + 1 + strlen(net_namespace));
@@ -211,8 +212,8 @@ set_run_mount(const char *net_namespace)
 		return;
 	}
 
-	strcpy(mount_dirname, KEEPALIVED_PID_DIR);
-	strcat(mount_dirname, net_namespace);
+	p = stpcpy(mount_dirname, KEEPALIVED_PID_DIR);
+	stpcpy(p, net_namespace);
 
 	/* We want the directory to have rwxr-xr-x permissions */
 	if (umask_val & (S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH))
@@ -265,6 +266,7 @@ set_namespaces(const char* net_namespace)
 {
 	char *netns_path;
 	int fd;
+	char *p;
 
 	netns_path = MALLOC(strlen(netns_dir) + strlen(net_namespace) + 1);
 	if (!netns_path) {
@@ -272,8 +274,8 @@ set_namespaces(const char* net_namespace)
 		return false;
 	}
 
-	strcpy(netns_path, netns_dir);
-	strcat(netns_path, net_namespace);
+	p = stpcpy(netns_path, netns_dir);
+	stpcpy(p, net_namespace);
 
 	fd = open(netns_path, O_RDONLY | O_CLOEXEC);
 	if (fd == -1) {

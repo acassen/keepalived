@@ -229,8 +229,9 @@ and
 # Note: the instance name cannot be changed on a configuration reload
 \fBinstance \fRNAME
 
-# Create pid files in @RUN_DIR_ROOT@/run/keepalived
-\fBuse_pid_dir\fR
+# Create pid files in DIRECTORY, or @RUN_DIR_ROOT@/run/keepalived if no
+# directory specified.
+\fBuse_pid_dir\fR [DIRECTORY]
 
 # Poll to detect media link failure using ETHTOOL, MII or ioctl interface
 # otherwise uses netlink interface.

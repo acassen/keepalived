@@ -170,7 +170,9 @@ bool snmp_option;					/* Enable SNMP support */
 const char *snmp_socket;				/* Socket to use for SNMP agent */
 #endif
 static const char *syslog_ident;			/* syslog ident if not default */
-bool use_pid_dir;					/* Put pid files in /run/keepalived or @localstatedir@/run/keepalived */
+bool use_pid_dir;					/* Put pid files in /run/keepalived or @localstatedir@/run/keepalived,
+							   or specified directory. */
+const char *pid_dir;					/* Directory for PID files */
 bool children_started;					/* Set once children have been run first time */
 static char *executable_full_path;			/* Full path name of our executable */
 
@@ -340,6 +342,7 @@ make_syslog_ident(const char* name)
 {
 	size_t ident_len = strlen(name) + 1;
 	char *ident;
+	char *p;
 
 	if (global_data->network_namespace)
 		ident_len += strlen(global_data->network_namespace) + 1;
@@ -357,14 +360,14 @@ make_syslog_ident(const char* name)
 	if (!ident)
 		return NULL;
 
-	strcpy(ident, name);
+	p = stpcpy(ident, name);
 	if (global_data->network_namespace) {
-		strcat(ident, "_");
-		strcat(ident, global_data->network_namespace);
+		*p++ = '_';
+		stpcpy(p, global_data->network_namespace);
 	}
 	if (global_data->instance_name) {
-		strcat(ident, "_");
-		strcat(ident, global_data->instance_name);
+		*p++ = '_';
+		stpcpy(p, global_data->instance_name);
 	}
 
 	return ident;
@@ -375,8 +378,8 @@ bool __attribute__ ((pure))
 running_vrrp(void)
 {
 	return (__test_bit(DAEMON_VRRP, &daemon_mode) &&
-	    (global_data->have_vrrp_config ||
-	     __test_bit(RUN_ALL_CHILDREN, &daemon_mode)));
+		(global_data->have_vrrp_config ||
+		 __test_bit(RUN_ALL_CHILDREN, &daemon_mode)));
 }
 #endif
 
@@ -385,18 +388,18 @@ bool __attribute__ ((pure))
 running_checker(void)
 {
 	return (__test_bit(DAEMON_CHECKERS, &daemon_mode) &&
-	    (global_data->have_checker_config ||
-	     __test_bit(RUN_ALL_CHILDREN, &daemon_mode)));
+		(global_data->have_checker_config ||
+		 __test_bit(RUN_ALL_CHILDREN, &daemon_mode)));
 }
 #endif
 
 #ifdef _WITH_BFD_
-static bool __attribute__ ((pure))
+bool __attribute__ ((pure))
 running_bfd(void)
 {
 	return (__test_bit(DAEMON_BFD, &daemon_mode) &&
-	    (global_data->have_bfd_config ||
-	     __test_bit(RUN_ALL_CHILDREN, &daemon_mode)));
+		(global_data->have_bfd_config ||
+		 __test_bit(RUN_ALL_CHILDREN, &daemon_mode)));
 }
 #endif
 
@@ -500,18 +503,18 @@ stop_keepalived(void)
 	thread_destroy_master(master);
 
 #ifdef _WITH_VRRP_
-	if (__test_bit(DAEMON_VRRP, &daemon_mode))
-		pidfile_close(&vrrp_pidfile, true);
+	if (vrrp_pidfile.fd != -1)
+		pidfile_close(&vrrp_pidfile);
 #endif
 
 #ifdef _WITH_LVS_
-	if (__test_bit(DAEMON_CHECKERS, &daemon_mode))
-		pidfile_close(&checkers_pidfile, true);
+	if (checkers_pidfile.fd != -1)
+		pidfile_close(&checkers_pidfile);
 #endif
 
 #ifdef _WITH_BFD_
-	if (__test_bit(DAEMON_BFD, &daemon_mode))
-		pidfile_close(&bfd_pidfile, true);
+	if (bfd_pidfile.fd != -1)
+		pidfile_close(&bfd_pidfile);
 #endif
 
 	pidfile_rm(&main_pidfile);
@@ -548,8 +551,7 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 		start_check_child();
 		have_child = true;
 		num_reloading++;
-	} else
-		pidfile_rm(&checkers_pidfile);
+	}
 #endif
 #ifdef _WITH_VRRP_
 	/* start vrrp child */
@@ -557,8 +559,7 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 		start_vrrp_child();
 		have_child = true;
 		num_reloading++;
-	} else
-		pidfile_rm(&vrrp_pidfile);
+	}
 #endif
 #ifdef _WITH_BFD_
 	/* start bfd child */
@@ -566,8 +567,7 @@ start_keepalived(__attribute__((unused)) thread_ref_t thread)
 		start_bfd_child();
 		have_child = true;
 		num_reloading++;
-	} else
-		pidfile_rm(&bfd_pidfile);
+	}
 #endif
 
 	children_started = true;
@@ -782,6 +782,16 @@ static bool reload_config(void)
 	read_config_file(!old_global_data->reload_check_config);
 
 	init_global_data(global_data, old_global_data, false);
+
+	/* Create and lock pid files for any new children */
+	if (keepalived_running()) {
+		log_message(LOG_INFO, "Unable to create/lock pid file of new process - aborting reload");
+
+		free_global_data(&global_data);
+		global_data = old_global_data;
+
+		return false;
+	}
 
 	if (override_namespace) {
 		FREE_CONST_PTR(global_data->network_namespace);
@@ -1083,6 +1093,7 @@ start_validate_reload_conf_child(void)
 	char *config_fd_str = NULL;
 	int fd;
 	struct stat sb;
+	char *p;
 
 	/* Inherits the original parameters and adds new parameters "--config-test and --config-fd" */
 	sav_argv = get_cmd_line_options(&argc);
@@ -1103,8 +1114,8 @@ start_validate_reload_conf_child(void)
 
 	/* add --config-test */
 	config_test_str = MALLOC(14 + strlen(global_data->reload_check_config) + 1);
-	strcpy(config_test_str, "--config-test=");
-	strcat(config_test_str, global_data->reload_check_config);
+	p = stpcpy(config_test_str, "--config-test=");
+	stpcpy(p, global_data->reload_check_config);
 	argv[argc++] = config_test_str;
 
 	/* add --config-fd */
@@ -2545,9 +2556,10 @@ keepalived_main(int argc, char **argv)
 		/* Look for the config-opts file in same location as executable */
 		const char *suffix = ".config-opts";
 		char *file = malloc(strlen(argv[0]) + strlen(suffix) + 1);
+		char *p;
 
-		strcpy(file, argv[0]);
-		strcat(file, suffix);
+		p = stpcpy(file, argv[0]);
+		stpcpy(p, suffix);
 
 		config_opts_read = read_config_opts(file);
 		free(file);
@@ -2844,56 +2856,20 @@ keepalived_main(int argc, char **argv)
 	}
 
 	if (!__test_bit(CONFIG_TEST_BIT, &debug)) {
-		if (global_data->instance_name) {
-			if (!main_pidfile.path && (main_pidfile.path = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-				main_pidfile.free_path = true;
+		if (!main_pidfile.path)
+			main_pidfile.path = make_pidfile_name(KEEPALIVED_PID_FILE, PID_EXTENSION);
 #ifdef _WITH_LVS_
-			if (!checkers_pidfile.path && (checkers_pidfile.path = make_pidfile_name(KEEPALIVED_PID_DIR CHECKERS_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-				checkers_pidfile.free_path = true;
+		if (!checkers_pidfile.path)
+			checkers_pidfile.path = make_pidfile_name(CHECKERS_PID_FILE, PID_EXTENSION);
 #endif
 #ifdef _WITH_VRRP_
-			if (!vrrp_pidfile.path && (vrrp_pidfile.path = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-				vrrp_pidfile.free_path = true;
+		if (!vrrp_pidfile.path)
+			vrrp_pidfile.path = make_pidfile_name(VRRP_PID_FILE, PID_EXTENSION);
 #endif
 #ifdef _WITH_BFD_
-			if (!bfd_pidfile.path && (bfd_pidfile.path = make_pidfile_name(KEEPALIVED_PID_DIR BFD_PID_FILE, global_data->instance_name, PID_EXTENSION)))
-				bfd_pidfile.free_path = true;
+		if (!bfd_pidfile.path)
+			bfd_pidfile.path = make_pidfile_name(BFD_PID_FILE, PID_EXTENSION);
 #endif
-		}
-
-		if (use_pid_dir) {
-			if (!main_pidfile.path)
-				main_pidfile.path = KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
-#ifdef _WITH_LVS_
-			if (!checkers_pidfile.path)
-				checkers_pidfile.path = KEEPALIVED_PID_DIR CHECKERS_PID_FILE PID_EXTENSION;
-#endif
-#ifdef _WITH_VRRP_
-			if (!vrrp_pidfile.path)
-				vrrp_pidfile.path = KEEPALIVED_PID_DIR VRRP_PID_FILE PID_EXTENSION;
-#endif
-#ifdef _WITH_BFD_
-			if (!bfd_pidfile.path)
-				bfd_pidfile.path = KEEPALIVED_PID_DIR BFD_PID_FILE PID_EXTENSION;
-#endif
-		}
-		else
-		{
-			if (!main_pidfile.path)
-				main_pidfile.path = RUNSTATEDIR "/" KEEPALIVED_PID_FILE PID_EXTENSION;
-#ifdef _WITH_LVS_
-			if (!checkers_pidfile.path)
-				checkers_pidfile.path = RUNSTATEDIR "/" CHECKERS_PID_FILE PID_EXTENSION;
-#endif
-#ifdef _WITH_VRRP_
-			if (!vrrp_pidfile.path)
-				vrrp_pidfile.path = RUNSTATEDIR "/" VRRP_PID_FILE PID_EXTENSION;
-#endif
-#ifdef _WITH_BFD_
-			if (!bfd_pidfile.path)
-				bfd_pidfile.path = RUNSTATEDIR "/" BFD_PID_FILE PID_EXTENSION;
-#endif
-		}
 
 #ifndef _ONE_PROCESS_DEBUG_
 		/* We have set the namespaces, so we can do this now */
@@ -2901,7 +2877,7 @@ keepalived_main(int argc, char **argv)
 #endif
 
 		/* Check if keepalived is already running */
-		if (keepalived_running(daemon_mode)) {
+		if (keepalived_running()) {
 			log_message(LOG_INFO, "daemon is already running");
 			report_stopped = false;
 			goto end;

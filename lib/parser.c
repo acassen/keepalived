@@ -100,6 +100,11 @@
 #define EOB "}"
 #define WHITE_SPACE_STR " \t\f\n\r\v"
 
+/* Calculates max number of decimal digits for a variable of type xx.
+ * Real calculation is ceil(log10(2) * sizeof(xx) * CHAR_BIT)).
+ * log10(2) ~= 0.301029996, so 301/1000 is a good approximation. */
+#define CHRS_PER_WORD(xx)	((sizeof(xx) * CHAR_BIT * 301) / 1000 + 1)
+
 /* INCLUDE_R will error if a returned entry is:
  *   not readable
  *   a directory
@@ -550,7 +555,7 @@ static bool
 read_decimal_unsigned_long_func(const char *param, unsigned long *res, unsigned long min_val, unsigned long max_val, unsigned shift, bool ignore_error)
 {
 	size_t param_len = strlen(param);
-	char *updated_param;
+	char updated_param[CHRS_PER_WORD(unsigned long) + 1];
 	const char *dp;
 	unsigned num_dp;
 	const char *warn = "";
@@ -560,6 +565,7 @@ read_decimal_unsigned_long_func(const char *param, unsigned long *res, unsigned 
 	unsigned long long val;
 	char *endptr;
 	int sav_errno;
+	char *p;
 
 #ifndef _STRICT_CONFIG_
 	if (ignore_error && !__test_bit(CONFIG_TEST_BIT, &debug))
@@ -568,6 +574,11 @@ read_decimal_unsigned_long_func(const char *param, unsigned long *res, unsigned 
 
 	if (param[0] == '-') {
 		report_config_error(CONFIG_INVALID_NUMBER, "%snegative number '%s'", warn, param);
+		return false;
+	}
+
+	if (param_len >= sizeof(updated_param)) {
+		report_config_error(CONFIG_INVALID_NUMBER, "%s number is too large '%s'", warn, param);
 		return false;
 	}
 
@@ -580,19 +591,18 @@ read_decimal_unsigned_long_func(const char *param, unsigned long *res, unsigned 
 		num_dp = shift;
 	}
 
-	updated_param = MALLOC(param_len + shift + 1);	/* Allow to add shift trailing 0's and '\0' */
-
 	if (dp) {
-		strncpy(updated_param, param, dp - param);
-		strncpy(updated_param + (dp - param), dp + 1, num_dp);
-		updated_param[dp - param + num_dp] = '\0';
+		p = stpncpy(updated_param, param, dp - param);
+		p = stpncpy(p, dp + 1, num_dp);
+		*p = '\0';
 	} else
-		strcpy(updated_param, param);
+		p = stpcpy(updated_param, param);
 
 	/* Add any necessary trailing 0s */
 	num_dp = shift - num_dp;
 	for (i = 0; i < num_dp; i++)
-		strcat(updated_param, "0");
+		*p++ = '0';
+	*p = '\0';
 
 	errno = 0;
 	val = strtoull(updated_param, &endptr, 10);
@@ -602,7 +612,6 @@ read_decimal_unsigned_long_func(const char *param, unsigned long *res, unsigned 
 
 	valid_number = !*endptr;
 	sav_errno = errno;
-	FREE(updated_param);
 
 	if (!valid_number)
 		report_config_error(CONFIG_INVALID_NUMBER, "%sinvalid number '%s'", warn, param);
@@ -3262,7 +3271,7 @@ init_data(const char *conf_file, const vector_t * (*init_keywords) (void), bool 
 
 	(*init_keywords) ();
 
-	/* Add out standard definitions */
+	/* Add our standard definitions */
 	set_std_definitions();
 
 #ifdef _DUMP_KEYWORDS_

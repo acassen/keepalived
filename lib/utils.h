@@ -250,6 +250,21 @@ strcpy_safe_impl(char *dst, const char *src, size_t len)
 	return dst;
 }
 
+#define stpcpy_safe(dst, src)	stpcpy_safe_impl(dst, src, sizeof(dst))
+
+static inline char *
+stpcpy_safe_impl(char *dst, const char *src, size_t len)
+{
+	size_t str_len = strlen(src);
+
+	if (str_len >= len)
+		str_len = len - 1;
+	memcpy(dst, src, str_len);
+	dst[str_len] = '\0';
+
+	return dst + str_len;
+}
+
 /* global vars exported */
 extern unsigned long debug;
 extern mode_t umask_val;

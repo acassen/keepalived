@@ -39,6 +39,7 @@
 #include "utils.h"
 #include "memory.h"
 #include "process.h"
+#include "global_data.h"
 
 const char *pid_directory = KEEPALIVED_PID_DIR;
 
@@ -77,48 +78,50 @@ remove_pid_dir(void)
 }
 
 char *
-make_pidfile_name(const char* start, const char* instance, const char* extn)
+make_pidfile_name(const char* fname, const char* extn)
 {
 	size_t len;
 	char *name;
+	char *ptr;
+	const char *dir;
 
-	len = strlen(start) + 1;
-	if (instance)
-		len += strlen(instance) + 1;
+	dir = !use_pid_dir && !global_data->instance_name ? RUNSTATEDIR "/" : pid_dir ? pid_dir : KEEPALIVED_PID_DIR;
+
+	len = strlen(dir) + strlen(fname) + 1;
+	if (global_data->instance_name)
+		len += strlen(global_data->instance_name) + 1;
 	if (extn)
 		len += strlen(extn);
 
 	name = MALLOC(len);
 	if (!name) {
-		log_message(LOG_INFO, "Unable to make pidfile name for %s", start);
+		log_message(LOG_INFO, "Unable to make pidfile name for %s%s", dir, fname);
 		return NULL;
 	}
 
-	strcpy(name, start);
-	if (instance) {
-		strcat(name, "_");
-		strcat(name, instance);
+	ptr = stpcpy(name, dir);
+	ptr = stpcpy(ptr, fname);
+	if (global_data->instance_name) {
+		*ptr++ = '_';
+		ptr = stpcpy(ptr, global_data->instance_name);
 	}
 	if (extn)
-		strcat(name, extn);
+		stpcpy(ptr, extn);
 
 	return name;
 }
 
 void
-pidfile_close(pidfile_t *pidf, bool free_path)
+pidfile_close(pidfile_t *pidf)
 {
+	FREE_CONST_PTR(pidf->path);
+	pidf->path = NULL;
+
 	if (pidf->fd == -1)
 		return;
 
 	close(pidf->fd);
 	pidf->fd = -1;
-
-	if (free_path && pidf->free_path) {
-		FREE_CONST_PTR(pidf->path);
-		pidf->path = NULL;
-		pidf->free_path = false;
-	}
 }
 
 /* Remove the running daemon pidfile */
@@ -127,7 +130,7 @@ pidfile_rm(pidfile_t *pidf)
 {
 	unlink(pidf->path);
 	if (pidf->fd != -1)
-		pidfile_close(pidf, true);
+		pidfile_close(pidf);
 }
 
 void
@@ -135,23 +138,21 @@ close_other_pidfiles(void)
 {
 #ifndef _ONE_PROCESS_DEBUG_
 	if (prog_type != PROG_TYPE_PARENT)
-#endif
-		pidfile_close(&main_pidfile, true);
+		pidfile_close(&main_pidfile);
 
-#ifndef _ONE_PROCESS_DEBUG_
 #ifdef _WITH_VRRP_
 	if (prog_type != PROG_TYPE_VRRP)
-		pidfile_close(&vrrp_pidfile, true);
+		pidfile_close(&vrrp_pidfile);
 #endif
 
 #ifdef _WITH_LVS_
 	if (prog_type != PROG_TYPE_CHECKER)
-		pidfile_close(&checkers_pidfile, true);
+		pidfile_close(&checkers_pidfile);
 #endif
 
 #ifdef _WITH_BFD_
 	if (prog_type != PROG_TYPE_BFD)
-		pidfile_close(&bfd_pidfile, true);
+		pidfile_close(&bfd_pidfile);
 #endif
 #endif
 }
@@ -166,6 +167,10 @@ create_pidfile(pidfile_t *pidf)
 #if HAVE_DECL_F_OFD_SETLK == 1
 	struct flock fl = { .l_type = F_WRLCK, .l_whence = SEEK_SET, .l_start = 0, .l_len = 0 };
 #endif
+
+	/* Have we already got the PID file open and locked? */
+	if (pidf->fd != -1)
+		return false;
 
 	for (;;) {
 		/* We want to create the file with permissions rw-r--r-- */
@@ -237,22 +242,37 @@ create_pidfile(pidfile_t *pidf)
 
 /* Return parent process daemon state */
 bool
-keepalived_running(unsigned long mode)
+keepalived_running(void)
 {
-	if (create_pidfile(&main_pidfile))
+	if (create_pidfile(&main_pidfile)) {
+		log_message(LOG_INFO, "Unable to acquire lock of main pidfile");
 		return true;
+	}
+
 #ifdef _WITH_VRRP_
-	if (__test_bit(DAEMON_VRRP, &mode) && create_pidfile(&vrrp_pidfile))
+	if (running_vrrp() &&
+	    create_pidfile(&vrrp_pidfile)) {
+		log_message(LOG_INFO, "Unable to acquire lock of VRRP pidfile");
 		return true;
+	}
 #endif
+
 #ifdef _WITH_LVS_
-	if (__test_bit(DAEMON_CHECKERS, &mode) && create_pidfile(&checkers_pidfile))
+	if (running_checker() &&
+	    create_pidfile(&checkers_pidfile)) {
+		log_message(LOG_INFO, "Unable to acquire lock of checkers pidfile");
 		return true;
+	}
 #endif
+
 #ifdef _WITH_BFD_
-	if (__test_bit(DAEMON_BFD, &mode) && create_pidfile(&bfd_pidfile))
+	if (running_bfd() &&
+	    create_pidfile(&bfd_pidfile)) {
+		log_message(LOG_INFO, "Unable to acquire lock of BFD pidfile");
 		return true;
+	}
 #endif
+
 	return false;
 }
 
@@ -277,6 +297,9 @@ pidfile_write(pidfile_t *pidf)
 			if (pidf->fd != -1)
 				close(pidf->fd);
 			create_pidfile(pidf);
+
+			if (pidf->fd == -1)
+				return false;
 		} else {
 			if (pidf->fd == -1 ||
 			    fstat(pidf->fd, &fstatb) ||
@@ -289,7 +312,7 @@ pidfile_write(pidfile_t *pidf)
 
 				/* There is a window where the pid file could be deleted between us closing it and re-opening it,
 				 * so allow for creating the pidfile again. */
-				while ((pidf->fd = open(pidf->path, O_NOFOLLOW | O_CREAT | O_WRONLY | O_NONBLOCK | O_CLOEXEC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1 && errno == EINTR);
+				create_pidfile(pidf);
 
 				if (pidf->fd == -1)
 					return false;

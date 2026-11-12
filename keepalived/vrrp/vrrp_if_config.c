@@ -94,12 +94,14 @@ static sysctl_opts_t vmac_sysctl_6[] = {
 static void
 make_sysctl_filename(char *dest, const char* prefix, const char* iface, const char* parameter)
 {
-	strcpy(dest, "/proc/sys/");
-	strcat(dest, prefix);
-	strcat(dest, "/");
-	strcat(dest, iface);
-	strcat(dest, "/");
-	strcat(dest, parameter);
+	char *p;
+
+	p = stpcpy(dest, "/proc/sys/");
+	p = stpcpy(p, prefix);
+	*p++ = '/';
+	p = stpcpy(p, iface);
+	*p++ = '/';
+	p = stpcpy(p, parameter);
 }
 
 #if !defined _HAVE_IPV4_DEVCONF_ || defined _HAVE_VRRP_VMAC_
