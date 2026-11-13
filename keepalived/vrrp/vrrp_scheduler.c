@@ -331,6 +331,9 @@ vrrp_init_instance_sands(vrrp_t *vrrp)
 	else if (vrrp->state == VRRP_STATE_FAULT || vrrp->state == VRRP_STATE_INIT)
 		vrrp->sands.tv_sec = TIMER_DISABLED;
 
+	if (!vrrp->sockets)
+		return;
+
 	rb_move_cached(&vrrp->rb_sands, &vrrp->sockets->rb_sands, vrrp_timer_less);
 }
 
@@ -378,6 +381,9 @@ vrrp_compute_timer(const sock_t *sock)
 void
 vrrp_thread_requeue_read(vrrp_t *vrrp)
 {
+	if (!vrrp->sockets || vrrp->sockets->fd_in == -1)
+		return;
+
 	thread_requeue_read(master, vrrp->sockets->fd_in, vrrp_compute_timer(vrrp->sockets));
 }
 
