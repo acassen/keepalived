@@ -111,6 +111,7 @@ typedef struct _real_server {
 	unsigned			num_failed_checkers;/* Number of failed checkers */
 	bool				set;		/* in the IPVS table */
 	bool				reloaded;	/* active state was copied from old config while reloading */
+	struct _failover_pool		*pool;		/* Failover pool, NULL for the primary pool */
 	const char			*virtualhost;	/* Default virtualhost for HTTP and SSL health checkers */
 #if defined(_WITH_SNMP_CHECKER_)
 	/* Statistics */
@@ -133,6 +134,22 @@ typedef struct _real_server {
 
 	list_head_t			checkers_list;
 } real_server_t;
+
+#define FAILOVER_POOL_PRIORITY_MAX	255U
+
+/* Failover pool of real servers of a virtual server. The real servers
+ * are on the virtual server's rs list, and refer to their pool. */
+typedef struct _failover_pool {
+	unsigned			priority;	/* Lower is preferred; the primary pool is 0 */
+	notify_script_t			*notify_quorum_up;	/* A hook to call when the pool gains quorum. */
+	notify_script_t			*notify_quorum_down;	/* A hook to call when the pool loses quorum. */
+	unsigned			quorum;		/* Minimum live RSs to consider the pool up. */
+	unsigned			hysteresis;	/* up/down events "lag" WRT quorum. */
+	bool				quorum_state_up; /* Reflects result of the last transition done. */
+
+	/* Linked list member */
+	list_head_t			e_list;
+} failover_pool_t;
 
 /* Virtual Server group definition */
 typedef struct _virtual_server_group_entry {
@@ -204,7 +221,11 @@ typedef struct _virtual_server {
 	const char			*virtualhost;	/* Default virtualhost for HTTP and SSL healthcheckers
 							   if not set on real servers */
 	int				weight;
-	list_head_t			rs;		/* real_server_t */
+	list_head_t			rs;		/* real_server_t - of all the pools */
+	list_head_t			failover_pools;	/* failover_pool_t - in priority order */
+	failover_pool_t			*active_pool;	/* Pool in the IPVS table, NULL for the
+							 * primary pool. Not used while the sorry
+							 * server is in the IPVS table. */
 	int				alive;
 	bool				alpha;		/* Set if alpha mode is default. */
 	bool				omega;		/* Omega mode enabled. */
@@ -313,6 +334,8 @@ extern real_server_t *alloc_rs(const char *, const char *);
 extern void free_rs(real_server_t *);
 extern virtual_server_t *alloc_vs(const char *, const char *);
 extern void free_vs(virtual_server_t *);
+extern failover_pool_t *alloc_failover_pool(unsigned);
+extern void free_failover_pool(failover_pool_t *);
 extern void dump_tracking_rs(FILE *, const void *);
 extern void alloc_ssvr(const char *, const char *);
 #ifdef _WITH_BFD_

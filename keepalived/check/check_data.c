@@ -532,6 +532,8 @@ dump_rs(FILE *fp, const real_server_t *rs)
 	conf_write(fp, "   num failed checkers = %u", rs->num_failed_checkers);
 	conf_write(fp, "   RS set = %d", rs->set);
 	conf_write(fp, "   reloaded = %d", rs->reloaded);
+	if (rs->pool)
+		conf_write(fp, "   failover pool = %u", rs->pool->priority);
 
 	if (!list_empty(&rs->track_files)) {
 		conf_write(fp, "   Tracked Files");
@@ -624,6 +626,53 @@ alloc_rs(const char *ip, const char *port)
 }
 
 /*
+ *	Failover pool facility functions
+ */
+failover_pool_t *
+alloc_failover_pool(unsigned priority)
+{
+	failover_pool_t *new;
+
+	PMALLOC(new);
+	INIT_LIST_HEAD(&new->e_list);
+	new->priority = priority;
+	new->quorum = 1;
+	new->hysteresis = 0;
+
+	return new;
+}
+
+void
+free_failover_pool(failover_pool_t *pool)
+{
+	list_del_init(&pool->e_list);
+	free_notify_script(&pool->notify_quorum_up);
+	free_notify_script(&pool->notify_quorum_down);
+	FREE(pool);
+}
+
+static void
+free_failover_pool_list(list_head_t *l)
+{
+	failover_pool_t *pool, *pool_tmp;
+
+	list_for_each_entry_safe(pool, pool_tmp, l, e_list)
+		free_failover_pool(pool);
+}
+
+static void
+dump_failover_pool(FILE *fp, const failover_pool_t *pool)
+{
+	conf_write(fp, "   failover pool %u", pool->priority);
+	conf_write(fp, "     quorum = %u, hysteresis = %u", pool->quorum, pool->hysteresis);
+	if (pool->notify_quorum_up)
+		dump_notify_vs_rs_script(fp, pool->notify_quorum_up, "  Quorum", "up");
+	if (pool->notify_quorum_down)
+		dump_notify_vs_rs_script(fp, pool->notify_quorum_down, "  Quorum", "down");
+	conf_write(fp, "     quorum_state_up = %d", pool->quorum_state_up);
+}
+
+/*
  *	Virtual server facility functions
  */
 void
@@ -637,6 +686,7 @@ free_vs(virtual_server_t *vs)
 #endif
 	FREE_PTR(vs->s_svr);
 	free_rs_list(&vs->rs);
+	free_failover_pool_list(&vs->failover_pools);
 	free_notify_script(&vs->notify_quorum_up);
 	free_notify_script(&vs->notify_quorum_down);
 	FREE(vs);
@@ -654,6 +704,8 @@ free_vs_list(list_head_t *l)
 static void
 dump_vs(FILE *fp, const virtual_server_t *vs)
 {
+	failover_pool_t *pool;
+
 	conf_write(fp, " ------< Virtual server >------");
 	if (vs->vsgname)
 		conf_write(fp, " VS GROUP = %s", FMT_VS(vs));
@@ -757,8 +809,18 @@ dump_vs(FILE *fp, const virtual_server_t *vs)
 		conf_write(fp, "     set = %d", vs->s_svr->set);
 		conf_write(fp, "     alive = %d", vs->s_svr->alive);
 	}
+	list_for_each_entry(pool, &vs->failover_pools, e_list)
+		dump_failover_pool(fp, pool);
 	conf_write(fp, "   VS alive = %d", vs->alive);
 	conf_write(fp, "   quorum_state_up = %d", vs->quorum_state_up);
+	if (!list_empty(&vs->failover_pools)) {
+		if (vs->s_svr && vs->s_svr->alive)
+			conf_write(fp, "   active pool = sorry server");
+		else if (vs->active_pool)
+			conf_write(fp, "   active pool = failover pool %u", vs->active_pool->priority);
+		else
+			conf_write(fp, "   active pool = primary");
+	}
 	conf_write(fp, "   reloaded = %d", vs->reloaded);
 
 	dump_rs_list(fp, &vs->rs);
@@ -840,6 +902,7 @@ alloc_vs(const char *param1, const char *param2)
 	new->smtp_alert = -1;
 	new->persistence_granularity = 0xffffffff;
 	INIT_LIST_HEAD(&new->rs);
+	INIT_LIST_HEAD(&new->failover_pools);
 
 	return new;
 }
@@ -1040,6 +1103,7 @@ check_check_script_security(void)
 {
 	virtual_server_t *vs;
 	real_server_t *rs;
+	failover_pool_t *pool;
 	unsigned script_flags;
 	magic_t magic;
 
@@ -1053,6 +1117,11 @@ check_check_script_security(void)
 	list_for_each_entry(vs, &check_data->vs, e_list) {
 		script_flags |= check_notify_script_secure(&vs->notify_quorum_up, magic);
 		script_flags |= check_notify_script_secure(&vs->notify_quorum_down, magic);
+
+		list_for_each_entry(pool, &vs->failover_pools, e_list) {
+			script_flags |= check_notify_script_secure(&pool->notify_quorum_up, magic);
+			script_flags |= check_notify_script_secure(&pool->notify_quorum_down, magic);
+		}
 
 		list_for_each_entry(rs, &vs->rs, e_list) {
 			script_flags |= check_notify_script_secure(&rs->notify_up, magic);
@@ -1080,9 +1149,11 @@ validate_check_config(void)
 	virtual_server_t *vs, *vs_tmp;
 	virtual_server_group_entry_t *vsge;
 	real_server_t *rs, *rs_tmp, *rs1;
+	failover_pool_t *pool, *pool_tmp;
 	checker_t *checker;
 	unsigned weight_sum;
 	bool rs_removed;
+	bool pool_has_rs;
 
 	using_ha_suspend = false;
 	list_for_each_entry_safe(vs, vs_tmp, &check_data->vs, e_list) {
@@ -1182,6 +1253,16 @@ validate_check_config(void)
 			if (rs_removed)
 				continue;
 
+			/* Only a real server of the primary pool may also be the sorry server */
+			if (rs->pool && vs->s_svr && rs_iseq(vs->s_svr, rs)) {
+				report_config_error(CONFIG_GENERAL_ERROR, "VS %s: failover pool %u real server %s is the sorry server - removing rs", FMT_VS(vs), rs->pool->priority, FMT_RS(rs, vs));
+				free_rs(rs);
+#ifdef _WITH_SNMP_CHECKER_
+				vs->rs_cnt--;
+#endif
+				continue;
+			}
+
 			/* Set the forwarding method if necessary */
 			if (rs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
 				if (vs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
@@ -1229,7 +1310,8 @@ validate_check_config(void)
 					rs->smtp_alert = true;
 				}
 			}
-			weight_sum += rs->effective_weight;
+			if (!rs->pool)
+				weight_sum += rs->effective_weight;
 
 			/* Check if the real server is the same as the sorry server,
 			 * and if so the inhibit on failure settings must match. */
@@ -1272,6 +1354,36 @@ validate_check_config(void)
 			report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: hysteresis %u >= quorum %u; setting hysteresis to %u",
 					FMT_VS(vs), vs->hysteresis, vs->quorum, vs->quorum -1);
 			vs->hysteresis = vs->quorum - 1;
+		}
+
+		/* Make the same checks for each failover pool, which may have
+		 * lost all its real servers as duplicates */
+		list_for_each_entry_safe(pool, pool_tmp, &vs->failover_pools, e_list) {
+			weight_sum = 0;
+			pool_has_rs = false;
+			list_for_each_entry(rs, &vs->rs, e_list) {
+				if (rs->pool != pool)
+					continue;
+				pool_has_rs = true;
+				weight_sum += rs->effective_weight;
+			}
+
+			if (!pool_has_rs) {
+				report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: failover pool %u has no real servers - removing", FMT_VS(vs), pool->priority);
+				free_failover_pool(pool);
+				continue;
+			}
+
+			if (pool->quorum > weight_sum) {
+				report_config_error(CONFIG_GENERAL_ERROR, "Warning - quorum %u for failover pool %u of %s exceeds total weight of its real servers %u, reducing quorum to %u", pool->quorum, pool->priority, FMT_VS(vs), weight_sum, weight_sum);
+				pool->quorum = weight_sum;
+			}
+
+			if (pool->hysteresis >= pool->quorum) {
+				report_config_error(CONFIG_GENERAL_ERROR, "Virtual server %s: failover pool %u hysteresis %u >= quorum %u; setting hysteresis to %u",
+						FMT_VS(vs), pool->priority, pool->hysteresis, pool->quorum, pool->quorum - 1);
+				pool->hysteresis = pool->quorum - 1;
+			}
 		}
 
 		/* Now check that, unless using NAT, real and virtual servers have the same port.
