@@ -503,18 +503,15 @@ stop_keepalived(void)
 	thread_destroy_master(master);
 
 #ifdef _WITH_VRRP_
-	if (vrrp_pidfile.fd != -1)
-		pidfile_close(&vrrp_pidfile);
+	pidfile_close(&vrrp_pidfile);
 #endif
 
 #ifdef _WITH_LVS_
-	if (checkers_pidfile.fd != -1)
-		pidfile_close(&checkers_pidfile);
+	pidfile_close(&checkers_pidfile);
 #endif
 
 #ifdef _WITH_BFD_
-	if (bfd_pidfile.fd != -1)
-		pidfile_close(&bfd_pidfile);
+	pidfile_close(&bfd_pidfile);
 #endif
 
 	pidfile_rm(&main_pidfile);
