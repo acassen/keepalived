@@ -503,18 +503,15 @@ stop_keepalived(void)
 	thread_destroy_master(master);
 
 #ifdef _WITH_VRRP_
-	if (vrrp_pidfile.fd != -1)
-		pidfile_close(&vrrp_pidfile);
+	pidfile_close(&vrrp_pidfile);
 #endif
 
 #ifdef _WITH_LVS_
-	if (checkers_pidfile.fd != -1)
-		pidfile_close(&checkers_pidfile);
+	pidfile_close(&checkers_pidfile);
 #endif
 
 #ifdef _WITH_BFD_
-	if (bfd_pidfile.fd != -1)
-		pidfile_close(&bfd_pidfile);
+	pidfile_close(&bfd_pidfile);
 #endif
 
 	pidfile_rm(&main_pidfile);
@@ -2320,11 +2317,11 @@ parse_cmdline(int argc, char **argv)
 			break;
 #endif
 		case 'p':
-			main_pidfile.path = optarg;
+			main_pidfile.path = STRDUP(optarg);
 			break;
 #ifdef _WITH_LVS_
 		case 'c':
-			checkers_pidfile.path = optarg;
+			checkers_pidfile.path = STRDUP(optarg);
 			break;
 		case 'a':
 			__set_bit(LOG_ADDRESS_CHANGES, &debug);
@@ -2332,12 +2329,12 @@ parse_cmdline(int argc, char **argv)
 #endif
 #ifdef _WITH_VRRP_
 		case 'r':
-			vrrp_pidfile.path = optarg;
+			vrrp_pidfile.path = STRDUP(optarg);
 			break;
 #endif
 #ifdef _WITH_BFD_
 		case 'b':
-			bfd_pidfile.path = optarg;
+			bfd_pidfile.path = STRDUP(optarg);
 			break;
 #endif
 #ifdef _WITH_SNMP_
