@@ -1652,6 +1652,8 @@ thread_cancel(thread_ref_t thread_cp)
 		break;
 	}
 
+	if (m->current_thread == thread)
+		m->current_thread = NULL;
 	thread_add_unuse(m, thread);
 }
 
