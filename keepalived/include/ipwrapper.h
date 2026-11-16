@@ -49,6 +49,15 @@ rs_iseq(const real_server_t *rs_a, const real_server_t *rs_b)
 	return sockstorage_equal(&rs_a->addr, &rs_b->addr);
 }
 
+/* Only the real servers of the active pool are in use in the IPVS table,
+ * and none of them while the sorry server is in use. Inhibited real
+ * servers of other pools are kept in the table with weight 0. */
+static inline bool __attribute((pure))
+rs_pool_active(const virtual_server_t *vs, const real_server_t *rs)
+{
+	return rs->pool == vs->active_pool && (!vs->s_svr || !ISALIVE(vs->s_svr));
+}
+
 /* prototypes */
 extern void update_svr_wgt(int64_t, virtual_server_t *, real_server_t *, bool);
 extern void set_checker_state(checker_t *, bool);

@@ -146,6 +146,13 @@ do
 
 			# Now take whatever action is required
 			echo "$PROLOGUE" $TYPE $RS $VS $STATE >>$LOG_FILE
+		elif [[ $TYPE = POOL ]]; then
+			POOL=$2
+			VS=$3
+			STATE=$4
+
+			# Now take whatever action is required
+			echo "$PROLOGUE" $TYPE $POOL $VS $STATE >>$LOG_FILE
 		else
 			echo "$PROLOGUE" $TYPE - unknown "($*)" >>$LOG_FILE
 		fi

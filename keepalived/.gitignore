@@ -1,3 +1,7 @@
 keepalived
 keepalived*.service
 keepalived.config-opts
+failover_pool_test
+failover-config-test
+*.log
+*.trs

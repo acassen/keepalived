@@ -41,4 +41,6 @@ jobs:
         ./configure ${{ matrix.cmdline }}
     - name: Build
       run: make
+    - name: Test
+      run: make check || { cat keepalived/test-suite.log; exit 1; }
 

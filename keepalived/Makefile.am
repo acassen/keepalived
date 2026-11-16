@@ -4,6 +4,8 @@
 #
 # Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
 
+AUTOMAKE_OPTIONS	= subdir-objects
+
 AM_CPPFLAGS		= -I $(top_srcdir)/keepalived/include -I $(top_srcdir)/lib
 AM_CPPFLAGS		+= $(KA_CPPFLAGS) $(DEBUG_CPPFLAGS)
 AM_CFLAGS		= $(KA_CFLAGS) $(DEBUG_CFLAGS)
@@ -64,6 +66,31 @@ SUBDIRS			= core $(VRRP_SUBDIR) $(IPVS_SUBDIR) $(DBUS_SUBDIR) $(BFD_SUBDIR) $(TR
 EXTRA_DIST		= keepalived.service.in keepalived-non-root.service.in keepalived.config-opts.in
 
 keepalived_LDADD	= core/libcore.a $(IPVS_LIB) $(VRRP_LIB) $(BFD_LIB) core/libcore.a $(TRACKER_LIB) ../lib/liblib.a $(KA_LIBS)
+
+# Tests run by "make check". They are linked with the same libraries as
+# keepalived, so they build with whatever configure options are selected.
+if WITH_IPVS
+check_PROGRAMS		= failover_pool_test
+failover_pool_test_SOURCES = ../test/failover_pool_test.c
+failover_pool_test_LDADD = $(keepalived_LDADD)
+# Replace the IPVS kernel interface and the running of scripts
+failover_pool_test_LDFLAGS = $(AM_LDFLAGS) \
+			  -Wl,--wrap=ipvs_add_service -Wl,--wrap=ipvs_update_service \
+			  -Wl,--wrap=ipvs_del_service -Wl,--wrap=ipvs_add_dest \
+			  -Wl,--wrap=ipvs_update_dest -Wl,--wrap=ipvs_del_dest \
+			  -Wl,--wrap=notify_exec
+
+# The configuration tests are run from the build directory
+check_SCRIPTS		= failover-config-test
+failover-config-test: $(top_srcdir)/test/failover-config-test.sh
+	@echo '#!/bin/sh' >$@
+	@echo 'exec "$(abs_top_srcdir)/test/failover-config-test.sh" "$(abs_builddir)/keepalived"' >>$@
+	@chmod +x $@
+
+TESTS			= $(check_PROGRAMS) $(check_SCRIPTS)
+endif
+
+CLEANFILES		= failover-config-test
 
 MOSTLYCLEANFILES	=
 
