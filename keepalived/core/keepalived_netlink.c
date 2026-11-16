@@ -1010,7 +1010,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 						vrrp = top->obj.vrrp;
 
 						if (__test_bit(VRRP_FLAG_TRACK_SADDR, &vrrp->flags) && vrrp->family == ifa->ifa_family)
-							is_tracking_saddr = inaddr_equal(ifa->ifa_family, &vrrp->saddr, addr.addr);
+							is_tracking_saddr = inaddr_equal(ifa->ifa_family, vrrp->family == AF_INET ? &(PTR_CAST(struct sockaddr_in, &vrrp->saddr))->sin_addr : (void *)&(PTR_CAST(struct sockaddr_in6, &vrrp->saddr))->sin6_addr, addr.addr);
 						else
 							is_tracking_saddr = false;
 
@@ -1148,7 +1148,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 
 					is_tracking_saddr = __test_bit(VRRP_FLAG_TRACK_SADDR, &vrrp->flags) &&
 							    vrrp->family == ifa->ifa_family &&
-							    inaddr_equal(ifa->ifa_family, &vrrp->saddr, addr.addr);
+							    inaddr_equal(ifa->ifa_family, vrrp->family == AF_INET ? &(PTR_CAST(struct sockaddr_in, &vrrp->saddr))->sin_addr : (void *)&(PTR_CAST(struct sockaddr_in6, &vrrp->saddr))->sin6_addr, addr.addr);
 #ifdef _HAVE_VRRP_VMAC_
 					/* If we are a VMAC and took this address from the parent interface, we need to
 					 * release the address and create one for ourself */
