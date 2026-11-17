@@ -1981,6 +1981,10 @@ find_definition(const char *name, size_t len, bool definition)
 				def->params = param_start;
 				def->params_end = param_end;
 			}
+			else if (!definition && def->fn && def->min_params) {
+				report_config_error(CONFIG_GENERAL_ERROR, "Definition %s requires between %u and %u parameters, 0 specified.", def->name, def->min_params, def->max_params);
+				return NULL;
+			}
 			else
 				def->params = NULL;
 			return def;
