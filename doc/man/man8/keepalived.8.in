@@ -288,10 +288,10 @@ Display this help message and exit.
 if OK
 .TP
 1
-if unable to malloc memory
+if cannot initialise subsystems
 .TP
 2
-if cannot initialise subsystems
+if the configuration cannot be run
 .TP
 4
 if running with --config-test and configuration cannot be run
@@ -303,6 +303,9 @@ will run after modifying the configuration
 6
 if running with --config-test and script security hasn't been enabled but scripts
 are configured.
+.TP
+204
+if unable to malloc memory
 .SH NAMESPACES
 .B keepalived
 can be run in a network namespace (see
