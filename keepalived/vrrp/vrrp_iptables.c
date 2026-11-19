@@ -23,6 +23,13 @@
 #include "config.h"
 
 #include <errno.h>
+#ifdef _USE_XTABLES_LOCK_
+#include <fcntl.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/file.h>
+#include <unistd.h>
+#endif
 #include <sys/stat.h>
 #include <sys/vfs.h>
 #include <linux/magic.h>
@@ -82,6 +89,9 @@ struct ipt_handle {
 #ifdef _HAVE_LIBIPSET_
 	struct ipset_session* session;
 #endif
+#ifdef _USE_XTABLES_LOCK_
+	int lock_fd;
+#endif
 	int	cmd;
 } ;
 
@@ -92,10 +102,9 @@ static init_state_t vips_setup[2];
 static init_state_t igmp_setup[2];
 #endif
 
-/* The way iptables appears to work is that when we do an iptc_init, we get a
- * snapshot of the iptables table, which internally includes an update number.
- * When iptc_commit is called, it checks the update number, and if it has been
- * updated by someone else, returns EAGAIN.
+/* The way iptables works is that when we do an iptc_init, we get a snapshot
+ * of the iptables table. If the table entry count changes before iptc_commit,
+ * the kernel can return EAGAIN.
  *
  * Note: iptc_commit only needs to be called if we are changing something. In
  *   all cases though, iptc_free must be called.
@@ -224,10 +233,69 @@ add_del_igmp_rules(struct ipt_handle *h, int cmd, uint8_t family)
 #endif
 #endif
 
+#ifdef _USE_XTABLES_LOCK_
+static const char *
+xtables_lockfile_name(void)
+{
+	const char *lock_file;
+
+	lock_file = getenv("XTABLES_LOCKFILE");
+	if (lock_file && lock_file[0])
+		return lock_file;
+
+	if (access("/run/xtables.lock", F_OK) == 0)
+		return "/run/xtables.lock";
+
+	return "/var/run/xtables.lock";
+}
+
+static bool
+xtables_lock(int *lock_fd)
+{
+	const char *lock_file = xtables_lockfile_name();
+	int fd;
+
+	fd = open(lock_file, O_RDONLY | O_CREAT, 0600);
+	if (fd < 0) {
+		log_message(LOG_INFO, "Cannot open iptables lock file %s: %s",
+			    lock_file, strerror(errno));
+		return false;
+	}
+
+	while (flock(fd, LOCK_EX) < 0) {
+		if (errno == EINTR)
+			continue;
+
+		log_message(LOG_INFO, "Cannot lock iptables lock file %s: %s",
+			    lock_file, strerror(errno));
+		close(fd);
+		return false;
+	}
+
+	*lock_fd = fd;
+	return true;
+}
+
+static void
+xtables_unlock(int lock_fd)
+{
+	if (lock_fd >= 0)
+		close(lock_fd);
+}
+#endif
+
 static struct ipt_handle*
 iptables_open(int cmd)
 {
 	struct ipt_handle *h = MALLOC(sizeof(struct ipt_handle));
+
+#ifdef _USE_XTABLES_LOCK_
+	h->lock_fd = -1;
+	if (!xtables_lock(&h->lock_fd)) {
+		FREE(h);
+		return NULL;
+	}
+#endif
 
 	h->cmd = cmd;
 
@@ -261,6 +329,9 @@ iptables_close(struct ipt_handle* h)
 		ipset_session_end(h->session);
 #endif
 
+#ifdef _USE_XTABLES_LOCK_
+	xtables_unlock(h->lock_fd);
+#endif
 	FREE(h);
 
 	return res;
@@ -442,6 +513,9 @@ iptables_fini(void)
 		return;
 
 	h = iptables_open(IPADDRESS_DEL);
+	if (!h)
+		return;
+
 	family = AF_INET;
 	do {
 		if (vips_setup[family != AF_INET] == INIT_SUCCESS)
@@ -458,6 +532,9 @@ iptables_fini(void)
 
 	/* The sets must not be in use when the ipset session starts */
 	h = iptables_open(IPADDRESS_DEL);
+	if (!h)
+		return;
+
 	family = AF_INET;
 	do {
 		if (vips_setup[family != AF_INET] == INIT_SUCCESS) {
@@ -527,6 +604,8 @@ handle_iptable_rule_to_iplist(list_head_t *ip_list1, list_head_t *ip_list2, int 
 
 	do {
 		h = iptables_open(cmd);
+		if (!h)
+			return;
 
 		if (ip_list1 && !list_empty(ip_list1))
 			handle_iptable_vip_list(h, ip_list1, cmd, force);
@@ -653,6 +732,8 @@ iptables_update_vmac(const interface_t *ifp, int family, bool other_family, int 
 
 	do {
 		h = iptables_open(cmd);
+		if (!h)
+			return;
 
 		handle_iptable_rule_for_igmp(ifp->ifname, cmd, family, h);
 
