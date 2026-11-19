@@ -1,0 +1,64 @@
+! Configuration File for keepalived - HTTP_GET with authentication
+! This sample demonstrates HTTP basic authentication for HTTP_GET checks
+
+global_defs {
+   notification_email {
+     acassen
+   }
+   notification_email_from Alexandre.Cassen@firewall.loc
+   smtp_server 192.168.200.1
+   smtp_connect_timeout 30
+   router_id LVS_DEVEL
+}
+
+vrrp_instance VI_1 {
+    interface lo
+    virtual_router_id 50
+    nopreempt
+    priority 100
+    advert_int 1
+    virtual_ipaddress {
+        127.0.0.1
+    }
+}
+
+virtual_server 10.10.10.2 1358 {
+    delay_loop 6
+    lb_algo rr
+    lb_kind NAT
+    persistence_timeout 50
+    protocol TCP
+
+    sorry_server 192.168.200.200 1358
+
+    real_server 192.168.200.2 1358 {
+        weight 1
+        HTTP_GET {
+            url {
+              path /testurl3/test.jsp
+              username myuser
+              password mypassword
+              status_code 200
+            }
+            connect_timeout 3
+            retry 3
+            delay_before_retry 3
+        }
+    }
+
+    real_server 192.168.200.3 1358 {
+        weight 1
+        SSL_GET {
+            url {
+              path /secure/test.jsp
+              username admin
+              password secret123
+              status_code 200
+              tls_compliant
+            }
+            connect_timeout 5
+            retry 3
+            delay_before_retry 3
+        }
+    }
+}

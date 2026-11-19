@@ -99,6 +99,8 @@ typedef struct _url {
 	const uint8_t			*digest;
 	unsigned long			status_code[(HTTP_STATUS_CODE_MAX - HTTP_STATUS_CODE_MIN + 1 - 1) / (sizeof(unsigned long) * CHAR_BIT) + 1];
 	const char			*virtualhost;
+	const char			*username;
+	const char			*password;
 	ssize_t				len_mismatch;
 	bool				tls_compliant;
 	unsigned long			last_ssl_error;
