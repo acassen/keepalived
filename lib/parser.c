@@ -3020,77 +3020,40 @@ void
 alloc_value_block(void (*alloc_func) (const vector_t *), const vector_t *strvec)
 {
 	char *buf;
-	const char *str;
 	vector_t *vec;
-	vector_t *first_vec = NULL;
 	bool need_bob = true;
-	bool had_eob = false;
 
-	if (vector_active(strvec) > 1) {
-		if (!strcmp(strvec_slot(strvec, 1), BOB)) {
-			need_bob = false;
-			if (vector_active(strvec) > 2) {
-				first_vec = vector_copy(strvec);
-				vector_unset(first_vec, 0);
-				vector_unset(first_vec, 1);
-				if (!strcmp(strvec_slot(strvec, vector_active(first_vec) - 1), EOB)) {
-					vector_unset(first_vec, vector_active(first_vec) - 1);
-					had_eob = true;
-				}
-				first_vec = vector_compact(first_vec);
-			}
-		} else
-			report_config_error(CONFIG_GENERAL_ERROR, "Block %s has extra parameters %s ..."
-								, strvec_slot(strvec, 0), strvec_slot(strvec, 1));
-	}
+	/* read_line() returns each BOB and EOB that is not inside a quoted
+	 * string as a line of its own. A brace on the keyword line, or within
+	 * a longer line, has therefore been quoted, and is not block syntax. */
+	if (vector_active(strvec) > 1)
+		report_config_error(CONFIG_GENERAL_ERROR, "Block %s has extra parameters %s ..."
+							, strvec_slot(strvec, 0), strvec_slot(strvec, 1));
 
 	buf = (char *)MALLOC(MAXBUF);
-	while (first_vec || read_line(buf, MAXBUF)) {
-		if (first_vec)
-			vec = first_vec;
-		else if (!(vec = alloc_strvec(buf, NULL)))
+	while (read_line(buf, MAXBUF)) {
+		if (!(vec = alloc_strvec(buf, NULL)))
 			continue;
 
-		if (!first_vec) {
-			if (need_bob) {
-				need_bob = false;
+		if (need_bob) {
+			need_bob = false;
 
-				if (!strcmp(vector_slot(vec, 0), BOB)) {
-					if (vector_size(vec) == 1) {
-						free_strvec(vec);
-						continue;
-					}
-
-					/* Remove the BOB */
-					vec = strvec_remove_slot(vec, 0);
-				} else
-					log_message(LOG_INFO, "'%s' missing from beginning of block %s", BOB, strvec_slot(strvec, 0));
+			if (!strcmp(buf, BOB)) {
+				free_strvec(vec);
+				continue;
 			}
 
-			/* Check if line read ends with EOB */
-			str = vector_slot(vec, vector_active(vec) - 1);
-			if (!strcmp(str, EOB)) {
-				if (vector_active(vec) == 1) {
-					free_strvec(vec);
-					break;
-				}
-
-				had_eob = true;
-				vec = strvec_remove_slot(vec, vector_active(vec) - 1);
-			}
+			log_message(LOG_INFO, "'%s' missing from beginning of block %s", BOB, strvec_slot(strvec, 0));
 		}
 
-		if (vector_size(vec))
-			(*alloc_func)(vec);
-
-		if (first_vec) {
-			vector_free(first_vec);
-			first_vec = NULL;
-		} else
+		if (!strcmp(buf, EOB)) {
 			free_strvec(vec);
-
-		if (had_eob)
 			break;
+		}
+
+		(*alloc_func)(vec);
+
+		free_strvec(vec);
 	}
 
 	FREE(buf);
@@ -3106,7 +3069,7 @@ process_stream(vector_t *keywords_vec, int need_bob)
 	vector_t *strvec;
 	vector_t *prev_keywords = current_keywords;
 	current_keywords = keywords_vec;
-	int bob_needed = 0;
+	bool is_bob, is_eob;
 	bool ret_err = false;
 	bool ret;
 
@@ -3119,9 +3082,15 @@ process_stream(vector_t *keywords_vec, int need_bob)
 
 		str = vector_slot(strvec, 0);
 
+		/* read_line() returns each BOB and EOB that is not inside a quoted
+		 * string as a line of its own. A word that is only a brace once its
+		 * quotes have been removed is not block syntax. */
+		is_bob = !strcmp(buf, BOB);
+		is_eob = !strcmp(buf, EOB);
+
 		if (skip_sublevel == -1) {
-			/* There wasn't a '{' on the keyword line */
-			if (!strcmp(str, BOB)) {
+			/* The '{' is never on the keyword line */
+			if (is_bob) {
 				/* We've got the opening '{' now */
 				skip_sublevel = 1;
 				need_bob = 0;
@@ -3133,20 +3102,15 @@ process_stream(vector_t *keywords_vec, int need_bob)
 			skip_sublevel = 0;
 		}
 		if (skip_sublevel) {
-			for (i = 0; i < vector_size(strvec); i++) {
-				str = vector_slot(strvec,i);
-				if (!strcmp(str,BOB))
-					skip_sublevel++;
-				else if (!strcmp(str,EOB)) {
-					if (--skip_sublevel == 0)
-						break;
-				}
-			}
+			if (is_bob)
+				skip_sublevel++;
+			else if (is_eob)
+				skip_sublevel--;
 
 			/* If we have reached the outer level of the block and we have
 			 * nested keyword level, then we need to return to restore the
 			 * next level up of keywords. */
-			if (!strcmp(str, EOB) && skip_sublevel == 0 && kw_level > 0) {
+			if (is_eob && skip_sublevel == 0 && kw_level > 0) {
 				ret_err = true;
 				free_strvec(strvec);
 				break;
@@ -3158,20 +3122,20 @@ process_stream(vector_t *keywords_vec, int need_bob)
 
 		if (need_bob) {
 			need_bob = 0;
-			if (!strcmp(str, BOB) && kw_level > 0) {
+			if (is_bob && kw_level > 0) {
 				free_strvec(strvec);
 				continue;
 			}
 			else
 				report_config_error(CONFIG_MISSING_BOB, "Missing '%s' at beginning of configuration block", BOB);
 		}
-		else if (!strcmp(str, BOB)) {
+		else if (is_bob) {
 			report_config_error(CONFIG_UNEXPECTED_BOB, "Unexpected '%s' - ignoring", BOB);
 			free_strvec(strvec);
 			continue;
 		}
 
-		if (!strcmp(str, EOB) && kw_level > 0) {
+		if (is_eob && kw_level > 0) {
 			free_strvec(strvec);
 			break;
 		}
@@ -3181,10 +3145,8 @@ process_stream(vector_t *keywords_vec, int need_bob)
 
 			if (!strcmp(keyword_vec->string, str)) {
 				if (!keyword_vec->active) {
-					if (!strcmp(vector_slot(strvec, vector_size(strvec)-1), BOB))
-						skip_sublevel = 1;
-					else
-						skip_sublevel = -1;
+					/* The '{', if any, is on the next line */
+					skip_sublevel = -1;
 
 					/* Sometimes a process wants to know if another process
 					 * has any of a type of configuration. For example, there
@@ -3195,20 +3157,6 @@ process_stream(vector_t *keywords_vec, int need_bob)
 						(*keyword_vec->handler)(NULL);
 				}
 
-				/* There is an inconsistency here. 'static_ipaddress' for example
-				 * does not have sub levels, but needs a '{' */
-				if (keyword_vec->sub) {
-					/* Remove a trailing '{' */
-					char *bob = vector_slot(strvec, vector_size(strvec)-1) ;
-					if (!strcmp(bob, BOB)) {
-						vector_unset(strvec, vector_size(strvec)-1);
-						FREE(bob);
-						bob_needed = 0;
-					}
-					else
-						bob_needed = 1;
-				}
-
 				if (keyword_vec->active && keyword_vec->handler && (!keyword_vec->ptr || *keyword_vec->ptr)) {
 					buf_extern = buf;	/* In case the raw line wants to be accessed */
 					(*keyword_vec->handler) (strvec);
@@ -3216,7 +3164,9 @@ process_stream(vector_t *keywords_vec, int need_bob)
 
 				if (keyword_vec->sub) {
 					kw_level++;
-					ret = process_stream(keyword_vec->sub, bob_needed);
+					/* There is an inconsistency here. 'static_ipaddress' for example
+					 * does not have sub levels, but needs a '{' */
+					ret = process_stream(keyword_vec->sub, 1);
 					kw_level--;
 
 					/* We mustn't run any close handler if the block was skipped */
