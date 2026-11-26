@@ -3050,6 +3050,14 @@ fi
 
 dnl ----[ Stacktrace support or not ? ]----
 if test "${enable_stacktrace}" = yes; then
+  dnl -- glibc provides backtrace() itself. Other C libraries, e.g. musl,
+  dnl -- don't, so it needs to come from a separate libexecinfo, if at all.
+  AC_CHECK_HEADER([execinfo.h], [],
+    [AC_MSG_ERROR([--enable-stacktrace requires <execinfo.h>, which is provided by glibc or libexecinfo])])
+  AC_SEARCH_LIBS([backtrace], [execinfo],
+    [AS_CASE([$ac_cv_search_backtrace], [-l*], [add_to_var([KA_LIBS], [$ac_cv_search_backtrace])])],
+    [AC_MSG_ERROR([--enable-stacktrace requires backtrace(), which is provided by glibc or libexecinfo])])
+  unset LIBS
   AC_DEFINE([_WITH_STACKTRACE_], [ 1 ], [Define to 1 to build with stacktrace support])
   ENABLE_STACKTRACE=Yes
   add_config_opt([STACKTRACE])
