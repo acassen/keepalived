@@ -33,7 +33,7 @@
 void __assert_fail (const char *__assertion, const char *__file,
 			   LINE_type __line, const char *__function)
 {
-	log_message(LOG_ERR, "assert: %s:%u: %s: Assertion: `%s' failed.", __file, __line, __function, __assertion);
+	log_message(LOG_ERR, "assert: %s:%u: %s: Assertion: `%s' failed.", __file, (unsigned)__line, __function, __assertion);
 	abort();
 }
 
