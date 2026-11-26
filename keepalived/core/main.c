@@ -37,6 +37,9 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <linux/version.h>
+#ifdef HAVE_CLOSE_RANGE
+#include <linux/close_range.h>
+#endif
 #include <ctype.h>
 #include <sys/prctl.h>
 
