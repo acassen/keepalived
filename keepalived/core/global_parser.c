@@ -215,7 +215,8 @@ routerid_handler(const vector_t *strvec)
 static void
 emailfrom_handler(const vector_t *strvec)
 {
-	if (vector_size(strvec) < 2) {
+	if (vector_size(strvec) < 2 ||
+	    !strvec_slot(strvec, 1)[0]) {
 		report_config_error(CONFIG_GENERAL_ERROR, "emailfrom missing - ignoring");
 		return;
 	} else if (vector_size(strvec) > 2)
@@ -305,8 +306,14 @@ email_handler(const vector_t *strvec)
 		return;
 	}
 
-	for (i = 0; i < vector_size(email_vec); i++)
+	for (i = 0; i < vector_size(email_vec); i++) {
+		if (!strvec_slot(email_vec, i)[0]) {
+			report_config_error(CONFIG_GENERAL_ERROR, "notification_email - ignoring empty address");
+			continue;
+		}
+
 		alloc_email(vector_slot(email_vec, i));
+	}
 
 	free_strvec(email_vec);
 }
