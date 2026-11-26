@@ -54,16 +54,10 @@ typedef void (*null_strvec_handler_t)(const vector_t *, size_t);
 				 vector_alloc_slot_r(v))
 #define vector_free(v)		(memcheck_log("vector_free", NULL, (__FILE__), (__func__), (__LINE__)), \
 				 vector_free_r(v))
-#define vector_compact(v)	(memcheck_log("vector_compact", NULL, (__FILE__), (__func__), (__LINE__)), \
-				 vector_compact_r(v))
-#define vector_copy(v)		(memcheck_log("vector_copy", NULL, (__FILE__), (__func__), (__LINE__)), \
-				 vector_copy_r(v))
 #else
 #define vector_alloc()		(vector_alloc_r())
 #define vector_alloc_slot(v)	(vector_alloc_slot_r(v))
 #define vector_free(v)		(vector_free_r(v))
-#define vector_compact(v)	(vector_compact_r(v))
-#define vector_copy(v)		(vector_copy_r(v))
 #endif
 
 /* Prototypes */
@@ -72,17 +66,14 @@ extern null_strvec_handler_t unregister_null_strvec_handler(void);
 extern const char *strvec_slot(const vector_t *, size_t);
 extern vector_t *vector_alloc_r(void) __attribute__ ((malloc));
 extern void vector_alloc_slot_r(vector_t *);
-extern vector_t *vector_copy_r(const vector_t *v);
 extern void vector_set_slot(vector_t *, void *);
-extern void vector_unset(vector_t *, unsigned int);
 extern unsigned int vector_count(const vector_t *) __attribute__ ((pure));
 extern void vector_free_r(const vector_t *);
-extern vector_t *vector_compact_r(const vector_t *);
 #ifdef _INCLUDE_UNUSED_CODE_
+extern void vector_unset(vector_t *, unsigned int);
 extern void vector_dump(FILE *, const vector_t *);
 #endif
 extern char *make_strvec_str(const vector_t *, unsigned);
 extern void free_strvec(const vector_t *);
-extern vector_t *strvec_remove_slot(vector_t *, unsigned);
 
 #endif
