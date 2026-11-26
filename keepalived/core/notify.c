@@ -1271,6 +1271,14 @@ set_script_params_array(const vector_t *strvec, notify_script_t *script, unsigne
 	if (!strvec_qe)
 		return;
 
+	if (script->args) {
+		const char *old_cmd = cmd_str(script);
+
+		report_config_error(CONFIG_GENERAL_ERROR, "Duplicate %s - overwriting %s with %s"
+			, strvec_slot(strvec, 0), old_cmd ? old_cmd : "(too long)", strvec_slot(strvec, 1));
+		FREE_CONST(script->args);
+	}
+
 	num_words = vector_size(strvec_qe);
 	for (i = 0; i < num_words; i++)
 		len += strlen(strvec_slot(strvec_qe, i)) + 1;
