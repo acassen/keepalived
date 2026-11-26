@@ -871,6 +871,11 @@ alloc_ssvr(const char *ip, const char *port)
 		return;
 	}
 
+	if (current_vs->s_svr) {
+		report_config_error(CONFIG_GENERAL_ERROR, "Duplicate sorry server - overwriting %s with %s", inet_sockaddrtos(&current_vs->s_svr->addr), ip);
+		FREE(current_vs->s_svr);
+	}
+
 	current_vs->s_svr = new;
 }
 
