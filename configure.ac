@@ -1406,7 +1406,7 @@ AC_CHECK_DECLS([__NR_close_range],
   [
     AC_DEFINE([HAVE_CLOSE_RANGE], [ 1 ], [Have close_range])
     AC_MSG_CHECKING([for close_range() libc function])
-    SAV_FLAGS="$CFLAGS"
+    SAV_CFLAGS="$CFLAGS"
     CFLAGS="$CFLAGS -Werror=implicit-function-declaration"
     AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
 	#ifndef _GNU_SOURCE
