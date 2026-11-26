@@ -153,13 +153,24 @@ vsg_handler(const vector_t *strvec)
 static void
 vs_handler(const vector_t *strvec)
 {
+	const char *param1;
+	const char *param2;
+
 	global_data->have_checker_config = true;
 
 	/* If we are not in the checker process, we don't want any more info */
 	if (!strvec)
 		return;
 
-	current_vs = alloc_vs(strvec_slot(strvec, 1), vector_size(strvec) >= 3 ? strvec_slot(strvec, 2) : NULL);
+	param1 = strvec_slot(strvec, 1);
+
+	/* Only the port of an address is optional, a group name or fwmark is not */
+	if (vector_size(strvec) >= 3 || !strcmp(param1, "group") || !strcmp(param1, "fwmark"))
+		param2 = strvec_slot(strvec, 2);
+	else
+		param2 = NULL;
+
+	current_vs = alloc_vs(param1, param2);
 }
 static void
 vs_end_handler(void)
